@@ -1,21 +1,24 @@
 # OCR de Placas e Previsão de Filas
 
-Case de portfólio da [Rovan Tech](https://rovantech.com.br): um recurso de IA que automatiza o
-check-in de caminhões na guarita de um pátio/porto, lendo a placa por OCR e estimando o tempo de
-espera com base no histórico de entradas.
+> **Projeto de exemplo/portfólio da [Rovan Tech](https://rovantech.com.br)** — não é um sistema
+> em produção nem foi desenvolvido para um cliente real. Serve para demonstrar como a Rovan
+> aborda um problema real de operação usando visão computacional e dados históricos, com uma
+> stack 100% gratuita.
+>
+> O "Porto Baía Verde" citado abaixo é um nome fictício, criado só para este case — não
+> representa nenhum porto real.
 
-> O "Porto Baía Verde" citado abaixo é um nome fictício, criado só para este case de portfólio —
-> não representa o porto de Itaqui nem qualquer outro porto real.
+Um recurso de IA que automatiza o check-in de caminhões na guarita de um pátio/porto, lendo a
+placa por OCR e estimando o tempo de espera com base no histórico de entradas.
 
-## O problema
+## O que o projeto resolve
 
 No cenário do case, o fiscal na guarita do Porto Baía Verde anota manualmente a placa de cada
 caminhão que chega. Isso é lento, sujeito a erro de digitação e não gera nenhum dado histórico
 aproveitável para organizar a fila do pátio.
 
-## A solução
-
-O fiscal aponta a câmera do celular (ou uma câmera fixa) para a placa do caminhão. O sistema:
+A solução: o fiscal aponta a câmera do celular (ou uma câmera fixa) para a placa do caminhão. O
+sistema:
 
 1. Localiza e recorta a placa na imagem (OpenCV)
 2. Lê os caracteres via OCR (Tesseract OCR ou EasyOCR)
@@ -23,24 +26,20 @@ O fiscal aponta a câmera do celular (ou uma câmera fixa) para a placa do camin
 4. Estima o tempo de espera do caminhão com base no histórico recente (média móvel dos
    check-ins salvos)
 
-## Impacto para o cliente
-
-- Elimina a digitação manual da placa
-- Reduz o erro humano no registro de entrada
-- Acelera a entrada de veículos no pátio
-- Gera histórico estruturado, que hoje não existe, como base para decisões futuras (ex:
-  dimensionar melhor os horários de pico)
+**Impacto para o cliente:** elimina a digitação manual da placa, reduz o erro humano no registro
+de entrada, acelera a entrada de veículos no pátio e gera histórico estruturado — que hoje não
+existe — como base para decisões futuras (ex: dimensionar melhor os horários de pico).
 
 ## Stack
 
 100% gratuita — nenhum serviço pago envolvido, roda inteiramente local para demonstração.
 
-| Camada   | Tecnologia                                    |
-| -------- | ---------------------------------------------- |
-| Backend  | Python + FastAPI                                |
-| OCR      | Tesseract OCR ou EasyOCR (open-source) + OpenCV |
-| Frontend | React + Vite                                    |
-| Banco    | PostgreSQL (via Docker)                         |
+| Camada   | Tecnologia                                      |
+| -------- | ------------------------------------------------ |
+| Backend  | Python + FastAPI                                  |
+| OCR      | Tesseract OCR ou EasyOCR (open-source) + OpenCV   |
+| Frontend | React + Vite                                      |
+| Banco    | PostgreSQL (via Docker)                           |
 
 ## Estrutura do repositório
 
@@ -50,6 +49,38 @@ O fiscal aponta a câmera do celular (ou uma câmera fixa) para a placa do camin
 └── frontend/   # Interface React usada pelo fiscal na guarita
 ```
 
+## Como rodar localmente
+
+> 🚧 O código do backend e do frontend ainda está sendo implementado (ver [Status](#status)) —
+> os passos abaixo descrevem o fluxo de desenvolvimento planejado para quando as duas partes
+> estiverem no repositório.
+
+**1. Banco de dados (PostgreSQL via Docker)**
+
+```bash
+docker compose up -d
+```
+
+**2. Backend (FastAPI)**
+
+```bash
+cd backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload
+```
+
+**3. Frontend (React + Vite)**
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Nenhuma chave de API é necessária — o OCR roda localmente com Tesseract/EasyOCR, sem depender de
+serviço pago de terceiros.
+
 ## Como pensamos desenvolver
 
 MVP local, validado com um dataset de teste de placas no padrão Mercosul. A fila estimada é
@@ -58,4 +89,5 @@ depender de nenhuma API paga, o suficiente para rodar 100% local numa demonstra�
 
 ## Status
 
-🚧 Em desenvolvimento — este README descreve o escopo do MVP; a implementação está começando.
+🚧 Em desenvolvimento — este README descreve o escopo do MVP; a implementação do backend e do
+frontend está começando.
