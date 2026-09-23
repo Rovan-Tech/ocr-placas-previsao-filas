@@ -45,8 +45,10 @@ existe — como base para decisões futuras (ex: dimensionar melhor os horários
 
 ```
 .
-├── backend/    # API FastAPI, OCR/OpenCV, cálculo da fila estimada
-└── frontend/   # Interface React usada pelo fiscal na guarita
+├── backend/             # API FastAPI, OCR/OpenCV, cálculo da fila estimada
+├── frontend/            # Interface React usada pelo fiscal na guarita
+├── docker/              # Scripts de inicialização do PostgreSQL
+└── docker-compose.yml   # PostgreSQL local (docker compose up -d)
 ```
 
 ## Como rodar localmente
