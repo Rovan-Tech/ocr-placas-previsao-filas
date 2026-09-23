@@ -5,6 +5,58 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 // input com capture="environment" abre a câmera nativa do aparelho.
 const canUseLiveCamera = Boolean(navigator.mediaDevices?.getUserMedia) && window.isSecureContext
 
+// Fotos de câmera de celular saem facilmente com 8-15 MB em resolução total —
+// muito mais do que o OCR precisa para ler uma placa, e acima do limite de
+// upload do backend (5 MB, ver MAX_UPLOAD_BYTES em backend/app/routers/ocr.py).
+// Redimensiona no navegador antes de enviar, tanto a foto tirada pela câmera
+// ao vivo quanto a escolhida via input (câmera nativa do aparelho ou galeria).
+const MAX_DIMENSION_PX = 1600
+const JPEG_QUALITY = 0.85
+
+function drawScaledCanvas(source: CanvasImageSource, width: number, height: number) {
+  const scale = Math.min(1, MAX_DIMENSION_PX / Math.max(width, height))
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(width * scale)
+  canvas.height = Math.round(height * scale)
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Canvas 2D não suportado neste navegador.')
+  context.drawImage(source, 0, 0, canvas.width, canvas.height)
+  return canvas
+}
+
+function canvasToJpegFile(canvas: HTMLCanvasElement, filename: string) {
+  return new Promise<File>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(new File([blob], filename, { type: 'image/jpeg' })) : reject(new Error('toBlob falhou'))),
+      'image/jpeg',
+      JPEG_QUALITY,
+    )
+  })
+}
+
+function loadImage(file: File) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const url = URL.createObjectURL(file)
+    const image = new Image()
+    image.onload = () => {
+      URL.revokeObjectURL(url)
+      resolve(image)
+    }
+    image.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Não foi possível ler a imagem enviada.'))
+    }
+    image.src = url
+  })
+}
+
+/** Redimensiona uma foto escolhida pelo usuário (input file) antes de enviar. */
+async function resizeImageFile(file: File): Promise<File> {
+  const image = await loadImage(file)
+  const canvas = drawScaledCanvas(image, image.naturalWidth, image.naturalHeight)
+  return canvasToJpegFile(canvas, file.name.replace(/\.\w+$/, '') + '.jpg')
+}
+
 interface CameraCaptureProps {
   onCapture: (file: File) => void
   disabled?: boolean
@@ -47,28 +99,28 @@ export default function CameraCapture({ onCapture, disabled = false }: CameraCap
     }
   }
 
-  function takePhoto() {
+  async function takePhoto() {
     const video = videoRef.current
     if (!video) return
-    const canvas = document.createElement('canvas')
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    canvas.getContext('2d')?.drawImage(video, 0, 0)
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) return
-        stopCamera()
-        onCapture(new File([blob], `placa-${Date.now()}.jpg`, { type: 'image/jpeg' }))
-      },
-      'image/jpeg',
-      0.92,
-    )
+    try {
+      const canvas = drawScaledCanvas(video, video.videoWidth, video.videoHeight)
+      const file = await canvasToJpegFile(canvas, `placa-${Date.now()}.jpg`)
+      stopCamera()
+      onCapture(file)
+    } catch {
+      setCameraError('Não foi possível gerar a foto. Tente novamente.')
+    }
   }
 
-  function handleFile(event: ChangeEvent<HTMLInputElement>) {
+  async function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = ''
-    if (file) onCapture(file)
+    if (!file) return
+    try {
+      onCapture(await resizeImageFile(file))
+    } catch {
+      setCameraError('Não foi possível processar a foto enviada. Tente outra.')
+    }
   }
 
   return (

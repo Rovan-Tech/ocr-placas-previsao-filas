@@ -1,6 +1,6 @@
 ---
 name: prepare-pr
-description: Deixa a branch atual pronta e abre o PR - sincroniza com a main (resolvendo conflito se houver), roda os mesmos checks do CI localmente (pytest no backend; Vitest, Playwright e build no frontend), corrige o que falhar, sobe a branch e cria o PR com título e descrição do que foi feito. Use quando o trabalho na branch estiver pronto para revisão.
+description: Deixa a branch atual pronta e abre o PR - sincroniza com a main (resolvendo conflito se houver), roda os mesmos checks do CI localmente (pytest no backend; Vitest, Playwright e build no frontend), corrige o que falhar, sobe a branch e cria o PR com título e descrição do que foi feito. Use SOMENTE quando o usuário pedir explicitamente para abrir o PR (ex: "abre o PR", "/prepare-pr") — nunca por conta própria ao terminar uma tarefa, pois o usuário precisa testar antes.
 ---
 
 # prepare-pr
@@ -12,6 +12,10 @@ receber push livremente.
 
 ## Pré-condições
 
+- **O usuário pediu explicitamente para abrir o PR** nesta conversa (ex: "abre o PR", "pode
+  subir", `/prepare-pr`). Terminar uma tarefa não é motivo para abrir PR: o usuário precisa
+  testar a mudança antes. Sem pedido explícito, não execute este skill — avise que a mudança
+  está pronta para ser testada e que o PR será aberto quando ele mandar.
 - A branch atual **não pode ser `main`**. Se estiver em `main`, pare e peça para o usuário
   indicar/criar a branch de trabalho antes de continuar — não crie uma branch com nome
   arbitrário sem contexto do que está sendo feito.

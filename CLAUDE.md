@@ -139,6 +139,9 @@ com `--no-server-header` em produção.
 
 ## Antes de abrir PR
 
+**Só abra PR (ou dê push visando abrir um) quando o usuário pedir explicitamente.** Ao terminar
+uma tarefa, pare, avise o que mudou e como testar, e espere o usuário testar e mandar abrir o PR.
+
 A `main` é protegida: só aceita mudanças via PR, com CI passando (lint, testes de backend e
 frontend, build). Rode o skill `/prepare-pr`: ele sincroniza a branch com a `main`, roda
 `/security-check`, os testes do backend (`pytest`) e do frontend (Vitest, Playwright, build),

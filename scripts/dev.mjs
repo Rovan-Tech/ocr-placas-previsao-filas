@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Sobe o ambiente completo de desenvolvimento com um comando só (`npm run dev` na raiz):
-// PostgreSQL (Docker) → migrações → FastAPI (:8000) + Vite (:5173). Ctrl+C encerra tudo.
+// PostgreSQL (Docker) → migrações → FastAPI (:8002) + Vite (:5173). Ctrl+C encerra tudo.
 //
 // Sem dependências: só Node, Python 3, Docker e npm precisam estar instalados.
 
@@ -18,7 +18,7 @@ const IS_WINDOWS = process.platform === 'win32'
 const VENV_BIN = join(BACKEND, '.venv', IS_WINDOWS ? 'Scripts' : 'bin')
 const VENV_PYTHON = join(VENV_BIN, IS_WINDOWS ? 'python.exe' : 'python')
 const FRONTEND_URL = 'http://localhost:5173'
-const BACKEND_URL = 'http://localhost:8000'
+const BACKEND_URL = 'http://localhost:8002'
 
 const COLORS = { db: 34, backend: 32, frontend: 35, dev: 36, error: 31 }
 const color = (name, text) => `\x1b[${COLORS[name] ?? 0}m${text}\x1b[0m`
@@ -191,7 +191,7 @@ process.on('SIGTERM', () => shutdown(0))
 
 const noBrowser = process.argv.includes('--no-open')
 
-await ensurePortFree(8000, 'backend')
+await ensurePortFree(8002, 'backend')
 await ensurePortFree(5173, 'frontend')
 
 startDatabase()
@@ -199,7 +199,7 @@ prepareBackend()
 prepareFrontend()
 
 log('Subindo backend e frontend…')
-startServer('backend', VENV_PYTHON, ['-m', 'uvicorn', 'app.main:app', '--reload', '--port', '8000'], BACKEND)
+startServer('backend', VENV_PYTHON, ['-m', 'uvicorn', 'app.main:app', '--reload', '--port', '8002'], BACKEND)
 startServer('frontend', 'npm', ['run', 'dev', '--', '--port', '5173', '--strictPort'], FRONTEND)
 
 const [backendUp, frontendUp] = await Promise.all([

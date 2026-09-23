@@ -70,8 +70,8 @@ navegador:
 | O quê         | Endereço                     |
 | ------------- | ---------------------------- |
 | App (guarita) | http://localhost:5173        |
-| API           | http://localhost:8000        |
-| Docs da API   | http://localhost:8000/docs   |
+| API           | http://localhost:8002        |
+| Docs da API   | http://localhost:8002/docs   |
 | PostgreSQL    | `localhost:5433` (`ocr`/`ocr`) |
 
 Ctrl+C encerra backend e frontend; o banco continua no Docker (`docker compose stop` para parar).
