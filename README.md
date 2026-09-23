@@ -48,14 +48,38 @@ existe — como base para decisões futuras (ex: dimensionar melhor os horários
 ├── backend/             # API FastAPI, OCR/OpenCV, cálculo da fila estimada
 ├── frontend/            # Interface React usada pelo fiscal na guarita
 ├── docker/              # Scripts de inicialização do PostgreSQL
+├── scripts/dev.mjs      # `npm run dev`: sobe o ambiente inteiro
 └── docker-compose.yml   # PostgreSQL local (docker compose up -d)
 ```
 
 ## Como rodar localmente
 
-> 🚧 O código do backend e do frontend ainda está sendo implementado (ver [Status](#status)) —
-> os passos abaixo descrevem o fluxo de desenvolvimento planejado para quando as duas partes
-> estiverem no repositório.
+Pré-requisitos: [Docker Desktop](https://www.docker.com/products/docker-desktop/) aberto,
+Python 3.11+ e Node 20+.
+
+**Tudo com um comando** (na raiz do repositório):
+
+```bash
+npm run dev
+```
+
+Ele sobe o PostgreSQL no Docker, cria a venv e instala as dependências do backend e do frontend
+quando necessário (`pip install` e `npm ci`), aplica as migrações e roda o FastAPI e o Vite juntos, abrindo o app no
+navegador:
+
+| O quê         | Endereço                     |
+| ------------- | ---------------------------- |
+| App (guarita) | http://localhost:5173        |
+| API           | http://localhost:8000        |
+| Docs da API   | http://localhost:8000/docs   |
+| PostgreSQL    | `localhost:5433` (`ocr`/`ocr`) |
+
+Ctrl+C encerra backend e frontend; o banco continua no Docker (`docker compose stop` para parar).
+A primeira execução demora mais por causa da instalação do EasyOCR; nas seguintes, só reinstala
+o que mudou em `requirements.txt` ou `package-lock.json`. Use `npm run dev -- --no-open` para não
+abrir o navegador.
+
+### Passo a passo manual
 
 **1. Banco de dados (PostgreSQL via Docker)**
 

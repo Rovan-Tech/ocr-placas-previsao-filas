@@ -47,6 +47,11 @@ docker-compose.yml  sobe o PostgreSQL local
 
 ## Comandos
 
+Ambiente inteiro (PostgreSQL + migrações + FastAPI + Vite), na raiz:
+```bash
+npm run dev           # scripts/dev.mjs — Ctrl+C encerra; --no-open não abre o navegador
+```
+
 Backend:
 ```bash
 cd backend
