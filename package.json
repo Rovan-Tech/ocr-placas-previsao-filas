@@ -1,0 +1,12 @@
+{
+  "name": "ocr-placas-previsao-filas",
+  "private": true,
+  "description": "Atalhos da raiz do monorepo. O app em si está em backend/ e frontend/.",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
