@@ -1,4 +1,10 @@
-export default function OcrResult({ result }) {
+import type { OcrUploadResponse } from '../services/api'
+
+interface OcrResultProps {
+  result: OcrUploadResponse
+}
+
+export default function OcrResult({ result }: OcrResultProps) {
   const detections = result.detections ?? []
 
   if (detections.length === 0) {

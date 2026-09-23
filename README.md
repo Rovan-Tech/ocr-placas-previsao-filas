@@ -38,7 +38,7 @@ existe — como base para decisões futuras (ex: dimensionar melhor os horários
 | -------- | ------------------------------------------------ |
 | Backend  | Python + FastAPI                                  |
 | OCR      | Tesseract OCR ou EasyOCR (open-source) + OpenCV   |
-| Frontend | React + Vite                                      |
+| Frontend | React + TypeScript + Vite                         |
 | Banco    | PostgreSQL (via Docker)                           |
 
 ## Estrutura do repositório
@@ -72,7 +72,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-**3. Frontend (React + Vite)**
+**3. Frontend (React + TypeScript + Vite)**
 
 ```bash
 cd frontend

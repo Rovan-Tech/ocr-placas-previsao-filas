@@ -1,11 +1,11 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 
 const PNG_1PX = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
   'base64',
 )
 
-function mockOcr(page, { status = 200, body }) {
+function mockOcr(page: Page, { status = 200, body }: { status?: number; body: unknown }) {
   return page.route('**/api/ocr/upload', (route) =>
     route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) }),
   )
