@@ -8,3 +8,6 @@ numpy
 
 pytest
 httpx
+
+bandit
+pip-audit
