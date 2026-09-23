@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import Layout from './components/Layout.jsx'
-import CapturePage from './pages/CapturePage.jsx'
-import CheckinsPage from './pages/CheckinsPage.jsx'
+import Layout from './components/Layout'
+import CapturePage from './pages/CapturePage'
+import CheckinsPage from './pages/CheckinsPage'
 
 export default function App() {
   return (

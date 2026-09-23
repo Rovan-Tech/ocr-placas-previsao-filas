@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, fetchRecentCheckins, uploadPlateImage } from '../../src/services/api.js'
+import { ApiError, fetchRecentCheckins, uploadPlateImage } from '../../src/services/api'
 
-function mockFetch(response) {
+function mockFetch(response: Response) {
   const fetchMock = vi.fn().mockResolvedValue(response)
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock
 }
 
-function jsonResponse(body, status = 200) {
+function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json' },
@@ -27,11 +27,11 @@ describe('uploadPlateImage', () => {
     const result = await uploadPlateImage(file)
 
     expect(result).toEqual(body)
-    const [url, options] = fetchMock.mock.calls[0]
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(url).toBe('/api/ocr/upload')
     expect(options.method).toBe('POST')
     expect(options.body).toBeInstanceOf(FormData)
-    expect(options.body.get('file').name).toBe('placa.jpg')
+    expect(((options.body as FormData).get('file') as File).name).toBe('placa.jpg')
   })
 
   it('usa o detail do FastAPI como mensagem de erro', async () => {
@@ -49,6 +49,7 @@ describe('uploadPlateImage', () => {
 
     const error = await uploadPlateImage(new File(['x'], 'a.jpg')).catch((err) => err)
 
+    expect(error).toBeInstanceOf(ApiError)
     expect(error.status).toBe(500)
     expect(error.message).toBe('Erro 500 ao chamar o backend.')
   })
@@ -70,7 +71,7 @@ describe('fetchRecentCheckins', () => {
 
     await fetchRecentCheckins()
 
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/checkins?limit=20')
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/checkins?limit=20')
   })
 
   it('repassa o limite informado', async () => {
@@ -78,6 +79,6 @@ describe('fetchRecentCheckins', () => {
 
     await fetchRecentCheckins({ limit: 5 })
 
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/checkins?limit=5')
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/checkins?limit=5')
   })
 })

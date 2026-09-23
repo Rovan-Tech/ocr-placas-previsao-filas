@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
 
@@ -9,7 +10,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     test: {
-      include: ['tests/unit/**/*.test.js'],
+      include: ['tests/unit/**/*.test.ts'],
     },
     server: {
       // host: true expõe o dev server na rede local, para abrir no celular.
@@ -20,7 +21,7 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: backendUrl,
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, ''),
+          rewrite: (path: string) => path.replace(/^\/api/, ''),
         },
       },
     },
