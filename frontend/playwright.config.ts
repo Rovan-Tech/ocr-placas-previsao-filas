@@ -16,7 +16,12 @@ export default defineConfig({
       args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
     },
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    // O fiscal usa o celular na guarita: roda a mesma suíte também em viewport
+    // mobile (Pixel 5, Chromium) para pegar quebra de layout e toque.
+    { name: 'mobile-chrome', use: { ...devices['Pixel 5'] } },
+  ],
   // O backend é mockado nos testes (page.route), então só sobe o Vite.
   webServer: {
     command: `npx vite --port ${PORT} --strictPort`,
