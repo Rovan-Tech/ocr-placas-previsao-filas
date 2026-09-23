@@ -1,18 +1,23 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 
 // getUserMedia só funciona em contexto seguro (HTTPS ou localhost). Quando não
 // está disponível — ex.: celular acessando o dev server pelo IP da rede —, o
 // input com capture="environment" abre a câmera nativa do aparelho.
 const canUseLiveCamera = Boolean(navigator.mediaDevices?.getUserMedia) && window.isSecureContext
 
-export default function CameraCapture({ onCapture, disabled }) {
-  const videoRef = useRef(null)
-  const streamRef = useRef(null)
-  const fileInputRef = useRef(null)
+interface CameraCaptureProps {
+  onCapture: (file: File) => void
+  disabled?: boolean
+}
+
+export default function CameraCapture({ onCapture, disabled = false }: CameraCaptureProps) {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [cameraOn, setCameraOn] = useState(false)
   // Só dá para capturar depois que o vídeo tem frames (videoWidth > 0).
   const [videoReady, setVideoReady] = useState(false)
-  const [cameraError, setCameraError] = useState(null)
+  const [cameraError, setCameraError] = useState<string | null>(null)
 
   function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop())
@@ -31,11 +36,11 @@ export default function CameraCapture({ onCapture, disabled }) {
         audio: false,
       })
       streamRef.current = stream
-      videoRef.current.srcObject = stream
+      if (videoRef.current) videoRef.current.srcObject = stream
       setCameraOn(true)
     } catch (error) {
       setCameraError(
-        error.name === 'NotAllowedError'
+        error instanceof DOMException && error.name === 'NotAllowedError'
           ? 'Permissão da câmera negada. Libere o acesso ou envie uma foto.'
           : 'Não foi possível abrir a câmera. Envie uma foto do aparelho.',
       )
@@ -44,10 +49,11 @@ export default function CameraCapture({ onCapture, disabled }) {
 
   function takePhoto() {
     const video = videoRef.current
+    if (!video) return
     const canvas = document.createElement('canvas')
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
-    canvas.getContext('2d').drawImage(video, 0, 0)
+    canvas.getContext('2d')?.drawImage(video, 0, 0)
     canvas.toBlob(
       (blob) => {
         if (!blob) return
@@ -59,7 +65,7 @@ export default function CameraCapture({ onCapture, disabled }) {
     )
   }
 
-  function handleFile(event) {
+  function handleFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (file) onCapture(file)
@@ -93,7 +99,7 @@ export default function CameraCapture({ onCapture, disabled }) {
           <button
             type="button"
             className={canUseLiveCamera ? '' : 'primary'}
-            onClick={() => fileInputRef.current.click()}
+            onClick={() => fileInputRef.current?.click()}
             disabled={disabled}
           >
             {canUseLiveCamera ? 'Enviar foto do aparelho' : 'Fotografar placa'}

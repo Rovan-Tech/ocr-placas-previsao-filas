@@ -59,8 +59,8 @@ Convenções:
 
 ## Contrato com o frontend
 
-O frontend (React, em `../frontend`) chama o backend pelo proxy `/api` do Vite, então não há
-CORS configurado. Endpoints consumidos hoje:
+O frontend (React + TypeScript, em `../frontend`) chama o backend pelo proxy `/api` do Vite,
+então não há CORS configurado. Endpoints consumidos hoje:
 
 | Endpoint             | Resposta                                                                      |
 | -------------------- | ----------------------------------------------------------------------------- |
@@ -69,7 +69,7 @@ CORS configurado. Endpoints consumidos hoje:
 
 `GET /checkins` aceita `?limit=` (o frontend envia `20`), ordenado do mais recente para o mais
 antigo, com `created_at` em ISO 8601. Ao mudar esse formato, atualizar também
-`frontend/src/services/api.js` e `frontend/README.md`.
+`frontend/src/services/api.ts` e `frontend/README.md`.
 
 ## Próximos passos planejados
 

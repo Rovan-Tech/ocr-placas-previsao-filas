@@ -20,7 +20,8 @@ construído com qualidade de produção para servir de portfólio técnico.
 - **Backend**: Python + FastAPI
 - **OCR**: Tesseract OCR ou EasyOCR (open-source, sem custo de API) + OpenCV para localizar e
   recortar a placa na imagem antes do OCR
-- **Frontend**: React (Vite)
+- **Frontend**: React + TypeScript (Vite), em modo `strict` — código novo é sempre `.ts`/`.tsx`,
+  sem `any` implícito; os tipos das respostas da API ficam em `src/services/api.ts`
 - **Banco de dados**: PostgreSQL (via Docker Compose em desenvolvimento)
 - **Testes backend**: pytest
 - **Testes frontend**: Vitest (unitário) + Playwright (e2e)
@@ -65,7 +66,7 @@ npm install
 npm run dev
 npm run test          # Vitest
 npm run test:e2e      # Playwright (1ª vez: npx playwright install chromium)
-npm run build
+npm run build         # tsc -b (checagem de tipos) + vite build
 npm audit --audit-level=high
 ```
 

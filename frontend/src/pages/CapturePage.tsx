@@ -1,23 +1,25 @@
 import { useState } from 'react'
-import CameraCapture from '../components/CameraCapture.jsx'
-import OcrResult from '../components/OcrResult.jsx'
-import { uploadPlateImage } from '../services/api.js'
+import CameraCapture from '../components/CameraCapture'
+import OcrResult from '../components/OcrResult'
+import { uploadPlateImage, type OcrUploadResponse } from '../services/api'
+
+type Status = 'idle' | 'sending' | 'done' | 'error'
 
 export default function CapturePage() {
-  const [photo, setPhoto] = useState(null)
-  const [previewUrl, setPreviewUrl] = useState(null)
-  const [status, setStatus] = useState('idle') // idle | sending | done | error
-  const [result, setResult] = useState(null)
-  const [error, setError] = useState(null)
+  const [photo, setPhoto] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [status, setStatus] = useState<Status>('idle')
+  const [result, setResult] = useState<OcrUploadResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  function showPreview(file) {
+  function showPreview(file: File | null) {
     setPreviewUrl((previous) => {
       if (previous) URL.revokeObjectURL(previous)
       return file ? URL.createObjectURL(file) : null
     })
   }
 
-  async function handleCapture(file) {
+  async function handleCapture(file: File) {
     if (file !== photo) showPreview(file)
     setPhoto(file)
     setResult(null)
@@ -27,7 +29,7 @@ export default function CapturePage() {
       setResult(await uploadPlateImage(file))
       setStatus('done')
     } catch (err) {
-      setError(err.message)
+      setError(err instanceof Error ? err.message : 'Erro inesperado ao ler a placa.')
       setStatus('error')
     }
   }
@@ -53,7 +55,7 @@ export default function CapturePage() {
 
           {status === 'sending' && <p className="message">Lendo a placa…</p>}
           {status === 'error' && <p className="message error">{error}</p>}
-          {status === 'done' && <OcrResult result={result} />}
+          {status === 'done' && result && <OcrResult result={result} />}
 
           <div className="camera-actions">
             {status === 'error' && (

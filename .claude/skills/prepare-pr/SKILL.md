@@ -67,7 +67,8 @@ origin/main..HEAD --oneline` para entender o que já foi commitado nesta branch.
    npm install
    npm run test        # Vitest
    npm run test:e2e    # Playwright — requer `npx playwright install chromium` na 1ª vez
-   npm run build
+   npm run lint        # oxlint
+   npm run build       # tsc -b (tipos) + vite build
    ```
 
    Testes que dependem do PostgreSQL precisam do banco no ar (`docker compose up -d` na raiz).
@@ -105,7 +106,8 @@ origin/main..HEAD --oneline` para entender o que já foi commitado nesta branch.
    - [x] pytest (backend)
    - [x] npm run test (frontend)
    - [x] npm run test:e2e (frontend)
-   - [x] npm run build (frontend)
+   - [x] npm run lint (frontend)
+   - [x] npm run build (frontend, inclui tsc)
 
    ## Security
    - [x] bandit / pip-audit / npm audit

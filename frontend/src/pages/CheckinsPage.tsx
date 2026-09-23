@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchRecentCheckins } from '../services/api.js'
+import { ApiError, fetchRecentCheckins, type Checkin } from '../services/api'
 
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 
 export default function CheckinsPage() {
-  const [checkins, setCheckins] = useState([])
+  const [checkins, setCheckins] = useState<Checkin[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(() => {
     fetchRecentCheckins()
@@ -14,18 +14,20 @@ export default function CheckinsPage() {
         setCheckins(Array.isArray(data) ? data : (data?.items ?? []))
         setError(null)
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         setError(
-          err.status === 404
+          err instanceof ApiError && err.status === 404
             ? 'O endpoint de check-ins (GET /checkins) ainda não existe no backend.'
-            : err.message,
+            : err instanceof Error
+              ? err.message
+              : 'Erro inesperado ao carregar os check-ins.',
         )
       })
       .finally(() => setLoading(false))
   }, [])
 
   // O estado inicial já é "carregando"; o botão Atualizar faz o reset antes de chamar.
-  useEffect(load, [load])
+  useEffect(() => load(), [load])
 
   function handleRefresh() {
     setLoading(true)

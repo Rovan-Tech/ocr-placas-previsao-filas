@@ -1,6 +1,6 @@
 # Frontend
 
-Interface em React (Vite) usada pelo fiscal na guarita:
+Interface em React + TypeScript (Vite) usada pelo fiscal na guarita:
 
 - Captura da foto da placa (câmera do celular/navegador) e envio para o OCR do backend
 - Lista dos check-ins recentes
@@ -15,7 +15,7 @@ npm run dev
 ```
 
 O app sobe em `http://localhost:5173`. O dev server repassa as chamadas de `/api/*` para o
-backend (proxy em `vite.config.js`), então não é preciso configurar CORS no FastAPI. Para apontar
+backend (proxy em `vite.config.ts`), então não é preciso configurar CORS no FastAPI. Para apontar
 para outro endereço, copie `.env.example` para `.env` e ajuste `VITE_BACKEND_URL`.
 
 ### Testando no celular
@@ -31,7 +31,7 @@ O dev server fica exposto na rede local (`host: true`), então dá para abrir
 src/
 ├── components/   # Layout, CameraCapture (câmera + upload), OcrResult
 ├── pages/        # CapturePage (/), CheckinsPage (/checkins)
-└── services/     # api.js — chamadas ao backend
+└── services/     # api.ts — chamadas ao backend e tipos das respostas
 tests/
 ├── unit/         # Vitest — src/services
 └── e2e/          # Playwright — fluxos de captura e listagem (backend mockado com page.route)
@@ -51,7 +51,8 @@ lista.
 ## Scripts
 
 - `npm run dev` — servidor de desenvolvimento
-- `npm run build` — build de produção em `dist/`
+- `npm run build` — checagem de tipos (`tsc -b`) + build de produção em `dist/`
+- `npm run typecheck` — só a checagem de tipos
 - `npm run lint` — lint com oxlint
 - `npm run test` — testes unitários (Vitest)
 - `npm run test:e2e` — testes e2e (Playwright; na primeira vez, rode `npx playwright install chromium`).
