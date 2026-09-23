@@ -13,3 +13,6 @@ pydantic-settings
 
 pytest
 httpx
+
+bandit
+pip-audit
