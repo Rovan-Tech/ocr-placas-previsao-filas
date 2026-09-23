@@ -7,7 +7,7 @@ Interface em React + TypeScript (Vite) usada pelo fiscal na guarita:
 
 ## Rodando localmente
 
-Com o backend já rodando em `http://localhost:8000` (ver `backend/README.md`):
+Com o backend já rodando em `http://localhost:8002` (ver `backend/README.md`):
 
 ```bash
 npm install

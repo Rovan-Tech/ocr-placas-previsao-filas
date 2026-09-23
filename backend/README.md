@@ -25,13 +25,13 @@ Depois, dentro de `backend/`:
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 alembic upgrade head          # cria/atualiza as tabelas
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port 8002
 ```
 
 A URL do banco vem de `DATABASE_URL` (padrão em `app/config.py`, já alinhado ao compose). Para
 mudar, copie `.env.example` para `.env`.
 
-A API sobe em `http://localhost:8000` (`/docs` para a documentação interativa do Swagger).
+A API sobe em `http://localhost:8002` (`/docs` para a documentação interativa do Swagger).
 
 ## Testes
 

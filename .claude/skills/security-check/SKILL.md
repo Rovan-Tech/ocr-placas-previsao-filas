@@ -54,8 +54,8 @@ Leia o diff e procure, no mínimo:
 
 ## 4. Pentest da API local
 
-Suba a API em outro processo (`uvicorn app.main:app --port 8000`, em background) e ataque
-**apenas `http://127.0.0.1:8000`**. Para cada endpoint relevante, tente:
+Suba a API em outro processo (`uvicorn app.main:app --port 8002`, em background) e ataque
+**apenas `http://127.0.0.1:8002`**. Para cada endpoint relevante, tente:
 
 | Ataque | Exemplo | Esperado |
 |---|---|---|
