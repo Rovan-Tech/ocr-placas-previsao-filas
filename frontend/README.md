@@ -32,6 +32,9 @@ src/
 ├── components/   # Layout, CameraCapture (câmera + upload), OcrResult
 ├── pages/        # CapturePage (/), CheckinsPage (/checkins)
 └── services/     # api.js — chamadas ao backend
+tests/
+├── unit/         # Vitest — src/services
+└── e2e/          # Playwright — fluxos de captura e listagem (backend mockado com page.route)
 ```
 
 ## Integração com o backend
@@ -50,3 +53,7 @@ lista.
 - `npm run dev` — servidor de desenvolvimento
 - `npm run build` — build de produção em `dist/`
 - `npm run lint` — lint com oxlint
+- `npm run test` — testes unitários (Vitest)
+- `npm run test:e2e` — testes e2e (Playwright; na primeira vez, rode `npx playwright install chromium`).
+  Os testes sobem o próprio Vite na porta 4173 e mockam o backend, então não precisam do FastAPI
+  rodando. A câmera é simulada pelo Chromium (`--use-fake-device-for-media-stream`).

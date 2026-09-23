@@ -8,6 +8,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    test: {
+      include: ['tests/unit/**/*.test.js'],
+    },
     server: {
       // host: true expõe o dev server na rede local, para abrir no celular.
       host: true,

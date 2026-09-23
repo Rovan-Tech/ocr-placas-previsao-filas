@@ -10,12 +10,15 @@ export default function CameraCapture({ onCapture, disabled }) {
   const streamRef = useRef(null)
   const fileInputRef = useRef(null)
   const [cameraOn, setCameraOn] = useState(false)
+  // Só dá para capturar depois que o vídeo tem frames (videoWidth > 0).
+  const [videoReady, setVideoReady] = useState(false)
   const [cameraError, setCameraError] = useState(null)
 
   function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop())
     streamRef.current = null
     setCameraOn(false)
+    setVideoReady(false)
   }
 
   useEffect(() => stopCamera, [])
@@ -65,7 +68,7 @@ export default function CameraCapture({ onCapture, disabled }) {
   return (
     <div className="camera">
       <div className={`camera-viewport ${cameraOn ? 'is-on' : ''}`}>
-        <video ref={videoRef} autoPlay playsInline muted />
+        <video ref={videoRef} autoPlay playsInline muted onLoadedData={() => setVideoReady(true)} />
         {!cameraOn && <p className="camera-placeholder">Aponte a câmera para a placa do caminhão</p>}
         {cameraOn && <div className="camera-guide" aria-hidden="true" />}
       </div>
@@ -80,7 +83,7 @@ export default function CameraCapture({ onCapture, disabled }) {
         )}
         {cameraOn && (
           <>
-            <button type="button" className="primary" onClick={takePhoto} disabled={disabled}>
+            <button type="button" className="primary" onClick={takePhoto} disabled={disabled || !videoReady}>
               Tirar foto
             </button>
             <button type="button" onClick={stopCamera}>Cancelar</button>
