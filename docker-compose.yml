@@ -1,0 +1,25 @@
+# Banco local de desenvolvimento. Sobe com: docker compose up -d
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: ocr-placas-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ocr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ocr}
+      POSTGRES_DB: ${POSTGRES_DB:-ocr_placas}
+    ports:
+      # 5433 no host para não conflitar com um PostgreSQL já instalado na máquina.
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Scripts rodados só na primeira criação do volume (cria o banco de testes).
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
