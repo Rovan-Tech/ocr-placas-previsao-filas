@@ -90,3 +90,31 @@ test('avisa quando o OCR não encontra texto', async ({ page }) => {
 
   await expect(page.getByText(/Nenhum texto foi lido na imagem/)).toBeVisible()
 })
+
+test('reduz o tamanho de uma foto grande do celular antes de enviar', async ({ page }) => {
+  let uploadedBytes = 0
+  await page.route('**/api/ocr/upload', (route) => {
+    uploadedBytes = route.request().postDataBuffer()?.length ?? 0
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ filename: 'placa.jpg', detections: [{ text: 'ABC1D23', confidence: 0.9 }] }),
+    })
+  })
+  await page.goto('/')
+
+  // Simula uma foto de celular: um PNG válido "inflado" com bytes extras depois
+  // do IEND (o navegador ignora o lixo ao decodificar), reproduzindo o caso real
+  // de fotos de câmera saindo com 8+ MB — acima do limite de 5 MB do backend
+  // (MAX_UPLOAD_BYTES em backend/app/routers/ocr.py).
+  const oversizedPng = Buffer.concat([PNG_1PX, Buffer.alloc(6 * 1024 * 1024)])
+  expect(oversizedPng.byteLength).toBeGreaterThan(5 * 1024 * 1024)
+
+  const fileChooserPromise = page.waitForEvent('filechooser')
+  await page.getByRole('button', { name: 'Enviar foto do aparelho' }).click()
+  await (await fileChooserPromise).setFiles({ name: 'foto-celular.png', mimeType: 'image/png', buffer: oversizedPng })
+
+  await expect(page.getByText('ABC1D23')).toBeVisible()
+  // O redimensionamento no navegador precisa deixar o upload bem abaixo do limite de 5 MB.
+  expect(uploadedBytes).toBeGreaterThan(0)
+  expect(uploadedBytes).toBeLessThan(1024 * 1024)
+})
