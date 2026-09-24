@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -58,10 +58,16 @@ def _require_admin(employee: Employee = Depends(get_current_employee)) -> Employ
     return employee
 
 
-def _check_password_length(password: str) -> str:
+def _require_min_password_length(password: str) -> None:
+    # Checado no handler, não num field_validator: um ValueError de field_validator vira um 422
+    # do Pydantic que ecoa o valor recebido (`"input": "<a senha inteira>"`) na resposta — expor
+    # de volta uma senha que o cliente acabou de digitar é o tipo de reflexão que a política de
+    # segurança do projeto proíbe, mesmo quando a senha em si é só "curta demais".
     if len(password) < MIN_PASSWORD_LENGTH:
-        raise ValueError(f"A senha precisa ter pelo menos {MIN_PASSWORD_LENGTH} caracteres.")
-    return password
+        raise HTTPException(
+            status_code=422,
+            detail=f"A senha precisa ter pelo menos {MIN_PASSWORD_LENGTH} caracteres.",
+        )
 
 
 def _get_employee_or_404(db: Session, employee_id: int) -> Employee:
@@ -77,20 +83,10 @@ class CreateEmployeeRequest(BaseModel):
     temporary_password: str
     is_admin: bool = False
 
-    @field_validator("temporary_password")
-    @classmethod
-    def _validate_temporary_password(cls, value: str) -> str:
-        return _check_password_length(value)
-
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
-
-    @field_validator("new_password")
-    @classmethod
-    def _validate_new_password(cls, value: str) -> str:
-        return _check_password_length(value)
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -122,6 +118,7 @@ def change_password(
     dias. É o único endpoint que uma sessão com troca pendente pode chamar."""
     if not verify_password(payload.current_password, employee.password_hash):
         raise HTTPException(status_code=401, detail="Senha atual incorreta.")
+    _require_min_password_length(payload.new_password)
 
     employee.password_hash = hash_password(payload.new_password)
     employee.must_change_password = False
@@ -149,6 +146,7 @@ def create_employee(
     No primeiro acesso, o próprio funcionário troca essa senha temporária pela definitiva."""
     if db.query(Employee).filter(Employee.username == payload.username).first() is not None:
         raise HTTPException(status_code=409, detail="Já existe um funcionário com esse usuário.")
+    _require_min_password_length(payload.temporary_password)
 
     employee = Employee(
         username=payload.username,

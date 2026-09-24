@@ -199,3 +199,64 @@ def test_photo_path_traversal_is_rejected():
 
     assert resolve_photo_path("../../../../etc/passwd") is None
     assert resolve_photo_path("/etc/passwd") is None
+
+
+class TestPasswordValidationDoesNotReflectTheInput:
+    """Uma senha curta demais é rejeitada (422), mas o erro nunca pode devolver de volta a senha
+    que o cliente acabou de digitar — nem sem querer, dentro da mensagem de validação (ver
+    _require_min_password_length em app/routers/auth.py)."""
+
+    @pytest.fixture
+    def admin(self, db_session):
+        from app.models import Employee
+        from app.services.auth import hash_password
+
+        record = Employee(
+            username="admin.seguranca.teste",
+            full_name="Admin de Segurança",
+            password_hash=hash_password("senhaAdminForte1"),
+            is_admin=True,
+            must_change_password=False,
+        )
+        db_session.add(record)
+        db_session.flush()
+        db_session.refresh(record)
+        return record
+
+    @pytest.fixture
+    def db_client(self, db_session):
+        app.dependency_overrides[get_db] = lambda: db_session
+        try:
+            yield TestClient(app)
+        finally:
+            del app.dependency_overrides[get_db]
+
+    def test_create_employee_does_not_echo_a_short_temporary_password(self, admin, db_client):
+        from app.services.auth import create_access_token
+
+        short_password = "curta1"
+        response = db_client.post(
+            "/auth/employees",
+            headers={"Authorization": f"Bearer {create_access_token(admin)}"},
+            json={
+                "username": "fiscal.seguranca.teste",
+                "full_name": "Fiscal Novo",
+                "temporary_password": short_password,
+            },
+        )
+
+        assert response.status_code == 422
+        assert short_password not in response.text
+
+    def test_change_password_does_not_echo_a_short_new_password(self, employee, db_client):
+        from app.services.auth import create_access_token
+
+        short_password = "curta2"
+        response = db_client.post(
+            "/auth/change-password",
+            headers={"Authorization": f"Bearer {create_access_token(employee)}"},
+            json={"current_password": "s3nhaSegura!", "new_password": short_password},
+        )
+
+        assert response.status_code == 422
+        assert short_password not in response.text
