@@ -10,8 +10,10 @@ pagas, testes obrigatórios, fluxo de PR) estão no `CLAUDE.md` da raiz e valem 
 - EasyOCR para ler os caracteres — escolhido no lugar do Tesseract porque instala 100% via pip,
   sem binário de sistema. Roda com `gpu=False` para não depender de hardware específico.
 - pytest + `httpx` (via `TestClient` do FastAPI) para os testes
-- PostgreSQL + SQLAlchemy + Alembic (modelos em `app/models/`: `CheckIn`, `Employee`, `UploadLog`)
+- PostgreSQL + SQLAlchemy + Alembic (modelos em `app/models/`: `CheckIn`, `Employee`, `Schedule`,
+  `UploadLog`)
 - `bcrypt` (hash de senha) + `pyjwt` (token de login) — ver "Login e auditoria" abaixo
+- `httpx` (async) para a API Brasil (consulta de dados do veículo) — ver "Check-in inteligente" abaixo
 
 ## Comandos
 
@@ -39,7 +41,9 @@ app/
     plate_verification.py   ponto de integração com a base oficial (hoje: not_checked)
     auth.py                 hash/verificação de senha, JWT, dependência get_current_employee
     photo_storage.py        salva/lê a foto de resguardo em disco (nunca no banco)
-  models/         modelos SQLAlchemy (CheckIn, Employee, UploadLog)
+    schedule_matching.py    cruza a placa lida com os agendamentos (hoje/adiantado/atrasado)
+    vehicle_data_api.py     cliente da API Brasil (marca/modelo/ano/UF/cor), com fallback gracioso
+  models/         modelos SQLAlchemy (CheckIn, Employee, Schedule, UploadLog)
 tests/            um arquivo test_<módulo>.py por router/service
 ```
 
@@ -119,6 +123,40 @@ Convenções:
   dependência transitiva, `ecdsa`, por causa de algoritmos ECDSA que este projeto não usa). Use
   `pyjwt`.
 
+## Check-in inteligente (agendamento + dados do veículo)
+
+- **Duas fontes, cruzadas pela placa.** `match_schedule_for_plate` (`schedule_matching.py`)
+  procura agendamento pra placa lida; `get_vehicle_data_provider().lookup(plate)`
+  (`vehicle_data_api.py`) consulta a API Brasil. `_build_checkin_context` em `ocr.py` chama as
+  duas sempre que uma placa em formato válido foi lida (OCR ou digitação manual) e monta
+  `PlateReadResponse.checkin` — `None` só quando nenhuma placa foi lida.
+- **Regra de status do agendamento**: `on_time` (hoje), `early` (data agendada no futuro),
+  `late` (data agendada no passado). Com mais de um agendamento pra mesma placa,
+  `match_schedule_for_plate` usa o mais próximo de hoje.
+- **A consulta externa roda sempre**, mesmo com agendamento — ela entra como confirmação/
+  complemento (marca/modelo/ano/UF/cor), não substitui o agendamento. Isso consome a cota
+  diária da API Brasil (100/dia no plano free) em toda leitura de placa válida, de propósito
+  (ver o pedido original da feature) — se a cota se mostrar curta, ajustar aqui antes de trocar
+  de fornecedor.
+- **Nunca derruba o check-in.** `ApiBrasilVehicleDataProvider.lookup` nunca levanta exceção:
+  timeout, erro de rede, 429, status != 200, JSON malformado ou placa não encontrada viram
+  `None` (com log), e sem os tokens configurados (`API_BRASIL_DEVICE_TOKEN`/
+  `API_BRASIL_BEARER_TOKEN` vazios) o factory já devolve `NotConfiguredVehicleDataProvider`,
+  que nem tenta a chamada — mesmo padrão do `NotConfiguredVerifier` em `plate_verification.py`.
+- **Motorista e documento do motorista vêm só do agendamento interno, nunca da API externa** —
+  nenhuma API pública de placa devolve esse dado (é restrito Detran/RENAVAM). O parser de
+  `vehicle_data_api.py` só extrai marca/modelo/ano/UF/cor.
+- **Nomes exatos dos campos da resposta da API Brasil não confirmados**: a documentação
+  (`doc.apibrasil.io`) fica atrás de login. `_parse_vehicle_data` tenta variações comuns
+  (maiúscula/minúscula, com/sem wrapper `dados`/`response`/`resposta`) — conferir contra uma
+  resposta real assim que existir conta de teste, e ajustar `_BRAND_KEYS`/`_MODEL_KEYS`/etc. se
+  necessário.
+- **Fotos de documento (motorista/veículo) seguem a mesma regra de upload do resto do
+  projeto**: tipo e tamanho validados, nunca salvas com o nome enviado pelo cliente
+  (`photo_storage.py`, subpasta `schedules`), nunca em bytea no banco.
+- `POST /schedules` e `GET /schedules` exigem login (`get_current_employee`), sem gate de
+  admin — cadastro de agendamento é dado operacional, não gestão de funcionário.
+
 ## Contrato com o frontend
 
 O frontend (React + TypeScript, em `../frontend`) chama o backend pelo proxy `/api` do Vite,
@@ -133,11 +171,22 @@ então não há CORS configurado. Toda chamada abaixo, exceto `/auth/login`, exi
 | `POST /auth/employees`  | Mesma forma de `/auth/me`, a partir de `{ username, full_name, temporary_password, is_admin? }` |
 | `GET /auth/employees`   | Lista de `EmployeeOut` (com `active`) |
 | `DELETE /auth/employees/{id}` | Mesma forma de `/auth/me`, com `active: false` |
-| `POST /ocr/upload`      | `{ filename, plate, plate_format, confidence, needs_review, verification, detections }` (ver `PlateReadResponse` em `app/routers/ocr.py` e o `README.md`) |
+| `POST /ocr/upload`      | `{ filename, plate, plate_format, confidence, needs_review, verification, detections, checkin }` (ver `PlateReadResponse` em `app/routers/ocr.py` e o `README.md`) |
 | `POST /ocr/manual`      | Mesma forma acima + `audit_saved`, a partir de `multipart/form-data` (`plate`, `photo?`, `ocr_plate?`, `ocr_confidence?`) — sempre `confidence: 1.0`, `needs_review: false`, `detections: []`; formato inválido é 400 |
 | `GET /logs`             | Lista de `{ id, employee_id, employee_username, endpoint, client_ip, ocr_plate, ocr_confidence, manual_plate, final_plate, final_plate_format, needs_review, has_photo, created_at }` |
 | `GET /logs/{id}/photo`  | Arquivo da foto de resguardo (404 se não houver) |
+| `POST /schedules`       | `ScheduleOut` (`{ id, plate, driver_name, driver_document, has_driver_document_photo, has_vehicle_document_photo, cargo_type, scheduled_date, created_at }`), a partir de `multipart/form-data` (`plate`, `driver_name`, `driver_document`, `cargo_type`, `scheduled_date`, `driver_document_photo?`, `vehicle_document_photo?`) |
+| `GET /schedules`        | Lista de `ScheduleOut`; aceita `?plate=` pra filtrar |
+| `GET /schedules/{id}/driver-document-photo` | Arquivo da foto do documento do motorista (404 se não houver) |
+| `GET /schedules/{id}/vehicle-document-photo` | Arquivo da foto do documento do veículo (404 se não houver) |
 | `GET /checkins`         | **a criar** — lista de `{ id, plate, created_at, estimated_wait_minutes }`   |
+
+`checkin` em `PlateReadResponse` é `null` quando nenhuma placa em formato válido foi lida, ou
+`{ found, schedule, vehicle_data }`: `schedule` é `null` sem agendamento, senão `{ driver_name,
+driver_document, has_driver_document_photo, has_vehicle_document_photo, cargo_type,
+scheduled_date, status }` (`status`: `"on_time" | "early" | "late"`); `vehicle_data` é `null`
+sem retorno da API Brasil, senão `{ brand, model, year, uf, color }` (qualquer campo pode vir
+`null` se a API Brasil não devolveu).
 
 `GET /checkins` aceita `?limit=` (o frontend envia `20`), ordenado do mais recente para o mais
 antigo, com `created_at` em ISO 8601. Ao mudar esse formato, atualizar também
