@@ -103,11 +103,13 @@ jobs:
           VITE_BACKEND_URL: ${{ needs.deploy-backend.outputs.backend_url }}
         run: npm run build
 
+      # cloudflare/pages-action foi descontinuada e removida do GitHub em 2026;
+      # a migração oficial da Cloudflare é pro wrangler-action rodando
+      # `wrangler pages deploy`.
       - name: Deploy no Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: ocr-placas
-          directory: frontend/dist
-          branch: main
+          command: pages deploy dist --project-name=ocr-placas --branch=main
+          workingDirectory: frontend
