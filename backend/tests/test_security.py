@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
+from app.config import settings
 from app.main import SECURITY_HEADERS, app
 from app.routers.ocr import MAX_UPLOAD_BYTES
 from app.services import ocr_service
@@ -25,6 +26,50 @@ def test_cors_does_not_allow_arbitrary_origins():
     response = client.get("/health", headers={"Origin": "https://evil.example"})
 
     assert "access-control-allow-origin" not in response.headers
+
+
+def test_cors_never_configured_with_wildcard_and_credentials():
+    # allow_origins=["*"] junto de allow_credentials=True é a combinação
+    # proibida (CLAUDE.md) — o middleware do CORS nem deixaria o navegador
+    # aceitar isso, mas garantimos aqui que nunca configuramos assim.
+    cors_middleware = next(
+        m for m in app.user_middleware if m.cls.__name__ == "CORSMiddleware"
+    )
+    assert cors_middleware.kwargs.get("allow_credentials") is False
+    assert "*" not in cors_middleware.kwargs.get("allow_origins", [])
+
+
+@pytest.mark.parametrize(
+    "origins_env,expected",
+    [
+        ("", []),
+        ("https://ocr-placas.pages.dev", ["https://ocr-placas.pages.dev"]),
+        (
+            "https://a.example, https://b.example",
+            ["https://a.example", "https://b.example"],
+        ),
+    ],
+)
+def test_frontend_origins_list_parses_comma_separated_env(monkeypatch, origins_env, expected):
+    monkeypatch.setattr(settings, "frontend_origins", origins_env)
+
+    assert settings.frontend_origins_list == expected
+
+
+def test_rate_limits_ocr_upload_per_ip(monkeypatch):
+    monkeypatch.setattr(settings, "ocr_upload_rate_limit", "2/minute")
+
+    with patch("app.routers.ocr.read_plate_text", return_value=[]):
+        responses = [
+            client.post(
+                "/ocr/upload",
+                files={"file": ("placa.jpg", b"fake-image-bytes", "image/jpeg")},
+            )
+            for _ in range(3)
+        ]
+
+    assert [r.status_code for r in responses[:2]] == [200, 200]
+    assert responses[2].status_code == 429
 
 
 @patch("app.routers.ocr.read_plate_text")

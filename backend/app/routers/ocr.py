@@ -1,5 +1,7 @@
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, HTTPException, Request, UploadFile
 
+from app.config import settings
+from app.rate_limit import limiter
 from app.services.ocr_service import read_plate_text
 
 router = APIRouter(prefix="/ocr", tags=["ocr"])
@@ -9,7 +11,8 @@ MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 
 
 @router.post("/upload")
-async def upload_plate_image(file: UploadFile) -> dict:
+@limiter.limit(lambda: settings.ocr_upload_rate_limit)
+async def upload_plate_image(request: Request, file: UploadFile) -> dict:
     if file.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
             status_code=400,
