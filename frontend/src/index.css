@@ -9,16 +9,22 @@
   --error: #b3261e;
   --error-bg: #fdecea;
   --warning-bg: #fff4d6;
+  --success: #1d6b4f;
+  --success-bg: #e3f3eb;
 
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Fonte própria do case (ver index.html) — de propósito diferente da usada no site
+     institucional da Rovan Tech, já que este é um projeto de portfólio fictício. */
+  font-family: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
 }
 
+/* Tema automático (segue o sistema) — só se aplica sem escolha manual salva (ver
+   .theme-toggle/ThemeContext), que grava [data-theme="light"|"dark"] no <html>. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --bg: #121614;
     --surface: #1b211e;
     --text: #e6ece9;
@@ -29,7 +35,25 @@
     --error: #f2b8b5;
     --error-bg: #3a1f1d;
     --warning-bg: #3a331d;
+    --success: #8fd4b4;
+    --success-bg: #1c3329;
   }
+}
+
+/* Escolha manual de tema escuro, independente do sistema. */
+:root[data-theme='dark'] {
+  --bg: #121614;
+  --surface: #1b211e;
+  --text: #e6ece9;
+  --muted: #9aa8a1;
+  --border: #2d3632;
+  --primary: #3fa37c;
+  --primary-text: #0c1310;
+  --error: #f2b8b5;
+  --error-bg: #3a1f1d;
+  --warning-bg: #3a331d;
+  --success: #8fd4b4;
+  --success-bg: #1c3329;
 }
 
 * { box-sizing: border-box; }
@@ -65,8 +89,12 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   color: var(--muted); text-decoration: none; font-size: 0.95rem;
 }
 .app-nav a.active { background: var(--bg); color: var(--text); font-weight: 600; }
+.session { display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; color: var(--muted); }
+.theme-toggle { font-size: 0.85rem; padding: 0.5rem 0.8rem; }
+.login-page .theme-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 10; }
 
 .app-main { width: 100%; max-width: 720px; margin: 0 auto; padding: 1.25rem 1rem 2rem; }
+.login-page { display: flex; flex-direction: column; max-width: 360px; margin: 3rem auto 0; }
 .page-header { display: flex; gap: 1rem; align-items: flex-start; justify-content: space-between; }
 .subtitle { margin: 0 0 1.25rem; color: var(--muted); }
 
@@ -91,18 +119,56 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .message { margin: 0; padding: 0.75rem 1rem; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); }
 .message.error { background: var(--error-bg); color: var(--error); border-color: transparent; }
 .message.warning { background: var(--warning-bg); border-color: transparent; }
+.message strong { display: inline-block; margin-bottom: 0.15rem; letter-spacing: 0.04em; color: var(--primary); }
 
 .ocr-result {
   display: flex; flex-direction: column; gap: 0.25rem;
   padding: 1rem; border-radius: 14px;
   background: var(--surface); border: 1px solid var(--border);
 }
-.ocr-result .label, .ocr-result .confidence { color: var(--muted); font-size: 0.9rem; }
+.ocr-result .label, .ocr-result .meta { color: var(--muted); font-size: 0.9rem; }
+.ocr-result .message { margin-top: 0.5rem; }
 .ocr-result .plate { font-size: 2rem; }
-.ocr-result details { margin-top: 0.5rem; color: var(--muted); }
+.ocr-result details { margin-top: 0.5rem; color: var(--muted); overflow-wrap: anywhere; }
+
+.verification {
+  display: flex; flex-direction: column; gap: 0.15rem;
+  margin-top: 0.5rem; padding: 0.75rem 1rem; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--bg);
+}
+.verification span { font-size: 0.9rem; }
+.verification .source { color: var(--muted); }
+.verification.tone-ok { background: var(--success-bg); color: var(--success); border-color: transparent; }
+.verification.tone-warning { background: var(--warning-bg); border-color: transparent; }
+.verification.tone-danger { background: var(--error-bg); color: var(--error); border-color: transparent; }
 .plate { font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace; letter-spacing: 0.08em; }
 
-.checkins { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 14px; overflow: hidden; }
+button.link {
+  padding: 0; border: none; background: none;
+  color: var(--primary); font-weight: 600; text-decoration: underline;
+}
+.manual-entry-link { margin: 0; text-align: center; color: var(--muted); font-size: 0.9rem; }
+
+.form, .manual-entry { display: flex; flex-direction: column; gap: 0.5rem; }
+.form label, .manual-entry label { font-weight: 600; }
+.form input[type='text'], .form input[type='password'], .manual-entry input {
+  font: inherit;
+  padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text);
+}
+.manual-entry input {
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+.form input:focus, .manual-entry input:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+.form .hint, .manual-entry .hint { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.form .camera-actions, .manual-entry .camera-actions { margin-top: 0.5rem; }
+.form label:has(input[type='checkbox']) { display: flex; align-items: center; gap: 0.5rem; font-weight: 400; }
+
+/* Rola por dentro em vez de estourar a largura da página (tabelas com mais colunas, como a de
+   funcionários, não cabem inteiras num celular). */
+.table-scroll { overflow-x: auto; border-radius: 14px; }
+.checkins { width: 100%; min-width: 480px; border-collapse: collapse; background: var(--surface); border-radius: 14px; overflow: hidden; }
 .checkins th, .checkins td { padding: 0.7rem 0.9rem; text-align: left; border-bottom: 1px solid var(--border); }
 .checkins th { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
 .checkins tr:last-child td { border-bottom: none; }

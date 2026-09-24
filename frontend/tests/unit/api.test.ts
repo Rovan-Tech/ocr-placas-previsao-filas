@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, fetchRecentCheckins, uploadPlateImage } from '../../src/services/api'
+import { ApiError, fetchRecentCheckins, submitPlateManually, uploadPlateImage } from '../../src/services/api'
 
 function mockFetch(response: Response) {
   const fetchMock = vi.fn().mockResolvedValue(response)
@@ -62,6 +62,49 @@ describe('uploadPlateImage', () => {
     expect(error).toBeInstanceOf(ApiError)
     expect(error.status).toBe(0)
     expect(error.message).toBe('Não foi possível conectar ao backend.')
+  })
+})
+
+describe('submitPlateManually', () => {
+  it('envia a placa digitada como multipart para /api/ocr/manual, sem contexto', async () => {
+    const body = { plate: 'ABC1D23', plate_format: 'mercosul', audit_saved: null }
+    const fetchMock = mockFetch(jsonResponse(body))
+
+    const result = await submitPlateManually('ABC1D23')
+
+    expect(result).toEqual(body)
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/api/ocr/manual')
+    expect(options.method).toBe('POST')
+    const form = options.body as FormData
+    expect(form).toBeInstanceOf(FormData)
+    expect(form.get('plate')).toBe('ABC1D23')
+    expect(form.has('photo')).toBe(false)
+    expect(form.has('ocr_plate')).toBe(false)
+    expect(form.has('ocr_confidence')).toBe(false)
+  })
+
+  it('anexa a foto e o contexto do OCR quando vêm de uma foto que não saiu boa', async () => {
+    const fetchMock = mockFetch(jsonResponse({ plate: 'ABC1D23', audit_saved: true }))
+    const photo = new File(['fake'], 'placa.jpg', { type: 'image/jpeg' })
+
+    await submitPlateManually('ABC1D23', { photo, ocrPlate: 'ABC1D2Z', ocrConfidence: 0.3 })
+
+    const [, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const form = options.body as FormData
+    expect((form.get('photo') as File).name).toBe('placa.jpg')
+    expect(form.get('ocr_plate')).toBe('ABC1D2Z')
+    expect(form.get('ocr_confidence')).toBe('0.3')
+  })
+
+  it('usa o detail do FastAPI quando o formato digitado é inválido', async () => {
+    mockFetch(jsonResponse({ detail: 'Formato de placa inválido.' }, 400))
+
+    const error = await submitPlateManually('AAAAAAA').catch((err) => err)
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error.status).toBe(400)
+    expect(error.message).toBe('Formato de placa inválido.')
   })
 })
 
