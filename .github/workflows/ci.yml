@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: ocr
+          POSTGRES_PASSWORD: ocr
+          POSTGRES_DB: ocr_placas_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U ocr -d ocr_placas_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://ocr:ocr@localhost:5433/ocr_placas_test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # libgl1/libglib2.0-0: dependência indireta do opencv-python-headless.
+      - name: Instala dependências de sistema do OpenCV
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0
+
+      - name: Cacheia pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('backend/requirements.txt') }}
+
+      # torch/torchvision CPU-only ANTES do resto — o pip install padrão do
+      # easyocr puxaria o wheel com CUDA/cuDNN embutido (uns 5 GB de suporte a
+      # GPU que este projeto nunca usa, gpu=False), deixando o CI bem mais
+      # lento à toa (mesmo ajuste feito no Dockerfile, backend/Dockerfile).
+      - name: Instala torch (CPU-only)
+        run: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Instala dependências
+        run: pip install -r requirements.txt
+
+      - name: pytest
+        run: pytest -q
+
+      - name: bandit
+        run: bandit -r app -q
+
+      - name: pip-audit
+        run: pip-audit -r requirements.txt
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instala dependências
+        run: npm ci
+
+      - name: Vitest
+        run: npm run test -- --run
+
+      - name: Instala Chromium (Playwright)
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright (e2e)
+        run: npm run test:e2e
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build (tsc + vite)
+        run: npm run build
+
+      - name: npm audit
+        run: npm audit --audit-level=high

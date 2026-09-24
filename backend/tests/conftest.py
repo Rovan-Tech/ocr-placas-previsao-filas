@@ -8,7 +8,16 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
+from app.rate_limit import limiter
+
 BACKEND_DIR = Path(__file__).resolve().parent.parent
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """Evita que o rate limit do /ocr/upload vaze de um teste pro outro —
+    todos os testes batem no mesmo TestClient/limiter dentro da suíte."""
+    limiter.reset()
 
 # Banco separado dos dados de dev — criado pelo docker/postgres/init/ do docker-compose.
 TEST_DATABASE_URL = os.environ.get(

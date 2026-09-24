@@ -32,5 +32,19 @@ class Settings(BaseSettings):
         # chave vazia — adivinhável, pior do que nunca ter definido nada.
         return value if value else secrets.token_hex(32)
 
+    # Origem(ns) liberada(s) pelo CORS, separadas por vírgula (ex: produção com
+    # frontend e backend em domínios diferentes). Vazio = nenhuma origem
+    # liberada — é o caso do dev local, onde o proxy do Vite evita precisar de
+    # CORS. Nunca usar "*" aqui (regra de segurança do projeto).
+    frontend_origins: str = ""
+
+    # Limite de requisições ao /ocr/upload por IP (proteção contra DoS no
+    # endpoint mais pesado da API). Formato da lib `slowapi`/`limits`.
+    ocr_upload_rate_limit: str = "10/minute"
+
+    @property
+    def frontend_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.frontend_origins.split(",") if origin.strip()]
+
 
 settings = Settings()

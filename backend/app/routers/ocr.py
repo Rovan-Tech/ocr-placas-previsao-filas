@@ -6,8 +6,10 @@ from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.db import get_db
 from app.models import Employee, UploadEndpoint, UploadLog
+from app.rate_limit import limiter
 from app.services.auth import get_client_ip, get_current_employee
 from app.services.ocr_service import read_plate
 from app.services.photo_storage import save_photo
@@ -103,6 +105,7 @@ def _log_upload(
 
 
 @router.post("/upload", response_model=PlateReadResponse)
+@limiter.limit(lambda: settings.ocr_upload_rate_limit)
 async def upload_plate_image(
     request: Request,
     file: UploadFile,
