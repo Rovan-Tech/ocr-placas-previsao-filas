@@ -82,6 +82,23 @@ class TestCreateSchedule:
 
         assert response.status_code == 400
 
+    def test_rejects_a_photo_larger_than_the_limit(self, authenticated_client):
+        oversized = b"\xff" * (5 * 1024 * 1024 + 1)
+
+        response = authenticated_client.post(
+            "/schedules",
+            data={
+                "plate": "ABC1D23",
+                "driver_name": "João da Silva",
+                "driver_document": "12345678900",
+                "cargo_type": "Grãos",
+                "scheduled_date": "2026-09-24",
+            },
+            files={"driver_document_photo": ("cnh.jpg", oversized, "image/jpeg")},
+        )
+
+        assert response.status_code == 413
+
     def test_requires_authentication(self):
         response = _create(client)
 

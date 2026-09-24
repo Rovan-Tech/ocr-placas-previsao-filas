@@ -295,3 +295,44 @@ class TestPasswordValidationDoesNotReflectTheInput:
 
         assert response.status_code == 422
         assert short_password not in response.text
+
+
+class TestScheduleSecurity:
+
+    def test_sql_injection_payloads_in_schedule_fields_are_treated_as_plain_text(self, authenticated_client):
+        payload = "'; DROP TABLE schedules;--"
+        short_payload = "1' OR '1'='1"
+        response = authenticated_client.post(
+            "/schedules",
+            data={
+                "plate": "ABC1D23",
+                "driver_name": payload,
+                "driver_document": short_payload,
+                "cargo_type": payload,
+                "scheduled_date": "2026-09-24",
+            },
+        )
+
+        assert response.status_code == 201
+        assert response.json()["driver_name"] == payload
+
+        listing = authenticated_client.get("/schedules")
+        assert listing.status_code == 200
+
+    def test_requires_authentication_to_create(self):
+        response = client.post(
+            "/schedules",
+            data={
+                "plate": "ABC1D23",
+                "driver_name": "João",
+                "driver_document": "123",
+                "cargo_type": "Grãos",
+                "scheduled_date": "2026-09-24",
+            },
+        )
+
+        assert response.status_code == 401
+
+    def test_photo_endpoints_require_authentication(self):
+        assert client.get("/schedules/1/driver-document-photo").status_code == 401
+        assert client.get("/schedules/1/vehicle-document-photo").status_code == 401
