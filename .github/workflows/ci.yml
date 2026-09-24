@@ -46,6 +46,13 @@ jobs:
           path: ~/.cache/pip
           key: pip-${{ runner.os }}-${{ hashFiles('backend/requirements.txt') }}
 
+      # torch/torchvision CPU-only ANTES do resto — o pip install padrão do
+      # easyocr puxaria o wheel com CUDA/cuDNN embutido (uns 5 GB de suporte a
+      # GPU que este projeto nunca usa, gpu=False), deixando o CI bem mais
+      # lento à toa (mesmo ajuste feito no Dockerfile, backend/Dockerfile).
+      - name: Instala torch (CPU-only)
+        run: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
       - name: Instala dependências
         run: pip install -r requirements.txt
 
