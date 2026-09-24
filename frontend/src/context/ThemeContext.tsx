@@ -13,7 +13,7 @@ function loadStoredTheme(): Theme | null {
     const stored = localStorage.getItem(STORAGE_KEY)
     return stored === 'light' || stored === 'dark' ? stored : null
   } catch {
-    return null // storage bloqueado (aba anônima, política do navegador) — cai no tema do sistema
+    return null
   }
 }
 
@@ -31,9 +31,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.dataset.theme = theme
     try {
       localStorage.setItem(STORAGE_KEY, theme)
-    } catch {
-      // sem storage disponível: a escolha só dura enquanto a aba ficar aberta, e tudo bem
-    }
+    } catch {}
   }, [theme])
 
   const value = useMemo<ThemeContextValue>(

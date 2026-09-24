@@ -43,7 +43,6 @@ def test_brighten_raises_the_mean_of_a_dark_image():
 
 
 def test_equalize_contrast_improves_worn_plate_contrast():
-    # Placa desbotada: tinta cinza sobre fundo cinza.
     gray = render_plate("PQR7C56", ink=120, background=190)[..., 0]
 
     assert equalize_contrast(gray).std() > gray.std()
@@ -84,22 +83,10 @@ def test_all_variants_are_grayscale_with_the_target_height():
 
 
 def _plain_plate_background(height: int = 149, width: int = 500) -> np.ndarray:
-    """Fundo uniforme de teste, sem moldura nem texto — o que importa aqui é só a reta em si,
-    não o contraste dela contra um caractere específico (ver docstring dos testes abaixo)."""
     return np.full((height, width), 200, np.uint8)
 
 
 def _with_a_straight_scratch(gray: np.ndarray) -> np.ndarray:
-    """Um arranhão contínuo e comprido, com bom contraste contra o fundo de ponta a ponta.
-
-    Um arranhão de verdade brilha por reflexo especular, então pode parecer claro OU escuro
-    dependendo do que está por baixo (fundo claro da placa ou tinta escura de um caractere) — um
-    valor de cor fixo não reproduz isso, e sobre um caractere de cor parecida ele "some" nas
-    bordas do Canny, quebrando a reta em pedaços curtos demais para o Hough encontrar. Por isso
-    este teste isola só o mecanismo (reta comprida => detectada e removível) num fundo uniforme,
-    e os cenários com placa de verdade (``tests/plate_samples.py``, casos "arranhada"/
-    "arranhada_suja") medem o resultado final na prática, em ``test_ocr_accuracy.py``.
-    """
     scratched = gray.copy()
     height, width = scratched.shape[:2]
     cv2.line(scratched, (10, int(height * 0.35)), (width - 10, int(height * 0.7)), 30, 2, cv2.LINE_AA)
@@ -115,8 +102,6 @@ def test_has_scratches_detects_a_long_straight_line():
 
 
 def test_has_scratches_ignores_the_mercosul_band_border():
-    """A borda da faixa azul "BRASIL" também é uma reta comprida, mas não é um arranhão — e nunca
-    passa pelos caracteres (ver BAND_EXCLUSION_FRACTION)."""
     mercosul_plate = render_plate("ZQX7B15")[10:-10, 10:-10, 0]
 
     assert not has_scratches(mercosul_plate)

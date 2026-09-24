@@ -1,9 +1,3 @@
-"""Gerador de fotos sintéticas de placas em condições difíceis, para os testes de precisão do OCR.
-
-Não usamos fotos reais de placas no repositório (ver backend/CLAUDE.md): as imagens são geradas
-de forma determinística (seed fixa) simulando o que o fiscal fotografa na guarita — pouca luz,
-ângulo, placa suja/desgastada, reflexo, tremido e baixa resolução.
-"""
 
 from dataclasses import dataclass
 from functools import lru_cache
@@ -13,8 +7,6 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-# Fontes condensadas em negrito lembram a fonte das placas; se não existirem no sistema
-# (ex.: CI), cai na fonte embutida do Pillow.
 FONT_CANDIDATES = [
     "/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Bold.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Bold.ttf",
@@ -22,7 +14,7 @@ FONT_CANDIDATES = [
 ]
 
 PLATE_WIDTH = 520
-PLATE_HEIGHT = 169  # 400 x 130 mm, proporção oficial ~3,08:1
+PLATE_HEIGHT = 169
 
 
 @lru_cache(maxsize=8)
@@ -43,7 +35,6 @@ def _draw_centered(draw: ImageDraw.ImageDraw, box, text: str, font, fill) -> Non
 
 
 def render_plate(plate: str, *, ink: int = 20, background: int = 245) -> np.ndarray:
-    """Desenha a placa "de frente" (BGR). Mercosul tem a faixa azul "BRASIL"; a antiga é cinza com hífen."""
     mercosul = plate[4].isalpha()
     if mercosul:
         image = Image.new("RGB", (PLATE_WIDTH, PLATE_HEIGHT), (background,) * 3)
@@ -65,15 +56,11 @@ def render_plate(plate: str, *, ink: int = 20, background: int = 245) -> np.ndar
 
 
 def _truck_scene(rng: np.random.Generator, width: int = 1600, height: int = 1200) -> np.ndarray:
-    """Fundo que lembra a frente de um caminhão: grade escura, para-choque e faróis."""
     scene = np.zeros((height, width, 3), dtype=np.uint8)
     scene[:] = rng.integers(90, 130, size=3)
-    # Grade do radiador (listras horizontais).
     for y in range(80, int(height * 0.55), 28):
         cv2.rectangle(scene, (200, y), (width - 200, y + 14), (45, 45, 50), -1)
-    # Para-choque.
     cv2.rectangle(scene, (60, int(height * 0.62)), (width - 60, int(height * 0.9)), (35, 35, 38), -1)
-    # Faróis.
     for x in (150, width - 350):
         cv2.rectangle(scene, (x, int(height * 0.45)), (x + 200, int(height * 0.55)), (200, 200, 190), -1)
     noise = rng.normal(0, 6, scene.shape)
@@ -81,11 +68,10 @@ def _truck_scene(rng: np.random.Generator, width: int = 1600, height: int = 1200
 
 
 def _place(scene: np.ndarray, plate: np.ndarray, center, width: int, *, yaw: float = 0.0, roll: float = 0.0):
-    """Cola a placa na cena com perspectiva (yaw, em "encurtamento" 0..1) e rotação (roll, graus)."""
     ph, pw = plate.shape[:2]
     height = width * ph / pw
     cx, cy = center
-    shrink = yaw * height / 2  # um lado da placa fica menor: simula foto de lado
+    shrink = yaw * height / 2
     corners = np.float32(
         [
             [-width / 2, -height / 2],
@@ -116,7 +102,7 @@ def _dirt(plate: np.ndarray, rng: np.random.Generator, amount: int) -> np.ndarra
         overlay = dirty.copy()
         cv2.ellipse(overlay, center, axes, float(rng.integers(0, 180)), 0, 360, color, -1)
         dirty = cv2.addWeighted(overlay, 0.45, dirty, 0.55, 0)
-    for _ in range(amount // 2):  # riscos
+    for _ in range(amount // 2):
         p1 = (int(rng.integers(0, w)), int(rng.integers(0, h)))
         p2 = (p1[0] + int(rng.integers(-60, 60)), p1[1] + int(rng.integers(-20, 20)))
         cv2.line(dirty, p1, p2, (170, 170, 170), 2)
@@ -150,12 +136,6 @@ def _jpeg(image: np.ndarray, quality: int) -> bytes:
 
 
 def _backlight(scene: np.ndarray, rng: np.random.Generator, flare_center, flare_axes) -> np.ndarray:
-    """Luz forte vindo de trás (farol à noite, sol baixo do fim de tarde): a câmera expõe pela
-    área mais clara do quadro, então o resto — inclusive a placa — fica em silhueta, mais escuro
-    do que numa foto normal com pouca luz. Some com auréolas concêntricas (lens flare), comuns em
-    fotos contra a luz. O núcleo do clarão estoura de verdade (sem informação ali, como numa foto
-    real), mas só numa área pequena — a maior parte da região só perde contraste, recuperável.
-    """
     result = scene.astype(np.float32) * 0.32
     for scale, strength, blur in ((0.4, 2.2, flare_axes[0] / 3), (1.0, 0.55, flare_axes[0] / 2.2),
                                    (1.7, 0.18, 10), (2.5, 0.08, 14)):
@@ -169,7 +149,6 @@ def _backlight(scene: np.ndarray, rng: np.random.Generator, flare_center, flare_
 
 
 def _rain(scene: np.ndarray, rng: np.random.Generator, streaks: int = 45, droplets: int = 25) -> np.ndarray:
-    """Chuva: lente/para-brisa molhado (borrão geral), riscos diagonais e gotas com halo."""
     overlay = scene.copy()
     for _ in range(streaks):
         x, y = int(rng.integers(0, scene.shape[1])), int(rng.integers(-20, scene.shape[0]))
@@ -189,8 +168,6 @@ def _rain(scene: np.ndarray, rng: np.random.Generator, streaks: int = 45, drople
 
 
 def _scratches(plate: np.ndarray, rng: np.random.Generator, amount: int) -> np.ndarray:
-    """Arranhões físicos na placa: riscos finos e retos — metal exposto (claro) ou tinta lascada
-    (escuro) —, diferente da sujeira (manchas orgânicas macias, ver _dirt)."""
     scratched = plate.copy()
     height, width = scratched.shape[:2]
     for _ in range(amount):
@@ -243,7 +220,6 @@ def _build(name, plate, description, seed, *, plate_width=560, yaw=0.0, roll=0.0
 
 
 def hard_cases() -> list[PlateSample]:
-    """Casos difíceis cobertos pelos testes de precisão. Seeds fixas: a lista é sempre a mesma."""
     return [
         _build("limpa_mercosul", "BRA2E19", "foto boa, controle", 1),
         _build("limpa_antiga", "KLM4821", "foto boa, placa antiga, controle", 2),
@@ -284,9 +260,6 @@ def _random_plate(rng: np.random.Generator) -> str:
 
 
 def random_cases(count: int = 40, seed: int = 2026) -> list[PlateSample]:
-    """Conjunto de validação: placas e degradações sorteadas, que NÃO foram usadas para calibrar o
-    pipeline. Serve para medir se a melhoria vale para casos novos, e não só para ``hard_cases``.
-    """
     rng = np.random.default_rng(seed)
     samples = []
     for index in range(count):
@@ -317,7 +290,7 @@ def random_cases(count: int = 40, seed: int = 2026) -> list[PlateSample]:
     return samples
 
 
-if __name__ == "__main__":  # python -m tests.plate_samples <pasta>: salva as imagens para inspeção
+if __name__ == "__main__":
     import sys
 
     output = Path(sys.argv[1] if len(sys.argv) > 1 else "plate_samples")

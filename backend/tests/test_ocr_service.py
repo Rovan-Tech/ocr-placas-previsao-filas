@@ -1,4 +1,3 @@
-"""Lógica de escolha da placa (votação, correção, revisão) com um OCR falso — rápido, sem EasyOCR."""
 
 import cv2
 import numpy as np
@@ -13,7 +12,6 @@ def _box(x: float, y: float = 50, width: float = 100, height: float = 40):
 
 
 class FakeReader:
-    """Devolve, a cada chamada de readtext, a próxima resposta roteirizada (e repete a última)."""
 
     def __init__(self, *responses):
         self.responses = list(responses)
@@ -47,7 +45,6 @@ def use_reader(monkeypatch):
 
 
 def test_ignores_band_text_even_when_it_has_higher_confidence(use_reader, image_bytes):
-    """Bug do baseline: o frontend mostrava "BRASIL" porque tinha a maior confiança."""
     use_reader(FakeReader([(_box(0, 0), "BRASIL", 0.99), (_box(0, 60), "BRA2E19", 0.95)]))
 
     reading = ocr_service.read_plate(image_bytes)
@@ -100,7 +97,7 @@ def test_stops_early_on_a_confident_read(use_reader, image_bytes):
 def test_majority_of_variants_wins_over_a_single_misread(use_reader, image_bytes):
     reader = use_reader(
         FakeReader(
-            [(_box(0), "QRS3145", 0.7)],  # 1ª variante erra (T lido como 1)
+            [(_box(0), "QRS3145", 0.7)],
             [(_box(0), "QRS3T45", 0.6)],
             [(_box(0), "QRS3T45", 0.65)],
         )
@@ -113,7 +110,6 @@ def test_majority_of_variants_wins_over_a_single_misread(use_reader, image_bytes
 
 
 def test_flags_ambiguous_reads_for_manual_review(use_reader, image_bytes):
-    # Duas placas diferentes com votos parecidos e nenhuma leitura confiável: o fiscal confere.
     use_reader(FakeReader([(_box(0), "QRS3145", 0.45)], [(_box(0), "QRS3T45", 0.42)], [(_box(0), "NADA", 0.3)]))
 
     reading = ocr_service.read_plate(image_bytes)
@@ -137,7 +133,7 @@ def test_falls_back_to_full_image_when_no_crop_has_a_valid_plate(monkeypatch, im
 
     reading = ocr_service.read_plate(image_bytes)
 
-    assert reader.calls > 0  # leu a foto inteira
+    assert reader.calls > 0
     assert reading.plate is None
     assert reading.needs_review is True
 
@@ -154,11 +150,10 @@ def test_returns_no_plate_and_raw_detections_when_nothing_is_a_plate(use_reader,
 
 
 def test_skips_to_the_next_crop_when_the_read_looks_cut_off(use_reader, image_bytes):
-    """Caso real (webcam): o recorte cortou o "L" e 3 variantes leram "MA-8376" à toa."""
     reader = use_reader(
         FakeReader(
-            [(_box(0), "MA-8376", 0.98)],  # 1º recorte: placa cortada
-            [(_box(0), "LMA-8376", 0.97)],  # 2º recorte (versão larga): placa inteira
+            [(_box(0), "MA-8376", 0.98)],
+            [(_box(0), "LMA-8376", 0.97)],
         ),
         candidates=2,
     )
@@ -166,7 +161,7 @@ def test_skips_to_the_next_crop_when_the_read_looks_cut_off(use_reader, image_by
     reading = ocr_service.read_plate(image_bytes)
 
     assert reading.plate == "LMA8376"
-    assert reader.calls == 2  # não gastou as outras variantes no recorte cortado
+    assert reader.calls == 2
 
 
 def test_stops_at_the_soft_time_budget_when_a_plate_was_already_read(use_reader, image_bytes, monkeypatch):
@@ -177,7 +172,7 @@ def test_stops_at_the_soft_time_budget_when_a_plate_was_already_read(use_reader,
 
     assert reader.calls == 1
     assert reading.plate == "BRA2E19"
-    assert reading.needs_review is True  # confiança baixa: o fiscal confere
+    assert reading.needs_review is True
 
 
 def test_hard_time_budget_stops_even_without_a_plate(use_reader, image_bytes, monkeypatch):
@@ -201,10 +196,8 @@ def test_full_image_fallback_only_tries_the_basic_variants(monkeypatch, image_by
 
 
 def test_weak_evidence_alone_always_needs_review_even_with_high_confidence(use_reader, image_bytes, monkeypatch):
-    """Regressão de segurança: o agrupamento de caracteres às vezes acha a placa onde o resto
-    falha, mas é um recorte de último recurso — sozinho, nunca deve virar leitura "confiável"."""
-    use_reader(FakeReader([(_box(0), "BRA2E19", 0.95)] * 3))  # 3 leituras concordando, confiança alta
-    monkeypatch.setattr(  # depois do use_reader, que também mexe em find_plate_candidates
+    use_reader(FakeReader([(_box(0), "BRA2E19", 0.95)] * 3))
+    monkeypatch.setattr(
         ocr_service, "find_plate_candidates", lambda image: [(np.full((50, 160, 3), 200, np.uint8), True)]
     )
 
@@ -215,9 +208,6 @@ def test_weak_evidence_alone_always_needs_review_even_with_high_confidence(use_r
 
 
 def test_strong_evidence_from_any_crop_is_enough_to_trust_the_vote(use_reader, image_bytes, monkeypatch):
-    """Uma leitura com evidência forte em qualquer um dos recortes já basta — não precisa ser
-    em todos —, senão o agrupamento (evidência fraca) usado só como reforço bloquearia votos
-    que já eram confiáveis antes dele."""
     monkeypatch.setattr(
         ocr_service,
         "find_plate_candidates",

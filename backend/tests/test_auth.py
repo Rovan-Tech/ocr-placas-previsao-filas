@@ -1,7 +1,3 @@
-"""POST /auth/employees, POST /auth/change-password e a regra dos 30 dias — ver app/routers/auth.py
-e app/services/auth.py. Os fluxos de login "puro" (usuário/senha, token, conta inativa) estão em
-tests/test_security.py, junto com o resto da política de segurança do projeto.
-"""
 
 from datetime import UTC, datetime, timedelta
 
@@ -31,8 +27,6 @@ def admin(db_session):
 
 @pytest.fixture
 def db_client(db_session):
-    """Cliente com o `get_db` dos endpoints apontando pro banco de testes, sem simular login —
-    cada teste usa um token de verdade (admin, funcionário recém-cadastrado etc.)."""
     app.dependency_overrides[get_db] = lambda: db_session
     try:
         yield TestClient(app)
@@ -245,8 +239,6 @@ class TestDeactivateEmployee:
         assert response.status_code == 400
 
     def test_an_admin_can_deactivate_another_admin(self, admin, employee, db_session, db_client):
-        """Não bloqueado mesmo sendo o único outro admin: quem chama continua ativo depois (ver
-        docstring de deactivate_employee) — não tem como esse endpoint zerar os admins sozinho."""
         employee.is_admin = True
         db_session.flush()
 
@@ -263,8 +255,6 @@ class TestDeactivateEmployee:
         assert response.status_code == 404
 
     def test_uploads_already_logged_survive_the_deactivation(self, admin, employee, db_session, db_client):
-        """O log de auditoria não pode sumir só porque o funcionário saiu — é pra isso que a
-        exclusão é lógica (active=False), não um DELETE de verdade na tabela."""
         from app.models import UploadEndpoint, UploadLog
 
         log = UploadLog(employee_id=employee.id, endpoint=UploadEndpoint.UPLOAD, final_plate="ABC1D23")

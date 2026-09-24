@@ -35,8 +35,6 @@ test('mostra lista vazia', async ({ page }) => {
 })
 
 test('avisa quando o endpoint ainda não existe e recarrega com Atualizar', async ({ page }) => {
-  // Em dev o StrictMode dispara o fetch inicial duas vezes, então o mock
-  // responde 404 até o clique em Atualizar, e não por número de chamadas.
   let endpointExists = false
   await page.route('**/api/checkins?*', (route) => {
     return !endpointExists

@@ -4,13 +4,7 @@ import ManualPlateEntry from '../components/ManualPlateEntry'
 import OcrResult from '../components/OcrResult'
 import { uploadPlateImage, type ManualPlateContext, type OcrUploadResponse } from '../services/api'
 
-type Status =
-  | 'idle' // câmera/escolher foto
-  | 'reviewing_photo' // foto tirada, esperando o fiscal confirmar que ficou legível
-  | 'sending' // enviando pro OCR
-  | 'needs_decision' // OCR não leu, ou não tem certeza — sem aceitar a placa em silêncio
-  | 'confirmed' // OCR leu com confiança
-  | 'error'
+type Status = 'idle' | 'reviewing_photo' | 'sending' | 'needs_decision' | 'confirmed' | 'error'
 
 export default function CapturePage() {
   const [photo, setPhoto] = useState<File | null>(null)
@@ -19,8 +13,6 @@ export default function CapturePage() {
   const [result, setResult] = useState<OcrUploadResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [manualEntry, setManualEntry] = useState(false)
-  // Preenchido só quando se chega à digitação manual a partir de uma foto que não saiu boa —
-  // guarda o que vai de resguardo (a foto e o que o OCR chegou a ler, se chegou).
   const [manualContext, setManualContext] = useState<ManualPlateContext>({})
 
   function showPreview(file: File | null) {
@@ -36,8 +28,6 @@ export default function CapturePage() {
     setResult(null)
     setError(null)
     setManualEntry(false)
-    // Não envia pro OCR ainda: primeiro o fiscal confirma que a foto ficou legível (evita gastar
-    // uma leitura numa foto claramente ruim, e dá a chance de digitar direto se preferir).
     setStatus('reviewing_photo')
   }
 
@@ -47,8 +37,6 @@ export default function CapturePage() {
     try {
       const response = await uploadPlateImage(file)
       setResult(response)
-      // Uma leitura sem placa, ou sem certeza, nunca é tratada como concluída — o fiscal decide:
-      // tenta outra foto ou digita a placa manualmente.
       setStatus(response.plate !== null && !response.needs_review ? 'confirmed' : 'needs_decision')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro inesperado ao ler a placa.')
@@ -62,9 +50,6 @@ export default function CapturePage() {
     setStatus('confirmed')
   }
 
-  /** A foto só vai de resguardo pra digitação manual quando ela mesma não saiu boa: o fiscal
-   * recusou na conferência, ou o OCR não conseguiu ler/não teve certeza. Numa leitura já
-   * confirmada, ou partindo da tela inicial sem foto nenhuma, não há nada a resguardar. */
   function openManualEntry(withPhotoContext: boolean) {
     setManualContext(
       withPhotoContext && photo
@@ -110,7 +95,6 @@ export default function CapturePage() {
         </>
       )}
 
-      {/* result pode existir sem photo (placa digitada manualmente, sem passar pela câmera). */}
       {status !== 'idle' && (photo || result) && (
         <div className="capture-review">
           {previewUrl && <img src={previewUrl} alt="Foto tirada da placa" />}

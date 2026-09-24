@@ -1,7 +1,3 @@
-// Ponte entre `api.ts` (funções soltas, sem acesso ao React) e o `AuthContext` (que sabe o
-// estado de login). `api.ts` lê o token daqui pra anexar em toda chamada, e avisa por aqui
-// quando uma resposta diz "sessão inválida" ou "precisa trocar a senha" — o AuthContext se
-// inscreve nesses avisos assim que a aplicação sobe (ver AuthContext.tsx).
 let currentToken: string | null = null
 let onSessionInvalid: (() => void) | null = null
 let onPasswordChangeRequired: (() => void) | null = null

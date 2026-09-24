@@ -1,6 +1,5 @@
 import type { PlateFormat, VerificationStatus } from './api'
 
-/** Como a placa aparece fisicamente: `ABC1D23` (Mercosul) ou `ABC-1234` (padrão antigo). */
 export function formatPlate(plate: string, format: PlateFormat | null): string {
   return format === 'antigo' ? `${plate.slice(0, 3)}-${plate.slice(3)}` : plate
 }
@@ -16,7 +15,6 @@ export type Tone = 'ok' | 'warning' | 'danger' | 'neutral'
 export interface VerificationInfo {
   label: string
   tone: Tone
-  /** Status que exige barrar/checar o veículo antes de liberar a entrada. */
   blocksEntry: boolean
 }
 

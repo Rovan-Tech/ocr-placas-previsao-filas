@@ -1,15 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 
-// getUserMedia só funciona em contexto seguro (HTTPS ou localhost). Quando não
-// está disponível — ex.: celular acessando o dev server pelo IP da rede —, o
-// input com capture="environment" abre a câmera nativa do aparelho.
 const canUseLiveCamera = Boolean(navigator.mediaDevices?.getUserMedia) && window.isSecureContext
 
-// Fotos de câmera de celular saem facilmente com 8-15 MB em resolução total —
-// muito mais do que o OCR precisa para ler uma placa, e acima do limite de
-// upload do backend (5 MB, ver MAX_UPLOAD_BYTES em backend/app/routers/ocr.py).
-// Redimensiona no navegador antes de enviar, tanto a foto tirada pela câmera
-// ao vivo quanto a escolhida via input (câmera nativa do aparelho ou galeria).
 const MAX_DIMENSION_PX = 1600
 const JPEG_QUALITY = 0.85
 
@@ -50,7 +42,6 @@ function loadImage(file: File) {
   })
 }
 
-/** Redimensiona uma foto escolhida pelo usuário (input file) antes de enviar. */
 async function resizeImageFile(file: File): Promise<File> {
   const image = await loadImage(file)
   const canvas = drawScaledCanvas(image, image.naturalWidth, image.naturalHeight)
@@ -67,7 +58,6 @@ export default function CameraCapture({ onCapture, disabled = false }: CameraCap
   const streamRef = useRef<MediaStream | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [cameraOn, setCameraOn] = useState(false)
-  // Só dá para capturar depois que o vídeo tem frames (videoWidth > 0).
   const [videoReady, setVideoReady] = useState(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
 
