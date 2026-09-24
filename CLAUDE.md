@@ -132,10 +132,61 @@ então segurança é tratada como teste, não como opcional. Toda funcionalidade
    (injeção, upload malicioso, arquivos gigantes, headers forjados, métodos HTTP inesperados)
    e **corrige** o que encontrar, sempre com teste de regressão.
 
-A API já envia headers de segurança em toda resposta (`SECURITY_HEADERS` em `app/main.py`).
-Pendências conhecidas para antes do deploy público: rate limiting no `/ocr/upload`, CORS
-restrito à origem do frontend (hoje não há CORS habilitado), CSP no frontend e subir o uvicorn
-com `--no-server-header` em produção.
+A API já envia headers de segurança em toda resposta (`SECURITY_HEADERS` em `app/main.py`),
+CORS restrito à origem do frontend (`FRONTEND_ORIGINS`, nunca `*`) e rate limiting no
+`/ocr/upload` (`OCR_UPLOAD_RATE_LIMIT`, via `slowapi`). Pendências conhecidas: CSP no frontend
+e subir o uvicorn com `--no-server-header` em produção.
+
+## Deploy (produção)
+
+O projeto está no ar, publicado automaticamente a cada merge na `main`.
+
+| O quê       | Onde                                                                  |
+| ----------- | ---------------------------------------------------------------------- |
+| Frontend    | Cloudflare Pages — https://ocr-placas.pages.dev                         |
+| Backend     | Google Cloud Run — https://ocr-placas-backend-6yjkqvbuoq-rj.a.run.app   |
+| Banco       | Neon Postgres (serverless, região São Paulo/`sa-east-1`)                |
+| Projeto GCP | `rovan-tech-portfolio` (org `rovantech.com`), serviço `ocr-placas-backend`, região `southamerica-east1` |
+| Imagem      | Artifact Registry, repositório `portfolio`                              |
+
+**CI/CD** (`.github/workflows/`):
+
+- `ci.yml` — roda em todo PR e push na `main`: pytest+bandit+pip-audit no backend,
+  Vitest+Playwright+lint+build+npm audit no frontend.
+- `deploy.yml` — dispara sozinho (via `workflow_run`) só depois que o `ci.yml` passar na
+  `main`, nunca publica um merge quebrado. Builda e sobe a imagem no Artifact Registry, roda
+  a migração Alembic contra o Neon, faz deploy no Cloud Run (escala a zero — sem custo
+  ocioso) e publica o frontend no Cloudflare Pages já apontando pro backend recém-publicado.
+  Autenticação com o Google Cloud via Workload Identity Federation (sem chave de service
+  account de longa duração). Também aceita `workflow_dispatch` (re-rodar manualmente, sem
+  precisar de commit novo) — use o skill `/redeploy`.
+
+**Secrets** (GitHub → Settings → Secrets and variables → Actions, nomes only — nunca committar
+os valores): `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_SERVICE_ACCOUNT`, `GCP_PROJECT_ID`,
+`GCP_REGION`, `GCP_ARTIFACT_REPO`, `DATABASE_URL`, `FRONTEND_ORIGINS`,
+`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`.
+
+Use o skill `/deploy-status` para checar rapidamente se o frontend e o backend em produção
+estão de pé e se comunicando direito (sem precisar repetir a investigação manual toda vez).
+
+### Armadilhas já resolvidas (não repetir)
+
+- **Acesso público bloqueado silenciosamente**: contas Google Workspace (como
+  `rovantech.com`) vêm com a política de organização `iam.allowedPolicyMemberDomains`
+  ("Domain Restricted Sharing"), que impede conceder `allUsers`/acesso público — o
+  `--allow-unauthenticated` do Cloud Run falha sem erro visível na hora do deploy. Foi
+  criada uma exceção **só para o projeto** `rovan-tech-portfolio` (não pra organização
+  inteira). Se recriar o serviço do zero e ele voltar a dar 403, é isso.
+- **`cloudflare/pages-action` foi descontinuada e removida do GitHub em 2026** — o `deploy.yml`
+  já usa a substituta oficial, `cloudflare/wrangler-action@v4` rodando `wrangler pages deploy`.
+- **`VITE_API_BASE`, não `VITE_BACKEND_URL`**: `frontend/src/services/api.ts` lê
+  `VITE_API_BASE` pra montar toda chamada da API. `VITE_BACKEND_URL` só existe pro proxy do
+  `npm run dev` (`vite.config.ts`) — não tem efeito nenhum no build de produção. O `deploy.yml`
+  já passa a variável certa; se recriar o build manualmente, não confundir os dois nomes.
+- **EasyOCR puxa PyTorch com CUDA por padrão** (~5 GB de suporte a GPU que este projeto nunca
+  usa, `gpu=False`). O `Dockerfile` e o `ci.yml` já instalam `torch`/`torchvision` da versão
+  CPU-only (`--index-url https://download.pytorch.org/whl/cpu`) antes do resto do
+  `requirements.txt` — sem isso a imagem fica ~3,5x maior e o CI mais lento à toa.
 
 ## Antes de abrir PR
 
