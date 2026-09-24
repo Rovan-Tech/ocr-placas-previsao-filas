@@ -1,5 +1,7 @@
-// Todas as chamadas passam por /api, que o Vite repassa para o FastAPI
-// (ver vite.config.ts). Em produção, basta servir o backend no mesmo /api.
+// Em dev, todas as chamadas passam por /api, que o Vite repassa para o
+// FastAPI (ver vite.config.ts). Em produção (frontend e backend em domínios
+// diferentes), o build recebe VITE_API_BASE com a URL completa do backend —
+// ver o passo de build em .github/workflows/deploy.yml.
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
 export interface OcrDetection {
