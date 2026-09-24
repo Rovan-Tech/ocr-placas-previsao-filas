@@ -17,6 +17,32 @@ export interface PlateVerification {
   source: string | null
 }
 
+export type ScheduleStatus = 'on_time' | 'early' | 'late'
+
+export interface ScheduleInfo {
+  driver_name: string
+  driver_document: string
+  has_driver_document_photo: boolean
+  has_vehicle_document_photo: boolean
+  cargo_type: string
+  scheduled_date: string
+  status: ScheduleStatus
+}
+
+export interface VehicleData {
+  brand: string | null
+  model: string | null
+  year: string | null
+  uf: string | null
+  color: string | null
+}
+
+export interface CheckinContext {
+  found: boolean
+  schedule: ScheduleInfo | null
+  vehicle_data: VehicleData | null
+}
+
 export interface OcrUploadResponse {
   filename: string | null
   plate: string | null
@@ -25,6 +51,7 @@ export interface OcrUploadResponse {
   needs_review: boolean
   verification: PlateVerification | null
   detections: OcrDetection[]
+  checkin: CheckinContext | null
   audit_saved?: boolean | null
 }
 
@@ -137,4 +164,60 @@ export async function fetchLogPhoto(logId: number): Promise<Blob> {
   const response = await fetch(`${API_BASE}/logs/${logId}/photo`, { headers })
   if (!response.ok) throw new ApiError('Não foi possível carregar a foto.', response.status)
   return response.blob()
+}
+
+export interface ScheduleOut {
+  id: number
+  plate: string
+  driver_name: string
+  driver_document: string
+  has_driver_document_photo: boolean
+  has_vehicle_document_photo: boolean
+  cargo_type: string
+  scheduled_date: string
+  created_at: string
+}
+
+export interface CreateScheduleInput {
+  plate: string
+  driverName: string
+  driverDocument: string
+  cargoType: string
+  scheduledDate: string
+  driverDocumentPhoto?: File | null
+  vehicleDocumentPhoto?: File | null
+}
+
+export function createSchedule(input: CreateScheduleInput): Promise<ScheduleOut> {
+  const form = new FormData()
+  form.append('plate', input.plate)
+  form.append('driver_name', input.driverName)
+  form.append('driver_document', input.driverDocument)
+  form.append('cargo_type', input.cargoType)
+  form.append('scheduled_date', input.scheduledDate)
+  if (input.driverDocumentPhoto) form.append('driver_document_photo', input.driverDocumentPhoto)
+  if (input.vehicleDocumentPhoto) form.append('vehicle_document_photo', input.vehicleDocumentPhoto)
+  return request<ScheduleOut>('/schedules', { method: 'POST', body: form })
+}
+
+export function listSchedules(plate?: string): Promise<ScheduleOut[]> {
+  return request(`/schedules${plate ? `?plate=${encodeURIComponent(plate)}` : ''}`)
+}
+
+async function fetchSchedulePhoto(scheduleId: number, kind: 'driver-document-photo' | 'vehicle-document-photo'): Promise<Blob> {
+  const headers = new Headers()
+  const token = getAuthToken()
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+
+  const response = await fetch(`${API_BASE}/schedules/${scheduleId}/${kind}`, { headers })
+  if (!response.ok) throw new ApiError('Não foi possível carregar a foto.', response.status)
+  return response.blob()
+}
+
+export function fetchScheduleDriverDocumentPhoto(scheduleId: number): Promise<Blob> {
+  return fetchSchedulePhoto(scheduleId, 'driver-document-photo')
+}
+
+export function fetchScheduleVehicleDocumentPhoto(scheduleId: number): Promise<Blob> {
+  return fetchSchedulePhoto(scheduleId, 'vehicle-document-photo')
 }

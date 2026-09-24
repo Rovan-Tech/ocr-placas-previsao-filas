@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, fetchRecentCheckins, submitPlateManually, uploadPlateImage } from '../../src/services/api'
+import {
+  ApiError,
+  createSchedule,
+  fetchRecentCheckins,
+  listSchedules,
+  submitPlateManually,
+  uploadPlateImage,
+} from '../../src/services/api'
 
 function mockFetch(response: Response) {
   const fetchMock = vi.fn().mockResolvedValue(response)
@@ -123,5 +130,68 @@ describe('fetchRecentCheckins', () => {
     await fetchRecentCheckins({ limit: 5 })
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/checkins?limit=5')
+  })
+})
+
+describe('createSchedule', () => {
+  it('envia os campos e as fotos como multipart para /api/schedules', async () => {
+    const body = { id: 1, plate: 'ABC1D23' }
+    const fetchMock = mockFetch(jsonResponse(body, 201))
+    const driverDocumentPhoto = new File(['fake'], 'cnh.jpg', { type: 'image/jpeg' })
+
+    const result = await createSchedule({
+      plate: 'ABC1D23',
+      driverName: 'João da Silva',
+      driverDocument: '12345678900',
+      cargoType: 'Grãos',
+      scheduledDate: '2026-09-24',
+      driverDocumentPhoto,
+    })
+
+    expect(result).toEqual(body)
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/api/schedules')
+    expect(options.method).toBe('POST')
+    const form = options.body as FormData
+    expect(form.get('plate')).toBe('ABC1D23')
+    expect(form.get('driver_name')).toBe('João da Silva')
+    expect(form.get('driver_document')).toBe('12345678900')
+    expect(form.get('cargo_type')).toBe('Grãos')
+    expect(form.get('scheduled_date')).toBe('2026-09-24')
+    expect((form.get('driver_document_photo') as File).name).toBe('cnh.jpg')
+    expect(form.has('vehicle_document_photo')).toBe(false)
+  })
+
+  it('usa o detail do FastAPI quando a placa é inválida', async () => {
+    mockFetch(jsonResponse({ detail: 'Formato de placa inválido.' }, 400))
+
+    const error = await createSchedule({
+      plate: 'NAO-VALIDA',
+      driverName: 'João',
+      driverDocument: '123',
+      cargoType: 'Grãos',
+      scheduledDate: '2026-09-24',
+    }).catch((err) => err)
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error.status).toBe(400)
+  })
+})
+
+describe('listSchedules', () => {
+  it('busca /api/schedules sem filtro', async () => {
+    const fetchMock = mockFetch(jsonResponse([]))
+
+    await listSchedules()
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/schedules')
+  })
+
+  it('filtra por placa quando informada', async () => {
+    const fetchMock = mockFetch(jsonResponse([]))
+
+    await listSchedules('ABC1D23')
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/schedules?plate=ABC1D23')
   })
 })

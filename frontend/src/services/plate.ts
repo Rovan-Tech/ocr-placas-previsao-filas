@@ -1,4 +1,4 @@
-import type { PlateFormat, VerificationStatus } from './api'
+import type { PlateFormat, ScheduleStatus, VerificationStatus } from './api'
 
 export function formatPlate(plate: string, format: PlateFormat | null): string {
   return format === 'antigo' ? `${plate.slice(0, 3)}-${plate.slice(3)}` : plate
@@ -32,4 +32,24 @@ export function verificationInfo(status: VerificationStatus): VerificationInfo {
 
 export function formatConfidence(confidence: number): string {
   return `${(confidence * 100).toFixed(1)}%`
+}
+
+export interface ScheduleStatusInfo {
+  label: string
+  tone: Tone
+}
+
+const SCHEDULE_STATUS_INFO: Record<ScheduleStatus, ScheduleStatusInfo> = {
+  on_time: { label: 'Agendado para hoje', tone: 'ok' },
+  early: { label: 'Adiantado', tone: 'warning' },
+  late: { label: 'Atrasado', tone: 'danger' },
+}
+
+export function scheduleStatusInfo(status: ScheduleStatus): ScheduleStatusInfo {
+  return SCHEDULE_STATUS_INFO[status]
+}
+
+export function formatScheduledDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-')
+  return `${day}/${month}/${year}`
 }

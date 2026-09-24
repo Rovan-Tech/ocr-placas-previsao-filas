@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { formatConfidence, formatPlate, plateFormatLabel, verificationInfo } from '../../src/services/plate'
+import {
+  formatConfidence,
+  formatPlate,
+  formatScheduledDate,
+  plateFormatLabel,
+  scheduleStatusInfo,
+  verificationInfo,
+} from '../../src/services/plate'
 
 describe('formatPlate', () => {
   it('mostra a placa Mercosul sem hífen', () => {
@@ -48,5 +55,21 @@ describe('verificationInfo', () => {
 describe('formatConfidence', () => {
   it('formata como porcentagem com uma casa', () => {
     expect(formatConfidence(0.9876)).toBe('98.8%')
+  })
+})
+
+describe('scheduleStatusInfo', () => {
+  it.each([
+    ['on_time', 'Agendado para hoje', 'ok'],
+    ['early', 'Adiantado', 'warning'],
+    ['late', 'Atrasado', 'danger'],
+  ] as const)('%s -> %s (%s)', (status, label, tone) => {
+    expect(scheduleStatusInfo(status)).toEqual({ label, tone })
+  })
+})
+
+describe('formatScheduledDate', () => {
+  it('formata a data ISO como DD/MM/AAAA, sem depender de fuso horário', () => {
+    expect(formatScheduledDate('2026-09-24')).toBe('24/09/2026')
   })
 })
