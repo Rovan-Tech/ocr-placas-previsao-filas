@@ -1,4 +1,5 @@
 import logging
+from datetime import date
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
@@ -15,6 +16,8 @@ from app.services.ocr_service import read_plate
 from app.services.photo_storage import save_photo
 from app.services.plate_format import PlateFormat, normalize, plate_format
 from app.services.plate_verification import PlateVerifier, VerificationStatus, get_plate_verifier
+from app.services.schedule_matching import ScheduleStatus, match_schedule_for_plate
+from app.services.vehicle_data_api import VehicleDataProvider, get_vehicle_data_provider
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +39,30 @@ class Verification(BaseModel):
     source: str | None = None
 
 
+class ScheduleInfo(BaseModel):
+    driver_name: str
+    driver_document: str
+    has_driver_document_photo: bool
+    has_vehicle_document_photo: bool
+    cargo_type: str
+    scheduled_date: date
+    status: ScheduleStatus
+
+
+class VehicleDataOut(BaseModel):
+    brand: str | None
+    model: str | None
+    year: str | None
+    uf: str | None
+    color: str | None
+
+
+class CheckinContext(BaseModel):
+    found: bool
+    schedule: ScheduleInfo | None
+    vehicle_data: VehicleDataOut | None
+
+
 class PlateReadResponse(BaseModel):
     filename: str | None
     plate: str | None
@@ -44,6 +71,7 @@ class PlateReadResponse(BaseModel):
     needs_review: bool
     verification: Verification | None
     detections: list[Detection]
+    checkin: CheckinContext | None = None
 
 
 class ManualPlateReadResponse(PlateReadResponse):
@@ -55,6 +83,47 @@ def _verify(plate: str | None, verifier: PlateVerifier) -> Verification | None:
         return None
     result = verifier.verify(plate)
     return Verification(status=result.status, detail=result.detail, source=result.source)
+
+
+async def _build_checkin_context(
+    db: Session, plate: str | None, vehicle_provider: VehicleDataProvider
+) -> CheckinContext | None:
+    if plate is None:
+        return None
+
+    match = match_schedule_for_plate(db, plate, date.today())
+    schedule_info = (
+        ScheduleInfo(
+            driver_name=match.schedule.driver_name,
+            driver_document=match.schedule.driver_document,
+            has_driver_document_photo=match.schedule.driver_document_photo_path is not None,
+            has_vehicle_document_photo=match.schedule.vehicle_document_photo_path is not None,
+            cargo_type=match.schedule.cargo_type,
+            scheduled_date=match.schedule.scheduled_date,
+            status=match.status,
+        )
+        if match is not None
+        else None
+    )
+
+    vehicle_data = await vehicle_provider.lookup(plate)
+    vehicle_data_out = (
+        VehicleDataOut(
+            brand=vehicle_data.brand,
+            model=vehicle_data.model,
+            year=vehicle_data.year,
+            uf=vehicle_data.uf,
+            color=vehicle_data.color,
+        )
+        if vehicle_data is not None
+        else None
+    )
+
+    return CheckinContext(
+        found=schedule_info is not None or vehicle_data_out is not None,
+        schedule=schedule_info,
+        vehicle_data=vehicle_data_out,
+    )
 
 
 def _log_upload(
@@ -99,6 +168,7 @@ async def upload_plate_image(
     request: Request,
     file: UploadFile,
     verifier: PlateVerifier = Depends(get_plate_verifier),
+    vehicle_provider: VehicleDataProvider = Depends(get_vehicle_data_provider),
     employee: Employee = Depends(get_current_employee),
     db: Session = Depends(get_db),
 ) -> PlateReadResponse:
@@ -142,6 +212,7 @@ async def upload_plate_image(
         needs_review=reading.needs_review,
         verification=_verify(reading.plate, verifier),
         detections=[Detection(**detection) for detection in reading.detections],
+        checkin=await _build_checkin_context(db, reading.plate, vehicle_provider),
     )
 
 
@@ -153,6 +224,7 @@ async def submit_plate_manually(
     ocr_plate: str | None = Form(None),
     ocr_confidence: float | None = Form(None),
     verifier: PlateVerifier = Depends(get_plate_verifier),
+    vehicle_provider: VehicleDataProvider = Depends(get_vehicle_data_provider),
     employee: Employee = Depends(get_current_employee),
     db: Session = Depends(get_db),
 ) -> ManualPlateReadResponse:
@@ -217,5 +289,6 @@ async def submit_plate_manually(
         needs_review=False,
         verification=_verify(normalized, verifier),
         detections=[],
+        checkin=await _build_checkin_context(db, normalized, vehicle_provider),
         audit_saved=audit_saved,
     )
