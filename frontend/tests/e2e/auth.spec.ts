@@ -24,6 +24,21 @@ test('pede login antes de mostrar a tela de captura', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Abrir câmera' })).toHaveCount(0)
 })
 
+test('alterna entre mostrar e ocultar a senha no login', async ({ page }) => {
+  await page.goto('/')
+
+  const passwordInput = page.getByLabel('Senha', { exact: true })
+  await passwordInput.fill('senhaForte123')
+  await expect(passwordInput).toHaveAttribute('type', 'password')
+
+  await page.getByRole('button', { name: 'Mostrar senha' }).click()
+  await expect(passwordInput).toHaveAttribute('type', 'text')
+  await expect(passwordInput).toHaveValue('senhaForte123')
+
+  await page.getByRole('button', { name: 'Ocultar senha' }).click()
+  await expect(passwordInput).toHaveAttribute('type', 'password')
+})
+
 test('faz login com usuário e senha e mostra a tela de captura', async ({ page }) => {
   let sentForm: string | null = null
   await page.route('**/api/auth/login', (route) => {
@@ -33,7 +48,7 @@ test('faz login com usuário e senha e mostra a tela de captura', async ({ page 
   await page.goto('/')
 
   await page.getByLabel('Usuário').fill('fiscal.teste')
-  await page.getByLabel('Senha').fill('senhaForte123')
+  await page.getByLabel('Senha', { exact: true }).fill('senhaForte123')
   await page.getByRole('button', { name: 'Entrar' }).click()
 
   await expect(page.getByRole('button', { name: 'Abrir câmera' })).toBeVisible()
@@ -47,7 +62,7 @@ test('mostra o erro do backend quando o login falha', async ({ page }) => {
   await page.goto('/')
 
   await page.getByLabel('Usuário').fill('fiscal.teste')
-  await page.getByLabel('Senha').fill('senha-errada')
+  await page.getByLabel('Senha', { exact: true }).fill('senha-errada')
   await page.getByRole('button', { name: 'Entrar' }).click()
 
   await expect(page.getByText('Usuário ou senha inválidos.')).toBeVisible()
@@ -59,7 +74,7 @@ test('login com senha temporária leva direto pra tela de trocar senha', async (
   await page.goto('/')
 
   await page.getByLabel('Usuário').fill('fiscal.novo')
-  await page.getByLabel('Senha').fill('temp12345')
+  await page.getByLabel('Senha', { exact: true }).fill('temp12345')
   await page.getByRole('button', { name: 'Entrar' }).click()
 
   await expect(page.getByRole('heading', { name: 'Troque sua senha' })).toBeVisible()
@@ -73,7 +88,7 @@ test('troca a senha e, depois, usa o sistema normalmente', async ({ page }) => {
   )
   await page.goto('/')
   await page.getByLabel('Usuário').fill('fiscal.novo')
-  await page.getByLabel('Senha').fill('temp12345')
+  await page.getByLabel('Senha', { exact: true }).fill('temp12345')
   await page.getByRole('button', { name: 'Entrar' }).click()
 
   await page.getByLabel('Senha atual').fill('temp12345')
@@ -88,7 +103,7 @@ test('recusa trocar a senha quando a confirmação não bate', async ({ page }) 
   await mockLogin(page, { body: loginBody({ must_change_password: true }) })
   await page.goto('/')
   await page.getByLabel('Usuário').fill('fiscal.novo')
-  await page.getByLabel('Senha').fill('temp12345')
+  await page.getByLabel('Senha', { exact: true }).fill('temp12345')
   await page.getByRole('button', { name: 'Entrar' }).click()
 
   await page.getByLabel('Senha atual').fill('temp12345')

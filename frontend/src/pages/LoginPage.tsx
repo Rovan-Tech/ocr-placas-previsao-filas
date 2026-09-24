@@ -7,6 +7,7 @@ export default function LoginPage() {
   const { loginWithResponse } = useAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,14 +43,25 @@ export default function LoginPage() {
         />
 
         <label htmlFor="login-password">Senha</label>
-        <input
-          id="login-password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          disabled={sending}
-        />
+        <div className="password-field">
+          <input
+            id="login-password"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            disabled={sending}
+          />
+          <button
+            type="button"
+            className="toggle-password"
+            onClick={() => setShowPassword((current) => !current)}
+            aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+            title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+          >
+            {showPassword ? '🙈' : '👁️'}
+          </button>
+        </div>
 
         {error && (
           <p className="message error" role="alert">
