@@ -56,3 +56,42 @@ def db_session(test_engine):
         finally:
             session.close()
             transaction.rollback()
+
+
+@pytest.fixture
+def employee(db_session):
+    """Funcionário de teste já onboardado (sem troca de senha pendente), salvo no banco de
+    testes (dentro da transação de db_session)."""
+    from app.models import Employee
+    from app.services.auth import hash_password
+
+    record = Employee(
+        username="fiscal.teste",
+        full_name="Fiscal de Teste",
+        password_hash=hash_password("s3nhaSegura!"),
+        must_change_password=False,
+    )
+    db_session.add(record)
+    db_session.flush()
+    db_session.refresh(record)
+    return record
+
+
+@pytest.fixture
+def authenticated_client(employee, db_session):
+    """TestClient com login e banco de testes já plugados via dependency_overrides — os endpoints
+    protegidos (/ocr/*, /logs/*) respondem como se ``employee`` estivesse logado, e qualquer
+    escrita (ex.: UploadLog) cai na mesma transação de `db_session`, desfeita no fim do teste."""
+    from fastapi.testclient import TestClient
+
+    from app.db import get_db
+    from app.main import app
+    from app.services.auth import get_current_employee
+
+    app.dependency_overrides[get_current_employee] = lambda: employee
+    app.dependency_overrides[get_db] = lambda: db_session
+    try:
+        yield TestClient(app)
+    finally:
+        del app.dependency_overrides[get_current_employee]
+        del app.dependency_overrides[get_db]

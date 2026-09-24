@@ -26,6 +26,9 @@ yarn-error.log*
 .env.local
 .env.*.local
 
+# Fotos de resguardo salvas em disco (ver backend/app/services/photo_storage.py) — nunca versionadas.
+backend/data/uploads/
+
 # Docker
 *.pid
 

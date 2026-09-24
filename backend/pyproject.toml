@@ -1,3 +1,6 @@
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "ocr_real: roda o EasyOCR de verdade (lento, ~1 min). Pular com -m \"not ocr_real\"",
+]
