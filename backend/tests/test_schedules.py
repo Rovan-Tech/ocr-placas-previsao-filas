@@ -1,8 +1,17 @@
+import cv2
+import numpy as np
 from fastapi.testclient import TestClient
 
 from app.main import app
 
 client = TestClient(app)
+
+
+def _photo_bytes(fill: int) -> bytes:
+    image = np.full((10, 10, 3), fill, dtype=np.uint8)
+    ok, encoded = cv2.imencode(".jpg", image)
+    assert ok
+    return encoded.tobytes()
 
 
 def _create(client, **overrides):
@@ -46,9 +55,9 @@ class TestCreateSchedule:
                 "scheduled_date": "2026-09-24",
             },
             files={
-                "driver_document_photo_front": ("cnh-frente.jpg", b"fake-driver-doc-front", "image/jpeg"),
-                "driver_document_photo_back": ("cnh-verso.jpg", b"fake-driver-doc-back", "image/jpeg"),
-                "vehicle_document_photo": ("crlv.jpg", b"fake-vehicle-doc", "image/jpeg"),
+                "driver_document_photo_front": ("cnh-frente.jpg", _photo_bytes(10), "image/jpeg"),
+                "driver_document_photo_back": ("cnh-verso.jpg", _photo_bytes(20), "image/jpeg"),
+                "vehicle_document_photo": ("crlv.jpg", _photo_bytes(30), "image/jpeg"),
             },
         )
 
@@ -81,6 +90,27 @@ class TestCreateSchedule:
                 "scheduled_date": "2026-09-24",
             },
             files={"driver_document_photo_front": ("doc.pdf", b"%PDF-1.4 fake", "application/pdf")},
+        )
+
+        assert response.status_code == 400
+
+    def test_rejects_a_photo_whose_content_does_not_match_the_declared_type(self, authenticated_client):
+        response = authenticated_client.post(
+            "/schedules",
+            data={
+                "plate": "ABC1D23",
+                "driver_name": "João da Silva",
+                "driver_document": "12345678900",
+                "cargo_type": "Grãos",
+                "scheduled_date": "2026-09-24",
+            },
+            files={
+                "driver_document_photo_back": (
+                    "evil.jpg",
+                    b"<svg onload=alert(1)></svg>",
+                    "image/jpeg",
+                )
+            },
         )
 
         assert response.status_code == 400
@@ -161,6 +191,8 @@ class TestSchedulePhotos:
         import app.services.photo_storage as photo_storage
 
         monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
+        front_bytes = _photo_bytes(10)
+        back_bytes = _photo_bytes(20)
 
         created = authenticated_client.post(
             "/schedules",
@@ -172,8 +204,8 @@ class TestSchedulePhotos:
                 "scheduled_date": "2026-09-24",
             },
             files={
-                "driver_document_photo_front": ("cnh-frente.jpg", b"fake-driver-doc-front", "image/jpeg"),
-                "driver_document_photo_back": ("cnh-verso.jpg", b"fake-driver-doc-back", "image/jpeg"),
+                "driver_document_photo_front": ("cnh-frente.jpg", front_bytes, "image/jpeg"),
+                "driver_document_photo_back": ("cnh-verso.jpg", back_bytes, "image/jpeg"),
             },
         ).json()
 
@@ -181,6 +213,6 @@ class TestSchedulePhotos:
         back = authenticated_client.get(f"/schedules/{created['id']}/driver-document-photo-back")
 
         assert front.status_code == 200
-        assert front.content == b"fake-driver-doc-front"
+        assert front.content == front_bytes
         assert back.status_code == 200
-        assert back.content == b"fake-driver-doc-back"
+        assert back.content == back_bytes

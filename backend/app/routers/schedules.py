@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Employee, Schedule
 from app.services.auth import get_current_employee
+from app.services.ocr_service import decode_image
 from app.services.photo_storage import resolve_photo_path, save_photo
 from app.services.plate_format import normalize, plate_format
 
@@ -72,6 +73,10 @@ async def _save_optional_photo(photo: UploadFile | None) -> str | None:
     content = await photo.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="Imagem muito grande. O limite é de 5 MB.")
+    try:
+        await run_in_threadpool(decode_image, content)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
     return await run_in_threadpool(save_photo, content, photo.content_type, subdir="schedules")
 
 
