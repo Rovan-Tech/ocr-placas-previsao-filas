@@ -40,7 +40,7 @@ def _upload(authenticated_client):
     return authenticated_client.post("/ocr/upload", files={"file": ("placa.jpg", b"fake-image-bytes", "image/jpeg")})
 
 
-def _schedule(db_session, employee, *, scheduled_date, plate="ABC1D23"):
+def _schedule(db_session, employee, *, scheduled_date, plate="ABC1D23", **extra):
     record = Schedule(
         plate=plate,
         driver_name="João da Silva",
@@ -48,6 +48,7 @@ def _schedule(db_session, employee, *, scheduled_date, plate="ABC1D23"):
         cargo_type="Grãos",
         scheduled_date=scheduled_date,
         created_by_id=employee.id,
+        **extra,
     )
     db_session.add(record)
     db_session.flush()
@@ -66,6 +67,25 @@ def test_scheduled_for_today_shows_schedule_and_vehicle_data(
     assert body["checkin"]["schedule"]["status"] == "on_time"
     assert body["checkin"]["schedule"]["driver_name"] == "João da Silva"
     assert body["checkin"]["schedule"]["cargo_type"] == "Grãos"
+    assert body["checkin"]["schedule"]["has_driver_document_photo_front"] is False
+    assert body["checkin"]["schedule"]["has_driver_document_photo_back"] is False
+
+
+@patch("app.routers.ocr.read_plate", return_value=READING)
+def test_scheduled_shows_which_driver_document_photos_were_uploaded(
+    _, authenticated_client, employee, db_session, vehicle_provider_found
+):
+    _schedule(
+        db_session,
+        employee,
+        scheduled_date=date.today(),
+        driver_document_photo_front_path="schedules/cnh-frente.jpg",
+    )
+
+    body = _upload(authenticated_client).json()
+
+    assert body["checkin"]["schedule"]["has_driver_document_photo_front"] is True
+    assert body["checkin"]["schedule"]["has_driver_document_photo_back"] is False
     assert body["checkin"]["vehicle_data"] == {
         "brand": "FIAT", "model": "UNO", "year": "2015", "uf": "SP", "color": "Branco"
     }
