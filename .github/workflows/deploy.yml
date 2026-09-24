@@ -97,10 +97,14 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      # VITE_API_BASE (não VITE_BACKEND_URL) é o que o código realmente lê em
+      # produção — services/api.ts usa API_BASE pra montar toda chamada
+      # (ex: `${API_BASE}/ocr/upload`). VITE_BACKEND_URL só existe pro proxy
+      # do `npm run dev`, sem efeito nenhum no build (vite.config.ts).
       - name: Build (aponta pro backend recém-publicado)
         working-directory: frontend
         env:
-          VITE_BACKEND_URL: ${{ needs.deploy-backend.outputs.backend_url }}
+          VITE_API_BASE: ${{ needs.deploy-backend.outputs.backend_url }}
         run: npm run build
 
       # cloudflare/pages-action foi descontinuada e removida do GitHub em 2026;
