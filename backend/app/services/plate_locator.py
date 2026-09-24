@@ -78,6 +78,16 @@ def rectify(image: np.ndarray, corners: np.ndarray, height: int = RECTIFIED_HEIG
     bottom = np.linalg.norm(corners[2] - corners[3])
     left = np.linalg.norm(corners[3] - corners[0])
     right = np.linalg.norm(corners[2] - corners[1])
+    if max(top, bottom) < max(left, right):
+        # _order_corners assume um quadrilátero perto do alinhamento com os eixos (a heurística
+        # de soma/diferença dos 4 pontos) — numa cena muito angulada/rotacionada, ela pode
+        # etiquetar como "topo/base" o par de lados que na verdade é o mais curto. Nenhuma placa
+        # é mais alta que larga, então esse resultado sozinho já denuncia a troca: gira os
+        # rótulos em 90° (mantendo os mesmos 4 pontos) antes de seguir, em vez de confiar cegamente
+        # na ordenação original. Sem isso, o recorte final saía com a largura e a altura
+        # invertidas (visto em produção: aspect ratio 0.39 numa placa fotografada de lado).
+        corners = np.roll(corners, 1, axis=0)
+        top, bottom, left, right = left, right, top, bottom
     aspect_ratio = max(top, bottom) / max(left, right, 1.0)
     width = int(round(height * aspect_ratio))
     destination = np.float32([[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]])

@@ -42,6 +42,28 @@ def test_rectify_straightens_a_rotated_plate():
     assert difference < 25
 
 
+def test_rectify_keeps_the_plate_wider_than_tall_even_at_a_steep_rotation():
+    """Regressão: a heurística de soma/diferença de `_order_corners` (assume o quadrilátero perto
+    do alinhamento com os eixos) rotula errado "topo/base" vs "esquerda/direita" quando a placa
+    aparece bem mais rotacionada na foto — o recorte final saía com largura e altura invertidas
+    (visto em produção: aspect ratio 0.39, quase um recorte vertical, numa placa fotografada de
+    lado/rotacionada). Nenhuma placa é mais alta que larga, então isso nunca deveria acontecer."""
+    plate = render_plate("DEF1G23")
+    canvas = np.zeros((900, 900, 3), np.uint8)
+    rotation = cv2.getRotationMatrix2D((450, 450), 80, 1.0)
+    offset = np.float32([[450 - plate.shape[1] / 2], [450 - plate.shape[0] / 2]])
+    corners = np.float32([[0, 0], [plate.shape[1], 0], [plate.shape[1], plate.shape[0]], [0, plate.shape[0]]])
+    placed = cv2.transform((corners + offset.T)[None], rotation)[0]
+    matrix = cv2.getPerspectiveTransform(corners, placed)
+    canvas = cv2.warpPerspective(plate, matrix, (900, 900))
+
+    straightened = rectify(canvas, placed, height=plate.shape[0])
+
+    aspect_ratio = straightened.shape[1] / straightened.shape[0]
+    assert aspect_ratio > 1.0, f"recorte saiu mais alto que largo (aspect ratio {aspect_ratio:.2f})"
+    assert abs(aspect_ratio - plate.shape[1] / plate.shape[0]) < 0.3
+
+
 # Casos que combinam de propósito duas degradações extremas (chuva + pouca luz) — a mesma lógica
 # de "contraluz_chuva" em test_ocr_accuracy.py: o localizador sozinho, na imagem crua, não tem
 # como isolar a placa com confiança (a chuva cobre a cena inteira de ruído, não só a região da
