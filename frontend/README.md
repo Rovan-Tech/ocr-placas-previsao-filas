@@ -9,8 +9,9 @@ Interface em React + TypeScript (Vite) usada pelo fiscal na guarita:
 - Logs de quem enviou cada foto/placa, de onde, e o que a leitura deu
 - Check-in inteligente: o resultado do OCR já mostra se a placa tem agendamento (motorista,
   carga, data — com aviso de "Adiantado"/"Atrasado"), os dados do veículo trazidos pela API
-  Brasil, ou que a placa não foi reconhecida em nenhuma fonte. Sem agendamento, dá pra cadastrar
-  o motorista/carga/caminhão ali mesmo, sem sair da tela de captura
+  Brasil (ou um perfil fictício sinalizado como "dados de exemplo", quando a API Brasil não está
+  configurada no backend), ou que a placa não foi reconhecida em nenhuma fonte. Sem agendamento,
+  dá pra cadastrar o motorista/carga/caminhão ali mesmo, sem sair da tela de captura
 - Cadastro de agendamento de chegada (placa, motorista, carga, data prevista, fotos de
   documento opcionais — frente e verso do documento do motorista) — qualquer funcionário, não
   só admin

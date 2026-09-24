@@ -140,9 +140,14 @@ Convenções:
   de fornecedor.
 - **Nunca derruba o check-in.** `ApiBrasilVehicleDataProvider.lookup` nunca levanta exceção:
   timeout, erro de rede, 429, status != 200, JSON malformado ou placa não encontrada viram
-  `None` (com log), e sem os tokens configurados (`API_BRASIL_DEVICE_TOKEN`/
-  `API_BRASIL_BEARER_TOKEN` vazios) o factory já devolve `NotConfiguredVehicleDataProvider`,
-  que nem tenta a chamada — mesmo padrão do `NotConfiguredVerifier` em `plate_verification.py`.
+  `None` (com log).
+- **Sem os tokens configurados, o factory devolve `MockVehicleDataProvider`** (não
+  `NotConfiguredVehicleDataProvider` — removido) em vez de desligar a consulta: mostra um
+  perfil de veículo fictício, fixo por placa (`VehicleData.is_mock=True`, `ocr.py` propaga esse
+  campo pra `VehicleDataOut`), pra sempre ter algo pra demonstrar sem exigir conta na API
+  Brasil. O frontend mostra um aviso de "dados de exemplo" nesse caso (`OcrResult.tsx`). Só
+  quando `API_BRASIL_DEVICE_TOKEN`/`API_BRASIL_BEARER_TOKEN` estão preenchidos o factory devolve
+  `ApiBrasilVehicleDataProvider` de verdade.
 - **Motorista e documento do motorista vêm só do agendamento interno, nunca da API externa** —
   nenhuma API pública de placa devolve esse dado (é restrito Detran/RENAVAM). O parser de
   `vehicle_data_api.py` só extrai marca/modelo/ano/UF/cor.

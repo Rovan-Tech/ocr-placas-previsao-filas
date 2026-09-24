@@ -36,8 +36,9 @@ A URL do banco vem de `DATABASE_URL` (padrão em `app/config.py`, já alinhado a
 mudar, copie `.env.example` para `.env`. `JWT_SECRET_KEY` também vem de lá — sem definir, o
 servidor gera uma chave aleatória a cada subida, e todo mundo precisa logar de novo a cada
 restart (ok pra rodar local; defina no `.env` pra produção). `API_BRASIL_DEVICE_TOKEN`/
-`API_BRASIL_BEARER_TOKEN` são opcionais — sem eles, o check-in inteligente funciona só com o
-agendamento interno, sem a consulta de dados do veículo (ver "Check-in inteligente" abaixo).
+`API_BRASIL_BEARER_TOKEN` são opcionais — sem eles, o check-in inteligente mostra dados de
+veículo fictícios (sinalizados como exemplo na tela) em vez de consultar a API de verdade (ver
+"Check-in inteligente" abaixo).
 
 A API sobe em `http://localhost:8002` (`/docs` para a documentação interativa do Swagger).
 
@@ -157,9 +158,10 @@ fontes e devolvem tudo junto em `checkin`:
   free — 100 requisições/dia) — marca, modelo, ano, UF e cor do veículo, em `checkin.vehicle_data`.
   Roda sempre que uma placa válida é lida, mesmo com agendamento (entra como confirmação/
   complemento). Precisa de `API_BRASIL_DEVICE_TOKEN`/`API_BRASIL_BEARER_TOKEN` no `.env`
-  (conta grátis em app.apibrasil.io) — sem eles, essa parte fica desligada e o check-in segue só
-  com o agendamento. Qualquer falha (timeout, rede, limite diário estourado, resposta malformada)
-  vira `null` sem derrubar o check-in.
+  (conta grátis em app.apibrasil.io) — sem eles, `checkin.vehicle_data` traz um perfil de veículo
+  fictício, fixo por placa, com `is_mock: true` (o frontend mostra um aviso de "dados de
+  exemplo" nesse caso). Qualquer falha na chamada real (timeout, rede, limite diário estourado,
+  resposta malformada) vira `null` sem derrubar o check-in.
 
 `checkin.found` indica se a placa foi reconhecida em qualquer uma das duas fontes; `null` quando
 nenhuma placa em formato válido foi lida. Motorista e documento do motorista vêm **só** do
