@@ -9,9 +9,11 @@ Interface em React + TypeScript (Vite) usada pelo fiscal na guarita:
 - Logs de quem enviou cada foto/placa, de onde, e o que a leitura deu
 - Check-in inteligente: o resultado do OCR já mostra se a placa tem agendamento (motorista,
   carga, data — com aviso de "Adiantado"/"Atrasado"), os dados do veículo trazidos pela API
-  Brasil, ou que a placa não foi reconhecida em nenhuma fonte
+  Brasil, ou que a placa não foi reconhecida em nenhuma fonte. Sem agendamento, dá pra cadastrar
+  o motorista/carga/caminhão ali mesmo, sem sair da tela de captura
 - Cadastro de agendamento de chegada (placa, motorista, carga, data prevista, fotos de
-  documento opcionais) — qualquer funcionário, não só admin
+  documento opcionais — frente e verso do documento do motorista) — qualquer funcionário, não
+  só admin
 - Cadastro e exclusão de funcionário (só para quem é admin master)
 - Tema claro/escuro à escolha (segue o sistema até o fiscal trocar manualmente)
 
@@ -58,7 +60,8 @@ O dev server fica exposto na rede local (`host: true`), então dá para abrir
 ```
 src/
 ├── components/   # Layout, CameraCapture, ManualPlateEntry, OcrResult (inclui o check-in
-│                 # inteligente), ThemeToggle
+│                 # inteligente), ScheduleForm (cadastro de agendamento — reaproveitado na
+│                 # tela de captura, quando não há agendamento, e em /agendamentos), ThemeToggle
 ├── context/      # AuthContext (sessão/token/"precisa trocar senha"), ThemeContext (claro/escuro)
 ├── pages/        # LoginPage, ChangePasswordPage, CapturePage (/), CheckinsPage (/checkins),
 │                 # LogsPage (/logs), CreateSchedulePage (/agendamentos), CreateEmployeePage

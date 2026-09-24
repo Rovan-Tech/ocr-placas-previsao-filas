@@ -110,11 +110,14 @@ Revise sempre o arquivo gerado em `migrations/versions/` antes de commitar. O te
 - `GET /logs/{id}/photo` — baixa a foto de resguardo daquele log, quando existe (404 se não).
 - `POST /schedules` — cadastra um agendamento de chegada (`multipart/form-data`: `plate`,
   `driver_name`, `driver_document`, `cargo_type`, `scheduled_date`, e opcionalmente
-  `driver_document_photo`/`vehicle_document_photo`). Qualquer funcionário logado pode cadastrar
-  — não é gestão de funcionário, é dado operacional.
+  `driver_document_photo_front`/`driver_document_photo_back`/`vehicle_document_photo` — o
+  documento do motorista tem frente e verso porque CNH/RG costumam ter dado relevante nos dois
+  lados). Qualquer funcionário logado pode cadastrar — não é gestão de funcionário, é dado
+  operacional.
 - `GET /schedules` — lista os agendamentos (aceita `?plate=` pra filtrar por placa).
-- `GET /schedules/{id}/driver-document-photo` e `GET /schedules/{id}/vehicle-document-photo` —
-  baixam as fotos dos documentos daquele agendamento, quando existem (404 se não).
+- `GET /schedules/{id}/driver-document-photo-front`, `GET /schedules/{id}/driver-document-photo-back`
+  e `GET /schedules/{id}/vehicle-document-photo` — baixam as fotos dos documentos daquele
+  agendamento, quando existem (404 se não).
 
 ### Login e cadastro de funcionário
 
@@ -161,6 +164,10 @@ fontes e devolvem tudo junto em `checkin`:
 `checkin.found` indica se a placa foi reconhecida em qualquer uma das duas fontes; `null` quando
 nenhuma placa em formato válido foi lida. Motorista e documento do motorista vêm **só** do
 agendamento interno — nenhuma API pública de placa devolve esse dado (é restrito Detran/RENAVAM).
+
+Sem agendamento (`checkin.schedule === null`), o fiscal decide se libera a entrada — o frontend
+oferece cadastrar motorista/carga/caminhão ali mesmo na tela de captura (`POST /schedules` com
+`scheduled_date` de hoje), sem precisar ir pra tela de Agendamentos.
 
 ### Leitura da placa
 

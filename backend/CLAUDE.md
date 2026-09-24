@@ -151,9 +151,11 @@ Convenções:
   (maiúscula/minúscula, com/sem wrapper `dados`/`response`/`resposta`) — conferir contra uma
   resposta real assim que existir conta de teste, e ajustar `_BRAND_KEYS`/`_MODEL_KEYS`/etc. se
   necessário.
-- **Fotos de documento (motorista/veículo) seguem a mesma regra de upload do resto do
-  projeto**: tipo e tamanho validados, nunca salvas com o nome enviado pelo cliente
-  (`photo_storage.py`, subpasta `schedules`), nunca em bytea no banco.
+- **Fotos de documento (motorista frente/verso + veículo) seguem a mesma regra de upload do
+  resto do projeto**: tipo e tamanho validados, nunca salvas com o nome enviado pelo cliente
+  (`photo_storage.py`, subpasta `schedules`), nunca em bytea no banco. O documento do motorista
+  tem duas fotos (`driver_document_photo_front_path`/`_back_path`) — CNH e RG normalmente têm
+  dado relevante nos dois lados.
 - `POST /schedules` e `GET /schedules` exigem login (`get_current_employee`), sem gate de
   admin — cadastro de agendamento é dado operacional, não gestão de funcionário.
 
@@ -175,18 +177,23 @@ então não há CORS configurado. Toda chamada abaixo, exceto `/auth/login`, exi
 | `POST /ocr/manual`      | Mesma forma acima + `audit_saved`, a partir de `multipart/form-data` (`plate`, `photo?`, `ocr_plate?`, `ocr_confidence?`) — sempre `confidence: 1.0`, `needs_review: false`, `detections: []`; formato inválido é 400 |
 | `GET /logs`             | Lista de `{ id, employee_id, employee_username, endpoint, client_ip, ocr_plate, ocr_confidence, manual_plate, final_plate, final_plate_format, needs_review, has_photo, created_at }` |
 | `GET /logs/{id}/photo`  | Arquivo da foto de resguardo (404 se não houver) |
-| `POST /schedules`       | `ScheduleOut` (`{ id, plate, driver_name, driver_document, has_driver_document_photo, has_vehicle_document_photo, cargo_type, scheduled_date, created_at }`), a partir de `multipart/form-data` (`plate`, `driver_name`, `driver_document`, `cargo_type`, `scheduled_date`, `driver_document_photo?`, `vehicle_document_photo?`) |
+| `POST /schedules`       | `ScheduleOut` (`{ id, plate, driver_name, driver_document, has_driver_document_photo_front, has_driver_document_photo_back, has_vehicle_document_photo, cargo_type, scheduled_date, created_at }`), a partir de `multipart/form-data` (`plate`, `driver_name`, `driver_document`, `cargo_type`, `scheduled_date`, `driver_document_photo_front?`, `driver_document_photo_back?`, `vehicle_document_photo?`) |
 | `GET /schedules`        | Lista de `ScheduleOut`; aceita `?plate=` pra filtrar |
-| `GET /schedules/{id}/driver-document-photo` | Arquivo da foto do documento do motorista (404 se não houver) |
+| `GET /schedules/{id}/driver-document-photo-front` | Arquivo da foto da frente do documento do motorista (404 se não houver) |
+| `GET /schedules/{id}/driver-document-photo-back` | Arquivo da foto do verso do documento do motorista (404 se não houver) |
 | `GET /schedules/{id}/vehicle-document-photo` | Arquivo da foto do documento do veículo (404 se não houver) |
 | `GET /checkins`         | **a criar** — lista de `{ id, plate, created_at, estimated_wait_minutes }`   |
 
 `checkin` em `PlateReadResponse` é `null` quando nenhuma placa em formato válido foi lida, ou
 `{ found, schedule, vehicle_data }`: `schedule` é `null` sem agendamento, senão `{ driver_name,
-driver_document, has_driver_document_photo, has_vehicle_document_photo, cargo_type,
-scheduled_date, status }` (`status`: `"on_time" | "early" | "late"`); `vehicle_data` é `null`
-sem retorno da API Brasil, senão `{ brand, model, year, uf, color }` (qualquer campo pode vir
-`null` se a API Brasil não devolveu).
+driver_document, has_driver_document_photo_front, has_driver_document_photo_back,
+has_vehicle_document_photo, cargo_type, scheduled_date, status }` (`status`: `"on_time" | "early"
+| "late"`); `vehicle_data` é `null` sem retorno da API Brasil, senão `{ brand, model, year, uf,
+color }` (qualquer campo pode vir `null` se a API Brasil não devolveu).
+
+Sem agendamento (`checkin.schedule === null`), o frontend oferece cadastrar o motorista/carga/
+caminhão na hora, direto na tela de captura (`POST /schedules` com `scheduled_date` de hoje) —
+ver "Check-in inteligente" acima e `CapturePage.tsx`/`ScheduleForm.tsx` no frontend.
 
 `GET /checkins` aceita `?limit=` (o frontend envia `20`), ordenado do mais recente para o mais
 antigo, com `created_at` em ISO 8601. Ao mudar esse formato, atualizar também
