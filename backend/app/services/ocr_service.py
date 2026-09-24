@@ -6,8 +6,6 @@ from dataclasses import dataclass, field
 
 MAX_IMAGE_PIXELS = 25_000_000
 
-# Limita a decodificação no próprio OpenCV (proteção contra "decompression bomb");
-# precisa estar definido antes do primeiro cv2.imdecode.
 os.environ.setdefault("OPENCV_IO_MAX_IMAGE_PIXELS", str(MAX_IMAGE_PIXELS))
 
 import cv2  # noqa: E402
@@ -18,47 +16,33 @@ from app.services.image_preprocessing import ocr_variants  # noqa: E402
 from app.services.plate_format import PLATE_LENGTH, PlateFormat, find_plate, normalize  # noqa: E402
 from app.services.plate_locator import find_plate_candidates  # noqa: E402
 
-# Placas só têm letras sem acento, números e (na antiga) hífen: restringir o alfabeto do
-# reconhecedor evita leituras como "Ç" ou "É" e melhora a precisão.
 PLATE_ALLOWLIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"
 
-# A foto inteira só é lida se nenhum recorte der uma placa válida; reduzida para caber no tempo.
 FULL_IMAGE_MAX_WIDTH = 1280
 
-# Cada caractere corrigido (letra<->número) reduz a confiança da leitura.
 CORRECTION_PENALTY = 0.85
 
-# Para de tentar variantes quando a leitura já é confiável (economiza CPU e tempo de resposta).
 CONFIDENT_SINGLE_READ = 0.9
 CONFIDENT_AGREEING_READS = 2
 CONFIDENT_AGREEING_MIN = 0.5
 
-# Orçamento de tempo por foto (o fiscal está esperando na guarita). Depois do orçamento "suave",
-# para assim que houver alguma placa válida; depois do "duro", para de qualquer jeito.
 SOFT_TIME_BUDGET_S = 2.5
 HARD_TIME_BUDGET_S = 3.5
-# A foto inteira é cara de ler (o detector de texto roda na imagem toda): só as variantes básicas.
 FULL_IMAGE_MAX_VARIANTS = 2
 
-# Abaixo disso o fiscal deve conferir a placa na mão.
 REVIEW_CONFIDENCE = 0.65
-# Uma segunda placa com pelo menos esta fração dos votos da vencedora = leitura ambígua.
 AMBIGUITY_RATIO = 0.5
 
 
 _reader: easyocr.Reader | None = None
 _reader_lock = threading.Lock()
-# Uma leitura por vez: o PyTorch já usa todos os núcleos da CPU em cada inferência, então duas
-# leituras simultâneas só dividiriam a CPU e atrasariam as duas.
 _inference_lock = threading.Lock()
 
 
 def get_reader() -> easyocr.Reader:
-    """Modelo do EasyOCR, carregado uma vez só (o main.py pré-carrega na subida do servidor)."""
     global _reader
     with _reader_lock:
         if _reader is None:
-            # gpu=False: mantém o projeto 100% gratuito e local, sem depender de GPU.
             _reader = easyocr.Reader(["pt", "en"], gpu=False)
         return _reader
 
@@ -68,11 +52,6 @@ class _Vote:
     format: PlateFormat
     confidences: list[float] = field(default_factory=list)
     corrections: int = 7
-    # True se ao menos um voto veio de um recorte com evidência estrutural forte (moldura ou
-    # bloco de texto da placa inteiro — ver find_plate_candidates). Uma placa votada só a partir
-    # de evidência fraca (agrupamento de caracteres ou a foto inteira) sempre pede revisão,
-    # mesmo com confiança alta: são recortes de último recurso, sem a mesma garantia de que a
-    # região é mesmo a placa e não outro texto da foto.
     has_strong_evidence: bool = False
 
     @property
@@ -86,7 +65,6 @@ class _Vote:
 
 @dataclass(frozen=True)
 class PlateReading:
-    """Resultado da leitura. ``plate`` é None quando nenhuma placa em formato válido foi lida."""
 
     plate: str | None
     format: PlateFormat | None
@@ -114,11 +92,6 @@ def decode_image(image_bytes: bytes) -> np.ndarray:
 
 
 def _text_lines(results: list) -> Iterator[tuple[str, float]]:
-    """Textos a testar como placa: cada trecho lido e os trechos da mesma linha juntos.
-
-    O OCR às vezes quebra a placa em dois pedaços (ex.: "ABC" e "1D23"); juntar os trechos
-    vizinhos, da esquerda para a direita, recupera a placa inteira.
-    """
     boxes = []
     for box, text, confidence in results:
         points = np.asarray(box, dtype=np.float32)
@@ -142,7 +115,6 @@ def _is_confident(vote: _Vote) -> bool:
 
 
 def _looks_truncated(results: list) -> bool:
-    """Leitura com cara de placa cortada pelo recorte (ex.: "MA-8376"): 5-6 caracteres, letras e números."""
     for _, text, _ in results:
         chars = normalize(text)
         if PLATE_LENGTH - 2 <= len(chars) < PLATE_LENGTH and any(c.isdigit() for c in chars) and any(
@@ -173,7 +145,6 @@ def _vote(votes: dict[str, _Vote], results: list, is_weak_evidence: bool) -> Non
 
 def _read_images(reader: easyocr.Reader, images: Iterable[tuple[np.ndarray, bool]], votes: dict[str, _Vote],
                  detections: list[dict], started: float, max_variants: int | None = None) -> bool:
-    """Lê cada recorte com as variantes de pré-processamento. True se chegou a uma leitura confiável."""
     for region, is_weak_evidence in images:
         for index, (_, variant) in enumerate(ocr_variants(region)):
             elapsed = time.monotonic() - started
@@ -189,19 +160,11 @@ def _read_images(reader: easyocr.Reader, images: Iterable[tuple[np.ndarray, bool
             if votes and _is_confident(max(votes.values(), key=lambda v: v.score)):
                 return True
             if not votes and _looks_truncated(results):
-                # Recorte cortou a placa: outras variantes do mesmo recorte não recuperam a letra
-                # que ficou de fora. Passa para o próximo (o 2º é a versão larga do 1º).
                 break
     return False
 
 
 def read_plate(image_bytes: bytes) -> PlateReading:
-    """Localiza a placa na foto, lê com OCR e devolve a placa em formato válido mais votada.
-
-    Cada recorte candidato passa por variantes de pré-processamento (contraste, brilho, ruído,
-    reflexo, nitidez); cada leitura em formato válido vale um voto. A placa com mais votos vence —
-    assim um erro isolado numa variante não decide o resultado.
-    """
     image = decode_image(image_bytes)
     votes: dict[str, _Vote] = {}
     detections: list[dict] = []
@@ -210,8 +173,6 @@ def read_plate(image_bytes: bytes) -> PlateReading:
         reader = get_reader()
         started = time.monotonic()
         if not _read_images(reader, find_plate_candidates(image), votes, detections, started) and not votes:
-            # Nenhum recorte deu placa válida: tenta a foto inteira como último recurso. É
-            # evidência fraca pelo mesmo motivo do agrupamento de caracteres (ver _Vote).
             _read_images(reader, [(_full_image(image), True)], votes, detections, started, FULL_IMAGE_MAX_VARIANTS)
 
     if not votes:

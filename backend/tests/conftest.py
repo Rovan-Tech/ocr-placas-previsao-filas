@@ -15,11 +15,8 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 @pytest.fixture(autouse=True)
 def _reset_rate_limiter():
-    """Evita que o rate limit do /ocr/upload vaze de um teste pro outro —
-    todos os testes batem no mesmo TestClient/limiter dentro da suíte."""
     limiter.reset()
 
-# Banco separado dos dados de dev — criado pelo docker/postgres/init/ do docker-compose.
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+psycopg://ocr:ocr@localhost:5433/ocr_placas_test"
 )
@@ -34,11 +31,6 @@ def alembic_config(database_url: str) -> Config:
 
 @pytest.fixture(scope="session")
 def test_engine():
-    """Engine do banco de testes, já migrado até o head.
-
-    Os testes que dependem dele são pulados se o PostgreSQL não estiver no ar
-    (docker compose up -d), para o resto da suíte continuar rodando.
-    """
     engine = create_engine(TEST_DATABASE_URL)
     try:
         with engine.connect():
@@ -56,7 +48,6 @@ def test_engine():
 
 @pytest.fixture
 def db_session(test_engine):
-    """Sessão dentro de uma transação que é desfeita no fim de cada teste."""
     with test_engine.connect() as connection:
         transaction = connection.begin()
         session = Session(bind=connection, join_transaction_mode="create_savepoint")
@@ -69,8 +60,6 @@ def db_session(test_engine):
 
 @pytest.fixture
 def employee(db_session):
-    """Funcionário de teste já onboardado (sem troca de senha pendente), salvo no banco de
-    testes (dentro da transação de db_session)."""
     from app.models import Employee
     from app.services.auth import hash_password
 
@@ -88,9 +77,6 @@ def employee(db_session):
 
 @pytest.fixture
 def authenticated_client(employee, db_session):
-    """TestClient com login e banco de testes já plugados via dependency_overrides — os endpoints
-    protegidos (/ocr/*, /logs/*) respondem como se ``employee`` estivesse logado, e qualquer
-    escrita (ex.: UploadLog) cai na mesma transação de `db_session`, desfeita no fim do teste."""
     from fastapi.testclient import TestClient
 
     from app.db import get_db

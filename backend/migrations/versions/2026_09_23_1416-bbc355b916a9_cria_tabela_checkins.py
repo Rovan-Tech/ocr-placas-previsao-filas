@@ -1,19 +1,9 @@
-"""cria tabela checkins
-
-Tabela de check-ins da guarita: placa normalizada, data/hora de entrada e status.
-
-Revision ID: bbc355b916a9
-Revises: 
-Create Date: 2026-09-23 14:16:02.214405
-
-"""
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
 
 
-# revision identifiers, used by Alembic.
 revision: str = 'bbc355b916a9'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
@@ -21,7 +11,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Upgrade schema."""
     op.create_table('checkins',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('plate', sa.String(length=7), nullable=False),
@@ -35,7 +24,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Downgrade schema."""
     op.drop_index(op.f('ix_checkins_plate'), table_name='checkins')
     op.drop_index(op.f('ix_checkins_created_at'), table_name='checkins')
     op.drop_table('checkins')

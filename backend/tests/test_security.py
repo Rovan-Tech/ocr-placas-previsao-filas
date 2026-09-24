@@ -31,9 +31,6 @@ def test_cors_does_not_allow_arbitrary_origins():
 
 
 def test_cors_never_configured_with_wildcard_and_credentials():
-    # allow_origins=["*"] junto de allow_credentials=True é a combinação
-    # proibida (CLAUDE.md) — o middleware do CORS nem deixaria o navegador
-    # aceitar isso, mas garantimos aqui que nunca configuramos assim.
     cors_middleware = next(
         m for m in app.user_middleware if m.cls.__name__ == "CORSMiddleware"
     )
@@ -134,14 +131,9 @@ def test_returns_400_for_non_image_bytes_disguised_as_jpeg(payload, authenticate
 
 
 class TestAuthentication:
-    """Login é obrigatório pra /ocr/* e /logs/* — é assim que o sistema sabe quem enviou cada
-    foto (ver UploadLog)."""
 
     @pytest.fixture
     def db_client(self, db_session):
-        """Cliente sem login simulado (dependency_overrides de get_current_employee), mas com o
-        `get_db` do endpoint apontando pro banco de testes — testa o login e o token de verdade,
-        contra o `employee` real da fixture (ver conftest.py)."""
         app.dependency_overrides[get_db] = lambda: db_session
         try:
             yield TestClient(app)
@@ -241,7 +233,6 @@ class TestAuthentication:
 
 
 def test_photo_path_traversal_is_rejected():
-    """Um photo_path adulterado (ex.: apontando pra fora da pasta de upload) nunca é servido."""
     from app.services.photo_storage import resolve_photo_path
 
     assert resolve_photo_path("../../../../etc/passwd") is None
@@ -249,9 +240,6 @@ def test_photo_path_traversal_is_rejected():
 
 
 class TestPasswordValidationDoesNotReflectTheInput:
-    """Uma senha curta demais é rejeitada (422), mas o erro nunca pode devolver de volta a senha
-    que o cliente acabou de digitar — nem sem querer, dentro da mensagem de validação (ver
-    _require_min_password_length em app/routers/auth.py)."""
 
     @pytest.fixture
     def admin(self, db_session):

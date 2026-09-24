@@ -26,7 +26,6 @@ export default function CheckinsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  // O estado inicial já é "carregando"; o botão Atualizar faz o reset antes de chamar.
   useEffect(() => load(), [load])
 
   function handleRefresh() {

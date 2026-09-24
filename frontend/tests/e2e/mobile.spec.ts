@@ -5,11 +5,6 @@ test.beforeEach(async ({ page }) => {
   await loginAsTestUser(page)
 })
 
-// O fiscal usa o celular na guarita para fotografar a placa, então a tela não
-// pode "estourar" a largura em viewport mobile (isso força zoom/scroll
-// horizontal e esconde os botões de ação). Roda em todos os projetos
-// configurados no playwright.config.ts, mas é o projeto `mobile-chrome`
-// (viewport de celular) que realmente exercita o limite.
 async function hasHorizontalOverflow(page: Page) {
   return page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
 }

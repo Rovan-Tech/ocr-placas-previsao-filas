@@ -1,19 +1,9 @@
-"""cria tabelas employees e upload_logs
-
-Login de funcionário e o registro de quem enviou cada foto/placa, de onde e com que resultado.
-
-Revision ID: ef8fe45f8351
-Revises: bbc355b916a9
-Create Date: 2026-09-23 19:08:51.904091
-
-"""
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
 
 
-# revision identifiers, used by Alembic.
 revision: str = 'ef8fe45f8351'
 down_revision: Union[str, Sequence[str], None] = 'bbc355b916a9'
 branch_labels: Union[str, Sequence[str], None] = None
@@ -21,7 +11,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    """Upgrade schema."""
     op.create_table('employees',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('username', sa.String(length=50), nullable=False),
@@ -58,7 +47,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Downgrade schema."""
     op.drop_index(op.f('ix_upload_logs_final_plate'), table_name='upload_logs')
     op.drop_index(op.f('ix_upload_logs_employee_id'), table_name='upload_logs')
     op.drop_index(op.f('ix_upload_logs_created_at'), table_name='upload_logs')

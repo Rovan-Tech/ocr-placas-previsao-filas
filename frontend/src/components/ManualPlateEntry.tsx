@@ -4,13 +4,9 @@ import { ApiError, submitPlateManually, type ManualPlateContext, type OcrUploadR
 interface ManualPlateEntryProps {
   onSubmit: (result: OcrUploadResponse) => void
   onCancel: () => void
-  /** Presente quando a digitação vem de uma foto que não saiu boa — a foto é salva de resguardo
-   * junto com a placa digitada (ver backend/app/routers/ocr.py). */
   context?: ManualPlateContext
 }
 
-// Placas têm no máximo 8 caracteres digitáveis (padrão antigo com hífen, ex.: ABC-1234); o
-// backend valida o formato de verdade — isso só evita digitar um texto absurdamente comprido.
 const MAX_LENGTH = 8
 
 export default function ManualPlateEntry({ onSubmit, onCancel, context }: ManualPlateEntryProps) {
