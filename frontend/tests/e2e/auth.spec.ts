@@ -57,6 +57,25 @@ test('faz login com usuário e senha e mostra a tela de captura', async ({ page 
   expect(sentForm).toContain('password=senhaForte123')
 })
 
+test('login numa página que busca dados sozinha ao montar não cai de volta pro login', async ({ page }) => {
+  await mockLogin(page, { body: loginBody() })
+  await page.route('**/api/schedules', (route) => {
+    const authorization = route.request().headers()['authorization']
+    if (authorization !== 'Bearer token-de-teste') {
+      return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ detail: 'Não autenticado.' }) })
+    }
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify([]) })
+  })
+  await page.goto('/agendamentos')
+
+  await page.getByLabel('Usuário').fill('fiscal.teste')
+  await page.getByLabel('Senha', { exact: true }).fill('senhaForte123')
+  await page.getByRole('button', { name: 'Entrar' }).click()
+
+  await expect(page.getByRole('heading', { name: 'Agendamentos' })).toBeVisible()
+  await expect(page.getByLabel('Usuário')).toHaveCount(0)
+})
+
 test('mostra o erro do backend quando o login falha', async ({ page }) => {
   await mockLogin(page, { status: 401, body: { detail: 'Usuário ou senha inválidos.' } })
   await page.goto('/')
