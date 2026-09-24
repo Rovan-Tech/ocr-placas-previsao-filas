@@ -1,0 +1,113 @@
+name: Deploy
+
+# Só dispara depois que o CI (testes/segurança) passar num push na main — nunca
+# publica um merge que não passou nos checks.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  # Escape hatch pra re-rodar o deploy sem precisar de um commit novo (ex:
+  # trocou só um secret). Usa o HEAD atual da main nesse caso.
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy-backend:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      backend_url: ${{ steps.deploy.outputs.url }}
+      sha: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Autentica o Docker no Artifact Registry
+        run: gcloud auth configure-docker "${{ secrets.GCP_REGION }}-docker.pkg.dev" --quiet
+
+      - name: Build da imagem
+        env:
+          IMAGE: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REPO }}/ocr-placas-backend
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          docker build -t "$IMAGE:$SHA" -t "$IMAGE:latest" backend
+
+      - name: Push da imagem
+        env:
+          IMAGE: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REPO }}/ocr-placas-backend
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          docker push "$IMAGE:$SHA"
+          docker push "$IMAGE:latest"
+
+      # Roda a migração ANTES de publicar a nova revisão — evita a app nova
+      # bater num schema desatualizado no momento da troca de tráfego.
+      - name: Migração do banco (alembic upgrade head)
+        env:
+          IMAGE: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REPO }}/ocr-placas-backend
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          docker run --rm -e DATABASE_URL="$DATABASE_URL" --entrypoint python \
+            "$IMAGE:$SHA" -m alembic upgrade head
+
+      - id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ocr-placas-backend
+          region: ${{ secrets.GCP_REGION }}
+          image: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_ARTIFACT_REPO }}/ocr-placas-backend:${{ github.event.workflow_run.head_sha || github.sha }}
+          flags: --allow-unauthenticated --memory=2Gi --min-instances=0 --max-instances=3
+          env_vars: |
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            FRONTEND_ORIGINS=${{ secrets.FRONTEND_ORIGINS }}
+            OCR_UPLOAD_RATE_LIMIT=10/minute
+
+  deploy-frontend:
+    needs: deploy-backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.deploy-backend.outputs.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instala dependências
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build (aponta pro backend recém-publicado)
+        working-directory: frontend
+        env:
+          VITE_BACKEND_URL: ${{ needs.deploy-backend.outputs.backend_url }}
+        run: npm run build
+
+      - name: Deploy no Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: ocr-placas
+          directory: frontend/dist
+          branch: main
