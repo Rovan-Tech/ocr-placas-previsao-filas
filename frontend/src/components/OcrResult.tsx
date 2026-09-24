@@ -1,8 +1,52 @@
-import type { OcrUploadResponse } from '../services/api'
-import { formatConfidence, formatPlate, plateFormatLabel, verificationInfo } from '../services/plate'
+import type { CheckinContext, OcrUploadResponse, VehicleData } from '../services/api'
+import { formatConfidence, formatPlate, formatScheduledDate, plateFormatLabel, scheduleStatusInfo, verificationInfo } from '../services/plate'
 
 interface OcrResultProps {
   result: OcrUploadResponse
+}
+
+function VehicleDataSummary({ data, label }: { data: VehicleData; label: string }) {
+  const parts = [data.brand, data.model, data.year, data.color, data.uf].filter(Boolean)
+  if (parts.length === 0) return null
+  return (
+    <span className="meta">
+      {label}: {parts.join(' · ')}
+    </span>
+  )
+}
+
+function CheckinSection({ checkin }: { checkin: CheckinContext }) {
+  if (checkin.schedule) {
+    const status = scheduleStatusInfo(checkin.schedule.status)
+    return (
+      <div className={`verification tone-${status.tone}`} role="status">
+        <strong>{status.label}</strong>
+        <span>
+          Motorista: {checkin.schedule.driver_name} ({checkin.schedule.driver_document})
+        </span>
+        <span>Carga: {checkin.schedule.cargo_type}</span>
+        <span>Data agendada: {formatScheduledDate(checkin.schedule.scheduled_date)}</span>
+        {checkin.vehicle_data && <VehicleDataSummary data={checkin.vehicle_data} label="Confirmação do veículo" />}
+      </div>
+    )
+  }
+
+  if (checkin.vehicle_data) {
+    return (
+      <div className="verification tone-warning" role="status">
+        <strong>Sem agendamento cadastrado</strong>
+        <span>Veículo encontrado na consulta externa — confira manualmente antes de liberar a entrada.</span>
+        <VehicleDataSummary data={checkin.vehicle_data} label="Veículo" />
+      </div>
+    )
+  }
+
+  return (
+    <p className="message warning" role="alert">
+      Placa não reconhecida em nenhuma fonte — sem agendamento e sem retorno da consulta externa de
+      veículo.
+    </p>
+  )
 }
 
 function RawDetections({ result }: OcrResultProps) {
@@ -58,6 +102,8 @@ export default function OcrResult({ result }: OcrResultProps) {
           {result.verification.source && <span className="source">Fonte: {result.verification.source}</span>}
         </div>
       )}
+
+      {result.checkin && <CheckinSection checkin={result.checkin} />}
 
       <RawDetections result={result} />
     </div>

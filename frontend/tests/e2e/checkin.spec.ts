@@ -1,0 +1,113 @@
+import { expect, test, type Page } from '@playwright/test'
+import { loginAsTestUser } from './testAuth'
+
+test.beforeEach(async ({ page }) => {
+  await loginAsTestUser(page)
+})
+
+const PNG_1PX = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  'base64',
+)
+
+function ocrResponse(checkin: unknown) {
+  return {
+    filename: 'placa.png',
+    plate: 'ABC1D23',
+    plate_format: 'mercosul',
+    confidence: 0.9876,
+    needs_review: false,
+    verification: null,
+    detections: [],
+    checkin,
+  }
+}
+
+async function mockAndSend(page: Page, checkin: unknown) {
+  await page.route('**/api/ocr/upload', (route) =>
+    route.fulfill({ contentType: 'application/json', body: JSON.stringify(ocrResponse(checkin)) }),
+  )
+  await page.goto('/')
+  const fileChooserPromise = page.waitForEvent('filechooser')
+  await page.getByRole('button', { name: /Enviar foto do aparelho|Fotografar placa/ }).click()
+  await (await fileChooserPromise).setFiles({ name: 'placa.png', mimeType: 'image/png', buffer: PNG_1PX })
+  await page.getByRole('button', { name: 'Sim, continuar' }).click()
+}
+
+test('agendado para hoje: mostra motorista, carga e o veículo como confirmação', async ({ page }) => {
+  await mockAndSend(page, {
+    found: true,
+    schedule: {
+      driver_name: 'João da Silva',
+      driver_document: '12345678900',
+      has_driver_document_photo: true,
+      has_vehicle_document_photo: false,
+      cargo_type: 'Grãos',
+      scheduled_date: '2026-09-24',
+      status: 'on_time',
+    },
+    vehicle_data: { brand: 'FIAT', model: 'UNO', year: '2015', uf: 'SP', color: 'Branco' },
+  })
+
+  await expect(page.getByText('Agendado para hoje')).toBeVisible()
+  await expect(page.getByText(/João da Silva/)).toBeVisible()
+  await expect(page.getByText(/Grãos/)).toBeVisible()
+  await expect(page.getByText(/FIAT.*UNO/)).toBeVisible()
+})
+
+test('agendado para outra data no futuro: mostra "Adiantado" e a data agendada', async ({ page }) => {
+  await mockAndSend(page, {
+    found: true,
+    schedule: {
+      driver_name: 'João da Silva',
+      driver_document: '12345678900',
+      has_driver_document_photo: false,
+      has_vehicle_document_photo: false,
+      cargo_type: 'Grãos',
+      scheduled_date: '2026-10-05',
+      status: 'early',
+    },
+    vehicle_data: null,
+  })
+
+  await expect(page.getByText('Adiantado')).toBeVisible()
+  await expect(page.getByText('05/10/2026')).toBeVisible()
+})
+
+test('agendado para outra data no passado: mostra "Atrasado" e a data agendada', async ({ page }) => {
+  await mockAndSend(page, {
+    found: true,
+    schedule: {
+      driver_name: 'João da Silva',
+      driver_document: '12345678900',
+      has_driver_document_photo: false,
+      has_vehicle_document_photo: false,
+      cargo_type: 'Grãos',
+      scheduled_date: '2026-09-10',
+      status: 'late',
+    },
+    vehicle_data: null,
+  })
+
+  await expect(page.getByText('Atrasado')).toBeVisible()
+  await expect(page.getByText('10/09/2026')).toBeVisible()
+})
+
+test('sem agendamento, mas achado na API Brasil: mostra os dados do veículo e avisa que não há agendamento', async ({
+  page,
+}) => {
+  await mockAndSend(page, {
+    found: true,
+    schedule: null,
+    vehicle_data: { brand: 'VOLKSWAGEN', model: 'GOL', year: '2020', uf: 'RJ', color: 'Prata' },
+  })
+
+  await expect(page.getByText('Sem agendamento cadastrado')).toBeVisible()
+  await expect(page.getByText(/VOLKSWAGEN.*GOL/)).toBeVisible()
+})
+
+test('não encontrada em nenhuma fonte: avisa que a placa não foi reconhecida', async ({ page }) => {
+  await mockAndSend(page, { found: false, schedule: null, vehicle_data: null })
+
+  await expect(page.getByText(/Placa não reconhecida em nenhuma fonte/)).toBeVisible()
+})

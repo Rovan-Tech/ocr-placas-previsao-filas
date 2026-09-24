@@ -16,6 +16,7 @@ export default function Layout() {
           <NavLink to="/" end>Capturar placa</NavLink>
           <NavLink to="/checkins">Check-ins recentes</NavLink>
           <NavLink to="/logs">Logs</NavLink>
+          <NavLink to="/agendamentos">Agendamentos</NavLink>
           {employee?.is_admin && <NavLink to="/funcionarios">Funcionários</NavLink>}
         </nav>
         <div className="session">
