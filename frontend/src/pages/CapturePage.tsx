@@ -2,9 +2,44 @@ import { useState } from 'react'
 import CameraCapture from '../components/CameraCapture'
 import ManualPlateEntry from '../components/ManualPlateEntry'
 import OcrResult from '../components/OcrResult'
-import { uploadPlateImage, type ManualPlateContext, type OcrUploadResponse } from '../services/api'
+import ScheduleForm from '../components/ScheduleForm'
+import { uploadPlateImage, type ManualPlateContext, type OcrUploadResponse, type ScheduleOut } from '../services/api'
+import { todayIsoDate } from '../services/plate'
 
 type Status = 'idle' | 'reviewing_photo' | 'sending' | 'needs_decision' | 'confirmed' | 'error'
+
+function UnscheduledArrivalRegistration({
+  plate,
+  onRegistered,
+}: {
+  plate: string
+  onRegistered: (schedule: ScheduleOut) => void
+}) {
+  const [registering, setRegistering] = useState(false)
+
+  if (!registering) {
+    return (
+      <p className="manual-entry-link">
+        <button type="button" className="link" onClick={() => setRegistering(true)}>
+          Cadastrar motorista, carga e caminhão
+        </button>
+      </p>
+    )
+  }
+
+  return (
+    <>
+      <h2>Cadastrar chegada sem agendamento</h2>
+      <ScheduleForm
+        idPrefix="arrival"
+        initialPlate={plate}
+        initialScheduledDate={todayIsoDate()}
+        plateReadOnly
+        onCreated={onRegistered}
+      />
+    </>
+  )
+}
 
 export default function CapturePage() {
   const [photo, setPhoto] = useState<File | null>(null)
@@ -48,6 +83,30 @@ export default function CapturePage() {
     setResult(response)
     setManualEntry(false)
     setStatus('confirmed')
+  }
+
+  function handleScheduleRegistered(schedule: ScheduleOut) {
+    setResult((current) =>
+      current && current.checkin
+        ? {
+            ...current,
+            checkin: {
+              ...current.checkin,
+              found: true,
+              schedule: {
+                driver_name: schedule.driver_name,
+                driver_document: schedule.driver_document,
+                has_driver_document_photo_front: schedule.has_driver_document_photo_front,
+                has_driver_document_photo_back: schedule.has_driver_document_photo_back,
+                has_vehicle_document_photo: schedule.has_vehicle_document_photo,
+                cargo_type: schedule.cargo_type,
+                scheduled_date: schedule.scheduled_date,
+                status: 'on_time',
+              },
+            },
+          }
+        : current,
+    )
   }
 
   function openManualEntry(withPhotoContext: boolean) {
@@ -159,6 +218,9 @@ export default function CapturePage() {
                   Digitar manualmente
                 </button>
               </div>
+              {result.plate && result.checkin && !result.checkin.schedule && (
+                <UnscheduledArrivalRegistration plate={result.plate} onRegistered={handleScheduleRegistered} />
+              )}
             </>
           )}
 
@@ -181,6 +243,9 @@ export default function CapturePage() {
                   Nova foto
                 </button>
               </div>
+              {result.plate && result.checkin && !result.checkin.schedule && (
+                <UnscheduledArrivalRegistration plate={result.plate} onRegistered={handleScheduleRegistered} />
+              )}
             </>
           )}
         </div>

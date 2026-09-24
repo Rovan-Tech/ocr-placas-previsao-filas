@@ -40,7 +40,8 @@ test('agendado para hoje: mostra motorista, carga e o veículo como confirmaçã
     schedule: {
       driver_name: 'João da Silva',
       driver_document: '12345678900',
-      has_driver_document_photo: true,
+      has_driver_document_photo_front: true,
+      has_driver_document_photo_back: false,
       has_vehicle_document_photo: false,
       cargo_type: 'Grãos',
       scheduled_date: '2026-09-24',
@@ -61,7 +62,8 @@ test('agendado para outra data no futuro: mostra "Adiantado" e a data agendada',
     schedule: {
       driver_name: 'João da Silva',
       driver_document: '12345678900',
-      has_driver_document_photo: false,
+      has_driver_document_photo_front: false,
+      has_driver_document_photo_back: false,
       has_vehicle_document_photo: false,
       cargo_type: 'Grãos',
       scheduled_date: '2026-10-05',
@@ -80,7 +82,8 @@ test('agendado para outra data no passado: mostra "Atrasado" e a data agendada',
     schedule: {
       driver_name: 'João da Silva',
       driver_document: '12345678900',
-      has_driver_document_photo: false,
+      has_driver_document_photo_front: false,
+      has_driver_document_photo_back: false,
       has_vehicle_document_photo: false,
       cargo_type: 'Grãos',
       scheduled_date: '2026-09-10',
@@ -110,4 +113,67 @@ test('não encontrada em nenhuma fonte: avisa que a placa não foi reconhecida',
   await mockAndSend(page, { found: false, schedule: null, vehicle_data: null })
 
   await expect(page.getByText(/Placa não reconhecida em nenhuma fonte/)).toBeVisible()
+})
+
+test('sem agendamento: oferece cadastrar motorista, carga e caminhão na hora', async ({ page }) => {
+  await mockAndSend(page, { found: false, schedule: null, vehicle_data: null })
+
+  await expect(page.getByRole('button', { name: 'Cadastrar motorista, carga e caminhão' })).toBeVisible()
+})
+
+test('agendado: não oferece cadastro avulso, já tem os dados', async ({ page }) => {
+  await mockAndSend(page, {
+    found: true,
+    schedule: {
+      driver_name: 'João da Silva',
+      driver_document: '12345678900',
+      has_driver_document_photo_front: false,
+      has_driver_document_photo_back: false,
+      has_vehicle_document_photo: false,
+      cargo_type: 'Grãos',
+      scheduled_date: '2026-09-24',
+      status: 'on_time',
+    },
+    vehicle_data: null,
+  })
+
+  await expect(page.getByRole('button', { name: 'Cadastrar motorista, carga e caminhão' })).toHaveCount(0)
+})
+
+test('sem agendamento: cadastra motorista/carga na hora e a tela passa a mostrar agendado para hoje', async ({
+  page,
+}) => {
+  await mockAndSend(page, { found: false, schedule: null, vehicle_data: null })
+  await page.route('**/api/schedules', (route) =>
+    route.fulfill({
+      status: 201,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        id: 10,
+        plate: 'ABC1D23',
+        driver_name: 'Pedro Lima',
+        driver_document: '11122233344',
+        has_driver_document_photo_front: false,
+        has_driver_document_photo_back: false,
+        has_vehicle_document_photo: false,
+        cargo_type: 'Contêiner',
+        scheduled_date: '2026-09-24',
+        created_at: '2026-09-24T14:00:00Z',
+      }),
+    }),
+  )
+
+  await page.getByRole('button', { name: 'Cadastrar motorista, carga e caminhão' }).click()
+
+  const plateField = page.getByLabel('Placa')
+  await expect(plateField).toHaveValue('ABC1D23')
+  await expect(plateField).toBeDisabled()
+  await page.getByLabel('Nome do motorista').fill('Pedro Lima')
+  await page.getByLabel('Documento do motorista', { exact: true }).fill('11122233344')
+  await page.getByLabel('Tipo de carga').fill('Contêiner')
+  await page.getByRole('button', { name: 'Cadastrar' }).click()
+
+  await expect(page.getByText('Agendado para hoje')).toBeVisible()
+  await expect(page.getByText(/Pedro Lima/)).toBeVisible()
+  await expect(page.getByText(/Contêiner/)).toBeVisible()
 })

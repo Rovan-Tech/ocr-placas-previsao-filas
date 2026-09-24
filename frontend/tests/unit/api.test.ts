@@ -137,7 +137,8 @@ describe('createSchedule', () => {
   it('envia os campos e as fotos como multipart para /api/schedules', async () => {
     const body = { id: 1, plate: 'ABC1D23' }
     const fetchMock = mockFetch(jsonResponse(body, 201))
-    const driverDocumentPhoto = new File(['fake'], 'cnh.jpg', { type: 'image/jpeg' })
+    const driverDocumentPhotoFront = new File(['fake'], 'cnh-frente.jpg', { type: 'image/jpeg' })
+    const driverDocumentPhotoBack = new File(['fake'], 'cnh-verso.jpg', { type: 'image/jpeg' })
 
     const result = await createSchedule({
       plate: 'ABC1D23',
@@ -145,7 +146,8 @@ describe('createSchedule', () => {
       driverDocument: '12345678900',
       cargoType: 'Grãos',
       scheduledDate: '2026-09-24',
-      driverDocumentPhoto,
+      driverDocumentPhotoFront,
+      driverDocumentPhotoBack,
     })
 
     expect(result).toEqual(body)
@@ -158,7 +160,8 @@ describe('createSchedule', () => {
     expect(form.get('driver_document')).toBe('12345678900')
     expect(form.get('cargo_type')).toBe('Grãos')
     expect(form.get('scheduled_date')).toBe('2026-09-24')
-    expect((form.get('driver_document_photo') as File).name).toBe('cnh.jpg')
+    expect((form.get('driver_document_photo_front') as File).name).toBe('cnh-frente.jpg')
+    expect((form.get('driver_document_photo_back') as File).name).toBe('cnh-verso.jpg')
     expect(form.has('vehicle_document_photo')).toBe(false)
   })
 

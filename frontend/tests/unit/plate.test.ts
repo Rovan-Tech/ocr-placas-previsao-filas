@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   formatConfidence,
   formatPlate,
   formatScheduledDate,
   plateFormatLabel,
   scheduleStatusInfo,
+  todayIsoDate,
   verificationInfo,
 } from '../../src/services/plate'
 
@@ -71,5 +72,27 @@ describe('scheduleStatusInfo', () => {
 describe('formatScheduledDate', () => {
   it('formata a data ISO como DD/MM/AAAA, sem depender de fuso horário', () => {
     expect(formatScheduledDate('2026-09-24')).toBe('24/09/2026')
+  })
+})
+
+describe('todayIsoDate', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('usa os componentes locais da data, não UTC (evita cair no dia anterior perto da meia-noite)', () => {
+    vi.setSystemTime(new Date(2026, 8, 24, 0, 30))
+
+    expect(todayIsoDate()).toBe('2026-09-24')
+  })
+
+  it('preenche mês e dia com zero à esquerda', () => {
+    vi.setSystemTime(new Date(2026, 0, 5, 12, 0))
+
+    expect(todayIsoDate()).toBe('2026-01-05')
   })
 })

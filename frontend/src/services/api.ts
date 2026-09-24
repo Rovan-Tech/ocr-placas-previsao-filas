@@ -22,7 +22,8 @@ export type ScheduleStatus = 'on_time' | 'early' | 'late'
 export interface ScheduleInfo {
   driver_name: string
   driver_document: string
-  has_driver_document_photo: boolean
+  has_driver_document_photo_front: boolean
+  has_driver_document_photo_back: boolean
   has_vehicle_document_photo: boolean
   cargo_type: string
   scheduled_date: string
@@ -171,7 +172,8 @@ export interface ScheduleOut {
   plate: string
   driver_name: string
   driver_document: string
-  has_driver_document_photo: boolean
+  has_driver_document_photo_front: boolean
+  has_driver_document_photo_back: boolean
   has_vehicle_document_photo: boolean
   cargo_type: string
   scheduled_date: string
@@ -184,7 +186,8 @@ export interface CreateScheduleInput {
   driverDocument: string
   cargoType: string
   scheduledDate: string
-  driverDocumentPhoto?: File | null
+  driverDocumentPhotoFront?: File | null
+  driverDocumentPhotoBack?: File | null
   vehicleDocumentPhoto?: File | null
 }
 
@@ -195,7 +198,8 @@ export function createSchedule(input: CreateScheduleInput): Promise<ScheduleOut>
   form.append('driver_document', input.driverDocument)
   form.append('cargo_type', input.cargoType)
   form.append('scheduled_date', input.scheduledDate)
-  if (input.driverDocumentPhoto) form.append('driver_document_photo', input.driverDocumentPhoto)
+  if (input.driverDocumentPhotoFront) form.append('driver_document_photo_front', input.driverDocumentPhotoFront)
+  if (input.driverDocumentPhotoBack) form.append('driver_document_photo_back', input.driverDocumentPhotoBack)
   if (input.vehicleDocumentPhoto) form.append('vehicle_document_photo', input.vehicleDocumentPhoto)
   return request<ScheduleOut>('/schedules', { method: 'POST', body: form })
 }
@@ -204,7 +208,10 @@ export function listSchedules(plate?: string): Promise<ScheduleOut[]> {
   return request(`/schedules${plate ? `?plate=${encodeURIComponent(plate)}` : ''}`)
 }
 
-async function fetchSchedulePhoto(scheduleId: number, kind: 'driver-document-photo' | 'vehicle-document-photo'): Promise<Blob> {
+async function fetchSchedulePhoto(
+  scheduleId: number,
+  kind: 'driver-document-photo-front' | 'driver-document-photo-back' | 'vehicle-document-photo',
+): Promise<Blob> {
   const headers = new Headers()
   const token = getAuthToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
@@ -214,8 +221,12 @@ async function fetchSchedulePhoto(scheduleId: number, kind: 'driver-document-pho
   return response.blob()
 }
 
-export function fetchScheduleDriverDocumentPhoto(scheduleId: number): Promise<Blob> {
-  return fetchSchedulePhoto(scheduleId, 'driver-document-photo')
+export function fetchScheduleDriverDocumentPhotoFront(scheduleId: number): Promise<Blob> {
+  return fetchSchedulePhoto(scheduleId, 'driver-document-photo-front')
+}
+
+export function fetchScheduleDriverDocumentPhotoBack(scheduleId: number): Promise<Blob> {
+  return fetchSchedulePhoto(scheduleId, 'driver-document-photo-back')
 }
 
 export function fetchScheduleVehicleDocumentPhoto(scheduleId: number): Promise<Blob> {
