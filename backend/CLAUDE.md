@@ -50,7 +50,9 @@ Convenções:
   converte exceções.
 - **Erros de entrada inválida viram `ValueError` no service** e `HTTPException(400)` no router,
   com a mensagem em português (ela aparece para o fiscal no frontend).
-- **Mensagens, docstrings e comentários em português**; nomes de código em inglês.
+- **Mensagens de erro (as que aparecem pro fiscal) em português**; nomes de código em inglês.
+  Sem comentário nem docstring no código (ver `CLAUDE.md` da raiz e o skill `/clean-code`) — nome
+  de função/variável claro faz esse papel; decisão não-óbvia vai pra este arquivo, não pro código.
 - Novo router: criar em `app/routers/`, com `APIRouter(prefix=..., tags=[...])`, e registrar em
   `app/main.py`.
 
