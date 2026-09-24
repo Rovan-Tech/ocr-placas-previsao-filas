@@ -198,6 +198,14 @@ frontend, build). Rode o skill `/prepare-pr`: ele sincroniza a branch com a `mai
 `/security-check`, os testes do backend (`pytest`) e do frontend (Vitest, Playwright, build),
 corrige o que falhar e abre o PR — ver `.claude/skills/prepare-pr/SKILL.md`.
 
+### PR de outra pessoa com CI falhando
+
+Quando o CI falhar num PR aberto por outro colaborador (ex: Leandro), **não corrija o código
+dela/dele** — comente no PR (`gh pr comment <número>`) detalhando exatamente onde falhou: qual
+teste, o valor esperado vs o obtido, e um resumo do padrão do erro (ex: "maioria dos casos
+devolveu `None`" ou "confundiu os caracteres X↔Y"). O autor corrige e sobe novos commits na
+mesma branch — o CI roda de novo sozinho, não precisa de PR novo.
+
 ## O que não fazer
 
 - Não usar o nome do porto real de Itaqui (ou de qualquer porto/cliente real) em nenhum lugar
