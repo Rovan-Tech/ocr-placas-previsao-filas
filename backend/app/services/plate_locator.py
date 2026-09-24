@@ -222,7 +222,16 @@ def _candidate_corners(gray: np.ndarray) -> list[tuple[np.ndarray, bool]]:
         if is_plate_outline:
             approx = cv2.approxPolyDP(cv2.convexHull(contour), 0.04 * cv2.arcLength(contour, True), True)
             if len(approx) == 4:
-                corners = approx
+                # O aspect ratio já foi validado acima, mas era o do retângulo girado
+                # (minAreaRect) — o quadrilátero de `approxPolyDP` é uma forma diferente (4
+                # cantos livres, não um retângulo), e em cena escura/ruidosa/angulada pode sair
+                # bem mais estreito ou mais largo que o contorno original sugeria. Sem essa
+                # segunda checagem, um polígono degenerado passava a diante mesmo tendo sido
+                # "aprovado" com base numa forma diferente da que de fato ia ser recortada.
+                (_, _), (approx_w, approx_h), _ = cv2.minAreaRect(approx)
+                approx_long, approx_short = max(approx_w, approx_h), min(approx_w, approx_h)
+                if approx_short > 0 and MIN_PLATE_ASPECT_RATIO <= approx_long / approx_short <= MAX_PLATE_ASPECT_RATIO:
+                    corners = approx
         candidates.append((_order_corners(corners), False))
 
     candidates.extend(
