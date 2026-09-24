@@ -7,6 +7,7 @@ API em Python (FastAPI) responsável por:
 - Rodar o OCR (EasyOCR, open-source) e validar o formato de placa Mercosul
 - Digitação manual da placa, com uma foto de resguardo quando a câmera não lê
 - Registrar quem enviou cada foto/placa, de onde, e o que a leitura deu (log de auditoria)
+- Cruzar a placa lida com agendamento de chegada e dados do veículo (check-in inteligente)
 - Registrar o check-in no PostgreSQL
 - Calcular a fila estimada por média móvel do histórico de check-ins
 
@@ -34,7 +35,9 @@ uvicorn app.main:app --reload --port 8002
 A URL do banco vem de `DATABASE_URL` (padrão em `app/config.py`, já alinhado ao compose). Para
 mudar, copie `.env.example` para `.env`. `JWT_SECRET_KEY` também vem de lá — sem definir, o
 servidor gera uma chave aleatória a cada subida, e todo mundo precisa logar de novo a cada
-restart (ok pra rodar local; defina no `.env` pra produção).
+restart (ok pra rodar local; defina no `.env` pra produção). `API_BRASIL_DEVICE_TOKEN`/
+`API_BRASIL_BEARER_TOKEN` são opcionais — sem eles, o check-in inteligente funciona só com o
+agendamento interno, sem a consulta de dados do veículo (ver "Check-in inteligente" abaixo).
 
 A API sobe em `http://localhost:8002` (`/docs` para a documentação interativa do Swagger).
 
@@ -91,7 +94,8 @@ Revise sempre o arquivo gerado em `migrations/versions/` antes de commitar. O te
   o histórico em `UploadLog` continua íntegro). Só admin master; 400 se tentar excluir a
   própria conta (evita o admin se travar fora do sistema sem querer).
 - `POST /ocr/upload` — recebe uma imagem (`multipart/form-data`, campo `file`) e devolve a placa
-  lida, já validada no formato Mercosul ou antigo (ver "Leitura da placa" abaixo).
+  lida, já validada no formato Mercosul ou antigo (ver "Leitura da placa" abaixo), mais o
+  check-in inteligente em `checkin` (ver "Check-in inteligente" abaixo).
 - `POST /ocr/manual` — o fiscal digita a placa (câmera não leu, ou ele prefere digitar). Recebe
   `multipart/form-data` com o campo `plate` (`ABC1D23`) e, opcionalmente, `photo` (a foto que não
   saiu boa — guardada em disco como resguardo, nunca no banco, ver "Fotos de resguardo" abaixo),
@@ -104,6 +108,13 @@ Revise sempre o arquivo gerado em `migrations/versions/` antes de commitar. O te
 - `GET /logs` — quem enviou cada foto/placa, de qual endereço, e o que a leitura deu (paginado,
   `?limit=&offset=`). Qualquer funcionário logado pode ver.
 - `GET /logs/{id}/photo` — baixa a foto de resguardo daquele log, quando existe (404 se não).
+- `POST /schedules` — cadastra um agendamento de chegada (`multipart/form-data`: `plate`,
+  `driver_name`, `driver_document`, `cargo_type`, `scheduled_date`, e opcionalmente
+  `driver_document_photo`/`vehicle_document_photo`). Qualquer funcionário logado pode cadastrar
+  — não é gestão de funcionário, é dado operacional.
+- `GET /schedules` — lista os agendamentos (aceita `?plate=` pra filtrar por placa).
+- `GET /schedules/{id}/driver-document-photo` e `GET /schedules/{id}/vehicle-document-photo` —
+  baixam as fotos dos documentos daquele agendamento, quando existem (404 se não).
 
 ### Login e cadastro de funcionário
 
@@ -129,6 +140,27 @@ no banco — `app/services/photo_storage.py`), numa pasta local (`backend/data/u
 configurável por `UPLOAD_DIR`, nunca versionada — ver `.gitignore`). O banco (`UploadLog`) guarda
 só o caminho relativo do arquivo, quem enviou, de que IP, e o que a leitura deu — nunca a imagem
 em si. `GET /logs/{id}/photo` é o único jeito de baixar essa foto de volta, e também exige login.
+
+### Check-in inteligente
+
+Depois de ler a placa (OCR ou digitação manual), o `/ocr/upload`/`/ocr/manual` cruzam com duas
+fontes e devolvem tudo junto em `checkin`:
+
+- **Agendamento interno** (`Schedule`, tabela `schedules`) — motorista, documento, tipo de carga
+  e data prevista, cadastrados via `POST /schedules`. `checkin.schedule.status` diz `on_time`
+  (agendado pra hoje), `early` (data agendada no futuro — "adiantado") ou `late` (data agendada
+  no passado — "atrasado"), sempre com a data agendada original.
+- **API Brasil** (`app/services/vehicle_data_api.py`, produto "Consulta Placa Veículo", plano
+  free — 100 requisições/dia) — marca, modelo, ano, UF e cor do veículo, em `checkin.vehicle_data`.
+  Roda sempre que uma placa válida é lida, mesmo com agendamento (entra como confirmação/
+  complemento). Precisa de `API_BRASIL_DEVICE_TOKEN`/`API_BRASIL_BEARER_TOKEN` no `.env`
+  (conta grátis em app.apibrasil.io) — sem eles, essa parte fica desligada e o check-in segue só
+  com o agendamento. Qualquer falha (timeout, rede, limite diário estourado, resposta malformada)
+  vira `null` sem derrubar o check-in.
+
+`checkin.found` indica se a placa foi reconhecida em qualquer uma das duas fontes; `null` quando
+nenhuma placa em formato válido foi lida. Motorista e documento do motorista vêm **só** do
+agendamento interno — nenhuma API pública de placa devolve esse dado (é restrito Detran/RENAVAM).
 
 ### Leitura da placa
 

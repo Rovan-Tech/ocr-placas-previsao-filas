@@ -7,6 +7,11 @@ Interface em React + TypeScript (Vite) usada pelo fiscal na guarita:
   digitação manual como alternativa (câmera não lê, ou o fiscal prefere digitar)
 - Lista dos check-ins recentes
 - Logs de quem enviou cada foto/placa, de onde, e o que a leitura deu
+- Check-in inteligente: o resultado do OCR já mostra se a placa tem agendamento (motorista,
+  carga, data — com aviso de "Adiantado"/"Atrasado"), os dados do veículo trazidos pela API
+  Brasil, ou que a placa não foi reconhecida em nenhuma fonte
+- Cadastro de agendamento de chegada (placa, motorista, carga, data prevista, fotos de
+  documento opcionais) — qualquer funcionário, não só admin
 - Cadastro e exclusão de funcionário (só para quem é admin master)
 - Tema claro/escuro à escolha (segue o sistema até o fiscal trocar manualmente)
 
@@ -52,13 +57,15 @@ O dev server fica exposto na rede local (`host: true`), então dá para abrir
 
 ```
 src/
-├── components/   # Layout, CameraCapture, ManualPlateEntry, OcrResult, ThemeToggle
+├── components/   # Layout, CameraCapture, ManualPlateEntry, OcrResult (inclui o check-in
+│                 # inteligente), ThemeToggle
 ├── context/      # AuthContext (sessão/token/"precisa trocar senha"), ThemeContext (claro/escuro)
 ├── pages/        # LoginPage, ChangePasswordPage, CapturePage (/), CheckinsPage (/checkins),
-│                 # LogsPage (/logs), CreateEmployeePage (/funcionarios — lista, cadastra e
-│                 # exclui, só admin)
-└── services/     # api.ts (chamadas autenticadas), auth.ts (login/troca de senha/funcionários),
-                  # authToken.ts (ponte entre api.ts e o AuthContext, sem depender do React)
+│                 # LogsPage (/logs), CreateSchedulePage (/agendamentos), CreateEmployeePage
+│                 # (/funcionarios — lista, cadastra e exclui, só admin)
+└── services/     # api.ts (chamadas autenticadas, inclui agendamento/check-in), auth.ts
+                  # (login/troca de senha/funcionários), authToken.ts (ponte entre api.ts e o
+                  # AuthContext, sem depender do React)
 tests/
 ├── unit/         # Vitest — src/services
 └── e2e/          # Playwright — fluxos de login, captura e listagem (backend mockado com
@@ -78,8 +85,9 @@ Toda chamada, exceto o próprio login, exige estar autenticado — `api.ts` anex
 | Login                      | `POST /auth/login`                        | ✅ existe |
 | Troca de senha             | `POST /auth/change-password`              | ✅ existe |
 | Funcionários (listar/cadastrar/excluir) | `GET`/`POST /auth/employees`, `DELETE /auth/employees/{id}` | ✅ existe (só admin) |
-| Capturar placa             | `POST /ocr/upload`, `POST /ocr/manual`    | ✅ existe |
+| Capturar placa (com check-in inteligente) | `POST /ocr/upload`, `POST /ocr/manual`    | ✅ existe |
 | Logs                       | `GET /logs`, `GET /logs/{id}/photo`       | ✅ existe |
+| Agendamentos (listar/cadastrar) | `GET`/`POST /schedules`               | ✅ existe |
 | Check-ins recentes         | `GET /checkins?limit=20`                  | ⏳ ainda não implementado |
 
 A tela de check-ins espera uma lista de objetos com `id`, `plate`, `created_at` (ISO 8601) e
