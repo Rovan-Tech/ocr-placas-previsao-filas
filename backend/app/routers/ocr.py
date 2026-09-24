@@ -42,7 +42,8 @@ class Verification(BaseModel):
 class ScheduleInfo(BaseModel):
     driver_name: str
     driver_document: str
-    has_driver_document_photo: bool
+    has_driver_document_photo_front: bool
+    has_driver_document_photo_back: bool
     has_vehicle_document_photo: bool
     cargo_type: str
     scheduled_date: date
@@ -96,7 +97,8 @@ async def _build_checkin_context(
         ScheduleInfo(
             driver_name=match.schedule.driver_name,
             driver_document=match.schedule.driver_document,
-            has_driver_document_photo=match.schedule.driver_document_photo_path is not None,
+            has_driver_document_photo_front=match.schedule.driver_document_photo_front_path is not None,
+            has_driver_document_photo_back=match.schedule.driver_document_photo_back_path is not None,
             has_vehicle_document_photo=match.schedule.vehicle_document_photo_path is not None,
             cargo_type=match.schedule.cargo_type,
             scheduled_date=match.schedule.scheduled_date,

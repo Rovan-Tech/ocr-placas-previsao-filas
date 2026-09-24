@@ -4,7 +4,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = 'b53a1428cd6e'
+revision: str = '00069b17dd24'
 down_revision: Union[str, Sequence[str], None] = '4c2dc2099079'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -16,7 +16,8 @@ def upgrade() -> None:
     sa.Column('plate', sa.String(length=7), nullable=False),
     sa.Column('driver_name', sa.String(length=120), nullable=False),
     sa.Column('driver_document', sa.String(length=20), nullable=False),
-    sa.Column('driver_document_photo_path', sa.String(length=255), nullable=True),
+    sa.Column('driver_document_photo_front_path', sa.String(length=255), nullable=True),
+    sa.Column('driver_document_photo_back_path', sa.String(length=255), nullable=True),
     sa.Column('vehicle_document_photo_path', sa.String(length=255), nullable=True),
     sa.Column('cargo_type', sa.String(length=120), nullable=False),
     sa.Column('scheduled_date', sa.Date(), nullable=False),

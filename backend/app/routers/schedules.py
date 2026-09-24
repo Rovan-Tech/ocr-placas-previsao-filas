@@ -31,7 +31,8 @@ class ScheduleOut(BaseModel):
     plate: str
     driver_name: str
     driver_document: str
-    has_driver_document_photo: bool
+    has_driver_document_photo_front: bool
+    has_driver_document_photo_back: bool
     has_vehicle_document_photo: bool
     cargo_type: str
     scheduled_date: date
@@ -44,7 +45,8 @@ def _to_schedule_out(schedule: Schedule) -> ScheduleOut:
         plate=schedule.plate,
         driver_name=schedule.driver_name,
         driver_document=schedule.driver_document,
-        has_driver_document_photo=schedule.driver_document_photo_path is not None,
+        has_driver_document_photo_front=schedule.driver_document_photo_front_path is not None,
+        has_driver_document_photo_back=schedule.driver_document_photo_back_path is not None,
         has_vehicle_document_photo=schedule.vehicle_document_photo_path is not None,
         cargo_type=schedule.cargo_type,
         scheduled_date=schedule.scheduled_date,
@@ -80,7 +82,8 @@ async def create_schedule(
     driver_document: str = Form(...),
     cargo_type: str = Form(...),
     scheduled_date: date = Form(...),
-    driver_document_photo: UploadFile | None = File(None),
+    driver_document_photo_front: UploadFile | None = File(None),
+    driver_document_photo_back: UploadFile | None = File(None),
     vehicle_document_photo: UploadFile | None = File(None),
     employee: Employee = Depends(get_current_employee),
     db: Session = Depends(get_db),
@@ -95,14 +98,16 @@ async def create_schedule(
     )
     clean_cargo_type = _require_non_empty(cargo_type, max_length=MAX_TEXT_LENGTH, message="Tipo de carga inválido.")
 
-    driver_document_photo_path = await _save_optional_photo(driver_document_photo)
+    driver_document_photo_front_path = await _save_optional_photo(driver_document_photo_front)
+    driver_document_photo_back_path = await _save_optional_photo(driver_document_photo_back)
     vehicle_document_photo_path = await _save_optional_photo(vehicle_document_photo)
 
     schedule = Schedule(
         plate=normalized_plate,
         driver_name=clean_driver_name,
         driver_document=clean_driver_document,
-        driver_document_photo_path=driver_document_photo_path,
+        driver_document_photo_front_path=driver_document_photo_front_path,
+        driver_document_photo_back_path=driver_document_photo_back_path,
         vehicle_document_photo_path=vehicle_document_photo_path,
         cargo_type=clean_cargo_type,
         scheduled_date=scheduled_date,
@@ -127,17 +132,39 @@ def list_schedules(
     return [_to_schedule_out(schedule) for schedule in rows]
 
 
-@router.get("/{schedule_id}/driver-document-photo")
-def get_driver_document_photo(
-    schedule_id: int, db: Session = Depends(get_db), _employee: Employee = Depends(get_current_employee)
-) -> FileResponse:
-    schedule = db.get(Schedule, schedule_id)
-    if schedule is None or schedule.driver_document_photo_path is None:
-        raise HTTPException(status_code=404, detail="Esse agendamento não tem foto do documento do motorista.")
-    photo_path = resolve_photo_path(schedule.driver_document_photo_path)
+def _serve_schedule_photo(relative_path: str | None, not_found_message: str) -> FileResponse:
+    if relative_path is None:
+        raise HTTPException(status_code=404, detail=not_found_message)
+    photo_path = resolve_photo_path(relative_path)
     if photo_path is None:
         raise HTTPException(status_code=404, detail="Arquivo da foto não foi encontrado no servidor.")
     return FileResponse(photo_path)
+
+
+@router.get("/{schedule_id}/driver-document-photo-front")
+def get_driver_document_photo_front(
+    schedule_id: int, db: Session = Depends(get_db), _employee: Employee = Depends(get_current_employee)
+) -> FileResponse:
+    schedule = db.get(Schedule, schedule_id)
+    if schedule is None:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
+    return _serve_schedule_photo(
+        schedule.driver_document_photo_front_path,
+        "Esse agendamento não tem foto da frente do documento do motorista.",
+    )
+
+
+@router.get("/{schedule_id}/driver-document-photo-back")
+def get_driver_document_photo_back(
+    schedule_id: int, db: Session = Depends(get_db), _employee: Employee = Depends(get_current_employee)
+) -> FileResponse:
+    schedule = db.get(Schedule, schedule_id)
+    if schedule is None:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
+    return _serve_schedule_photo(
+        schedule.driver_document_photo_back_path,
+        "Esse agendamento não tem foto do verso do documento do motorista.",
+    )
 
 
 @router.get("/{schedule_id}/vehicle-document-photo")
@@ -145,9 +172,9 @@ def get_vehicle_document_photo(
     schedule_id: int, db: Session = Depends(get_db), _employee: Employee = Depends(get_current_employee)
 ) -> FileResponse:
     schedule = db.get(Schedule, schedule_id)
-    if schedule is None or schedule.vehicle_document_photo_path is None:
-        raise HTTPException(status_code=404, detail="Esse agendamento não tem foto do documento do veículo.")
-    photo_path = resolve_photo_path(schedule.vehicle_document_photo_path)
-    if photo_path is None:
-        raise HTTPException(status_code=404, detail="Arquivo da foto não foi encontrado no servidor.")
-    return FileResponse(photo_path)
+    if schedule is None:
+        raise HTTPException(status_code=404, detail="Agendamento não encontrado.")
+    return _serve_schedule_photo(
+        schedule.vehicle_document_photo_path,
+        "Esse agendamento não tem foto do documento do veículo.",
+    )

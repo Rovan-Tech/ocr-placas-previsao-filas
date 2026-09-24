@@ -334,5 +334,6 @@ class TestScheduleSecurity:
         assert response.status_code == 401
 
     def test_photo_endpoints_require_authentication(self):
-        assert client.get("/schedules/1/driver-document-photo").status_code == 401
+        assert client.get("/schedules/1/driver-document-photo-front").status_code == 401
+        assert client.get("/schedules/1/driver-document-photo-back").status_code == 401
         assert client.get("/schedules/1/vehicle-document-photo").status_code == 401

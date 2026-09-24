@@ -25,10 +25,11 @@ class TestCreateSchedule:
         body = response.json()
         assert body["plate"] == "ABC1D23"
         assert body["driver_name"] == "João da Silva"
-        assert body["has_driver_document_photo"] is False
+        assert body["has_driver_document_photo_front"] is False
+        assert body["has_driver_document_photo_back"] is False
         assert body["has_vehicle_document_photo"] is False
 
-    def test_creates_a_schedule_with_both_photos_and_saves_them_to_disk(
+    def test_creates_a_schedule_with_all_three_photos_and_saves_them_to_disk(
         self, authenticated_client, tmp_path, monkeypatch
     ):
         import app.services.photo_storage as photo_storage
@@ -45,17 +46,19 @@ class TestCreateSchedule:
                 "scheduled_date": "2026-09-24",
             },
             files={
-                "driver_document_photo": ("cnh.jpg", b"fake-driver-doc", "image/jpeg"),
+                "driver_document_photo_front": ("cnh-frente.jpg", b"fake-driver-doc-front", "image/jpeg"),
+                "driver_document_photo_back": ("cnh-verso.jpg", b"fake-driver-doc-back", "image/jpeg"),
                 "vehicle_document_photo": ("crlv.jpg", b"fake-vehicle-doc", "image/jpeg"),
             },
         )
 
         assert response.status_code == 201
         body = response.json()
-        assert body["has_driver_document_photo"] is True
+        assert body["has_driver_document_photo_front"] is True
+        assert body["has_driver_document_photo_back"] is True
         assert body["has_vehicle_document_photo"] is True
         saved_files = list(tmp_path.glob("schedules/*.jpg"))
-        assert len(saved_files) == 2
+        assert len(saved_files) == 3
 
     def test_rejects_an_invalid_plate(self, authenticated_client):
         response = _create(authenticated_client, plate="NAO-E-PLACA")
@@ -77,7 +80,7 @@ class TestCreateSchedule:
                 "cargo_type": "Grãos",
                 "scheduled_date": "2026-09-24",
             },
-            files={"driver_document_photo": ("doc.pdf", b"%PDF-1.4 fake", "application/pdf")},
+            files={"driver_document_photo_front": ("doc.pdf", b"%PDF-1.4 fake", "application/pdf")},
         )
 
         assert response.status_code == 400
@@ -94,7 +97,7 @@ class TestCreateSchedule:
                 "cargo_type": "Grãos",
                 "scheduled_date": "2026-09-24",
             },
-            files={"driver_document_photo": ("cnh.jpg", oversized, "image/jpeg")},
+            files={"driver_document_photo_front": ("cnh.jpg", oversized, "image/jpeg")},
         )
 
         assert response.status_code == 413
@@ -143,16 +146,18 @@ class TestSchedulePhotos:
     def test_returns_404_when_there_is_no_photo(self, authenticated_client):
         created = _create(authenticated_client).json()
 
-        response = authenticated_client.get(f"/schedules/{created['id']}/driver-document-photo")
-
-        assert response.status_code == 404
+        assert authenticated_client.get(f"/schedules/{created['id']}/driver-document-photo-front").status_code == 404
+        assert authenticated_client.get(f"/schedules/{created['id']}/driver-document-photo-back").status_code == 404
+        assert authenticated_client.get(f"/schedules/{created['id']}/vehicle-document-photo").status_code == 404
 
     def test_returns_404_for_an_unknown_schedule(self, authenticated_client):
-        response = authenticated_client.get("/schedules/999999/driver-document-photo")
+        assert authenticated_client.get("/schedules/999999/driver-document-photo-front").status_code == 404
+        assert authenticated_client.get("/schedules/999999/driver-document-photo-back").status_code == 404
+        assert authenticated_client.get("/schedules/999999/vehicle-document-photo").status_code == 404
 
-        assert response.status_code == 404
-
-    def test_serves_a_saved_driver_document_photo(self, authenticated_client, tmp_path, monkeypatch):
+    def test_serves_the_front_and_back_driver_document_photos_separately(
+        self, authenticated_client, tmp_path, monkeypatch
+    ):
         import app.services.photo_storage as photo_storage
 
         monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
@@ -166,10 +171,16 @@ class TestSchedulePhotos:
                 "cargo_type": "Grãos",
                 "scheduled_date": "2026-09-24",
             },
-            files={"driver_document_photo": ("cnh.jpg", b"fake-driver-doc", "image/jpeg")},
+            files={
+                "driver_document_photo_front": ("cnh-frente.jpg", b"fake-driver-doc-front", "image/jpeg"),
+                "driver_document_photo_back": ("cnh-verso.jpg", b"fake-driver-doc-back", "image/jpeg"),
+            },
         ).json()
 
-        response = authenticated_client.get(f"/schedules/{created['id']}/driver-document-photo")
+        front = authenticated_client.get(f"/schedules/{created['id']}/driver-document-photo-front")
+        back = authenticated_client.get(f"/schedules/{created['id']}/driver-document-photo-back")
 
-        assert response.status_code == 200
-        assert response.content == b"fake-driver-doc"
+        assert front.status_code == 200
+        assert front.content == b"fake-driver-doc-front"
+        assert back.status_code == 200
+        assert back.content == b"fake-driver-doc-back"
