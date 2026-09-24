@@ -25,6 +25,10 @@ class Settings(BaseSettings):
 
     ocr_upload_rate_limit: str = "10/minute"
 
+    api_brasil_device_token: str = ""
+    api_brasil_bearer_token: str = ""
+    api_brasil_timeout_seconds: float = 5.0
+
     @property
     def frontend_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.frontend_origins.split(",") if origin.strip()]
