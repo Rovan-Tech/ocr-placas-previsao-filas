@@ -12,6 +12,9 @@ alembic
 psycopg[binary]
 pydantic-settings
 
+bcrypt
+pyjwt
+
 pytest
 httpx
 

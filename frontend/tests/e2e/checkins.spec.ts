@@ -1,4 +1,9 @@
 import { expect, test } from '@playwright/test'
+import { loginAsTestUser } from './testAuth'
+
+test.beforeEach(async ({ page }) => {
+  await loginAsTestUser(page)
+})
 
 test('lista os check-ins recentes vindos do backend', async ({ page }) => {
   await page.route('**/api/checkins?*', (route) =>

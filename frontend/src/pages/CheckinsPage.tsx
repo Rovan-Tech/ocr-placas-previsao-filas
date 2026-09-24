@@ -54,28 +54,30 @@ export default function CheckinsPage() {
       )}
 
       {!loading && !error && checkins.length > 0 && (
-        <table className="checkins">
-          <thead>
-            <tr>
-              <th>Placa</th>
-              <th>Entrada</th>
-              <th>Espera estimada</th>
-            </tr>
-          </thead>
-          <tbody>
-            {checkins.map((checkin) => (
-              <tr key={checkin.id}>
-                <td className="plate">{checkin.plate}</td>
-                <td>{checkin.created_at ? dateFormatter.format(new Date(checkin.created_at)) : '—'}</td>
-                <td>
-                  {checkin.estimated_wait_minutes != null
-                    ? `${Math.round(checkin.estimated_wait_minutes)} min`
-                    : '—'}
-                </td>
+        <div className="table-scroll">
+          <table className="checkins">
+            <thead>
+              <tr>
+                <th>Placa</th>
+                <th>Entrada</th>
+                <th>Espera estimada</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {checkins.map((checkin) => (
+                <tr key={checkin.id}>
+                  <td className="plate">{checkin.plate}</td>
+                  <td>{checkin.created_at ? dateFormatter.format(new Date(checkin.created_at)) : '—'}</td>
+                  <td>
+                    {checkin.estimated_wait_minutes != null
+                      ? `${Math.round(checkin.estimated_wait_minutes)} min`
+                      : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   )
