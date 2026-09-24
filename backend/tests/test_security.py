@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
+from app.db import get_db
 from app.main import SECURITY_HEADERS, app
 from app.routers.ocr import MAX_UPLOAD_BYTES
 from app.services import ocr_service
@@ -27,31 +28,31 @@ def test_cors_does_not_allow_arbitrary_origins():
     assert "access-control-allow-origin" not in response.headers
 
 
-@patch("app.routers.ocr.read_plate_text")
-def test_rejects_uploads_larger_than_the_limit(mock_read_plate_text):
+@patch("app.routers.ocr.read_plate")
+def test_rejects_uploads_larger_than_the_limit(mock_read_plate, authenticated_client):
     oversized = b"\xff" * (MAX_UPLOAD_BYTES + 1)
 
-    response = client.post(
+    response = authenticated_client.post(
         "/ocr/upload",
         files={"file": ("placa.jpg", oversized, "image/jpeg")},
     )
 
     assert response.status_code == 413
-    mock_read_plate_text.assert_not_called()
+    mock_read_plate.assert_not_called()
 
 
-@patch("app.routers.ocr.read_plate_text")
-def test_does_not_reflect_client_supplied_content_type(mock_read_plate_text):
+@patch("app.routers.ocr.read_plate")
+def test_does_not_reflect_client_supplied_content_type(mock_read_plate, authenticated_client):
     malicious_type = "text/html<script>alert(1)</script>"
 
-    response = client.post(
+    response = authenticated_client.post(
         "/ocr/upload",
         files={"file": ("placa.html", b"<script>", malicious_type)},
     )
 
     assert response.status_code == 400
     assert "<script>" not in response.text
-    mock_read_plate_text.assert_not_called()
+    mock_read_plate.assert_not_called()
 
 
 def test_rejects_images_above_the_pixel_limit(monkeypatch):
@@ -60,12 +61,12 @@ def test_rejects_images_above_the_pixel_limit(monkeypatch):
     image_bytes = encoded.tobytes()
 
     with pytest.raises(ValueError, match="Resolução"):
-        ocr_service.read_plate_text(image_bytes)
+        ocr_service.read_plate(image_bytes)
 
 
 def test_rejects_empty_image_bytes_without_crashing():
     with pytest.raises(ValueError, match="Nenhuma imagem"):
-        ocr_service.read_plate_text(b"")
+        ocr_service.read_plate(b"")
 
 
 def test_opencv_decoder_is_capped_against_decompression_bombs():
@@ -76,10 +77,125 @@ def test_opencv_decoder_is_capped_against_decompression_bombs():
     "payload",
     [b"", b"GIF89a" + b"\x00" * 32, b"%PDF-1.4 fake", b"\x00" * 1024],
 )
-def test_returns_400_for_non_image_bytes_disguised_as_jpeg(payload):
-    response = client.post(
+def test_returns_400_for_non_image_bytes_disguised_as_jpeg(payload, authenticated_client):
+    response = authenticated_client.post(
         "/ocr/upload",
         files={"file": ("placa.jpg", payload, "image/jpeg")},
     )
 
     assert response.status_code == 400
+
+
+class TestAuthentication:
+    """Login é obrigatório pra /ocr/* e /logs/* — é assim que o sistema sabe quem enviou cada
+    foto (ver UploadLog)."""
+
+    @pytest.fixture
+    def db_client(self, db_session):
+        """Cliente sem login simulado (dependency_overrides de get_current_employee), mas com o
+        `get_db` do endpoint apontando pro banco de testes — testa o login e o token de verdade,
+        contra o `employee` real da fixture (ver conftest.py)."""
+        app.dependency_overrides[get_db] = lambda: db_session
+        try:
+            yield TestClient(app)
+        finally:
+            del app.dependency_overrides[get_db]
+
+    @pytest.mark.parametrize(
+        ("method", "path"),
+        [
+            ("post", "/ocr/upload"),
+            ("post", "/ocr/manual"),
+            ("get", "/logs"),
+            ("get", "/logs/1/photo"),
+        ],
+    )
+    def test_protected_endpoints_reject_requests_without_a_token(self, method, path):
+        response = getattr(client, method)(path)
+
+        assert response.status_code == 401
+
+    def test_rejects_a_tampered_token(self):
+        response = client.get("/logs", headers={"Authorization": "Bearer isso.nao.eh.um.jwt.valido"})
+
+        assert response.status_code == 401
+
+    def test_rejects_a_token_signed_with_a_different_key(self):
+        import jwt
+
+        from app.config import settings
+
+        forged = jwt.encode({"sub": "1"}, "chave-errada-mas-com-32-bytes-ok", algorithm=settings.jwt_algorithm)
+
+        response = client.get("/logs", headers={"Authorization": f"Bearer {forged}"})
+
+        assert response.status_code == 401
+
+    def test_login_rejects_wrong_password(self, employee, db_client):
+        response = db_client.post("/auth/login", data={"username": employee.username, "password": "senha-errada"})
+
+        assert response.status_code == 401
+
+    def test_login_rejects_unknown_username(self, db_client):
+        response = db_client.post("/auth/login", data={"username": "ninguem-com-esse-login", "password": "qualquer"})
+
+        assert response.status_code == 401
+
+    def test_login_does_not_reveal_whether_the_username_exists(self, employee, db_client):
+        wrong_password = db_client.post("/auth/login", data={"username": employee.username, "password": "errada"})
+        unknown_user = db_client.post(
+            "/auth/login", data={"username": "ninguem-com-esse-login", "password": "errada"}
+        )
+
+        assert wrong_password.status_code == unknown_user.status_code
+        assert wrong_password.json() == unknown_user.json()
+
+    def test_successful_login_never_returns_the_password_hash(self, employee, db_client):
+        response = db_client.post("/auth/login", data={"username": employee.username, "password": "s3nhaSegura!"})
+
+        assert response.status_code == 200
+        assert "password_hash" not in response.text
+        assert employee.password_hash not in response.text
+
+    def test_login_returns_a_usable_token(self, employee, db_client):
+        token = db_client.post(
+            "/auth/login", data={"username": employee.username, "password": "s3nhaSegura!"}
+        ).json()["access_token"]
+
+        response = db_client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "id": employee.id,
+            "username": employee.username,
+            "full_name": employee.full_name,
+            "is_admin": False,
+            "active": True,
+        }
+
+    def test_inactive_employee_cannot_log_in(self, employee, db_session, db_client):
+        employee.active = False
+        db_session.flush()
+
+        response = db_client.post("/auth/login", data={"username": employee.username, "password": "s3nhaSegura!"})
+
+        assert response.status_code == 401
+
+    def test_deactivating_an_employee_invalidates_their_existing_token(self, employee, db_session, db_client):
+        from app.services.auth import create_access_token
+
+        token = create_access_token(employee)
+        employee.active = False
+        db_session.flush()
+
+        response = db_client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+
+        assert response.status_code == 401
+
+
+def test_photo_path_traversal_is_rejected():
+    """Um photo_path adulterado (ex.: apontando pra fora da pasta de upload) nunca é servido."""
+    from app.services.photo_storage import resolve_photo_path
+
+    assert resolve_photo_path("../../../../etc/passwd") is None
+    assert resolve_photo_path("/etc/passwd") is None
