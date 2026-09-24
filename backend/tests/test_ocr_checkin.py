@@ -87,7 +87,7 @@ def test_scheduled_shows_which_driver_document_photos_were_uploaded(
     assert body["checkin"]["schedule"]["has_driver_document_photo_front"] is True
     assert body["checkin"]["schedule"]["has_driver_document_photo_back"] is False
     assert body["checkin"]["vehicle_data"] == {
-        "brand": "FIAT", "model": "UNO", "year": "2015", "uf": "SP", "color": "Branco"
+        "brand": "FIAT", "model": "UNO", "year": "2015", "uf": "SP", "color": "Branco", "is_mock": False
     }
 
 

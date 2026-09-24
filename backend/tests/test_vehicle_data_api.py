@@ -5,7 +5,7 @@ import httpx
 
 from app.services.vehicle_data_api import (
     ApiBrasilVehicleDataProvider,
-    NotConfiguredVehicleDataProvider,
+    MockVehicleDataProvider,
     VehicleData,
     get_vehicle_data_provider,
 )
@@ -29,19 +29,32 @@ class _BadJsonResponse(_FakeResponse):
         raise ValueError("resposta não é JSON")
 
 
-def test_not_configured_provider_returns_none_without_calling_anything():
-    provider = NotConfiguredVehicleDataProvider()
+def test_mock_provider_returns_fictitious_data_flagged_as_mock():
+    provider = MockVehicleDataProvider()
 
-    assert _run(provider.lookup("ABC1D23")) is None
+    result = _run(provider.lookup("ABC1D23"))
+
+    assert result is not None
+    assert result.is_mock is True
+    assert result.brand is not None
 
 
-def test_factory_returns_not_configured_when_tokens_are_missing(monkeypatch):
+def test_mock_provider_is_deterministic_for_the_same_plate():
+    provider = MockVehicleDataProvider()
+
+    first = _run(provider.lookup("ABC1D23"))
+    second = _run(provider.lookup("ABC1D23"))
+
+    assert first == second
+
+
+def test_factory_returns_the_mock_provider_when_tokens_are_missing(monkeypatch):
     from app.config import settings
 
     monkeypatch.setattr(settings, "api_brasil_device_token", "")
     monkeypatch.setattr(settings, "api_brasil_bearer_token", "")
 
-    assert isinstance(get_vehicle_data_provider(), NotConfiguredVehicleDataProvider)
+    assert isinstance(get_vehicle_data_provider(), MockVehicleDataProvider)
 
 
 def test_factory_returns_the_real_provider_when_both_tokens_are_set(monkeypatch):

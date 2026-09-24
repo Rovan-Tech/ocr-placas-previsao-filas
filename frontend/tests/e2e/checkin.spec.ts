@@ -107,6 +107,18 @@ test('sem agendamento, mas achado na API Brasil: mostra os dados do veículo e a
 
   await expect(page.getByText('Sem agendamento cadastrado')).toBeVisible()
   await expect(page.getByText(/VOLKSWAGEN.*GOL/)).toBeVisible()
+  await expect(page.getByText(/Dados de exemplo/)).toHaveCount(0)
+})
+
+test('dados do veículo mockados (sem API Brasil configurada): avisa que são dados de exemplo', async ({ page }) => {
+  await mockAndSend(page, {
+    found: true,
+    schedule: null,
+    vehicle_data: { brand: 'VOLVO', model: 'FH 540', year: '2019', uf: 'SP', color: 'Branco', is_mock: true },
+  })
+
+  await expect(page.getByText(/VOLVO.*FH 540/)).toBeVisible()
+  await expect(page.getByText(/Dados de exemplo — em produção, a busca seria feita na API oficial do governo/)).toBeVisible()
 })
 
 test('não encontrada em nenhuma fonte: avisa que a placa não foi reconhecida', async ({ page }) => {

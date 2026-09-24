@@ -25,6 +25,7 @@ class VehicleData:
     year: str | None
     uf: str | None
     color: str | None
+    is_mock: bool = False
 
 
 class VehicleDataProvider(Protocol):
@@ -103,15 +104,25 @@ class ApiBrasilVehicleDataProvider:
         return _parse_vehicle_data(payload)
 
 
-class NotConfiguredVehicleDataProvider:
+_MOCK_PROFILES: tuple[VehicleData, ...] = (
+    VehicleData(brand="Volvo", model="FH 540", year="2019", uf="SP", color="Branco", is_mock=True),
+    VehicleData(brand="Scania", model="R 450", year="2021", uf="PR", color="Vermelho", is_mock=True),
+    VehicleData(brand="Mercedes-Benz", model="Actros 2651", year="2020", uf="RS", color="Prata", is_mock=True),
+    VehicleData(brand="DAF", model="XF 480", year="2018", uf="SC", color="Azul", is_mock=True),
+    VehicleData(brand="Volkswagen", model="Constellation 24.280", year="2022", uf="MG", color="Branco", is_mock=True),
+)
+
+
+class MockVehicleDataProvider:
 
     async def lookup(self, plate: str) -> VehicleData | None:
-        return None
+        index = sum(ord(character) for character in plate) % len(_MOCK_PROFILES)
+        return _MOCK_PROFILES[index]
 
 
 def get_vehicle_data_provider() -> VehicleDataProvider:
     if not settings.api_brasil_device_token or not settings.api_brasil_bearer_token:
-        return NotConfiguredVehicleDataProvider()
+        return MockVehicleDataProvider()
     return ApiBrasilVehicleDataProvider(
         settings.api_brasil_device_token,
         settings.api_brasil_bearer_token,

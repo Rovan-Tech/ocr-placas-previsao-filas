@@ -36,6 +36,7 @@ export interface VehicleData {
   year: string | null
   uf: string | null
   color: string | null
+  is_mock: boolean
 }
 
 export interface CheckinContext {

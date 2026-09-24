@@ -138,6 +138,7 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 }
 .verification span { font-size: 0.9rem; }
 .verification .source { color: var(--muted); }
+.verification .hint { font-size: 0.8rem; font-style: italic; color: var(--muted); }
 .verification.tone-ok { background: var(--success-bg); color: var(--success); border-color: transparent; }
 .verification.tone-warning { background: var(--warning-bg); border-color: transparent; }
 .verification.tone-danger { background: var(--error-bg); color: var(--error); border-color: transparent; }

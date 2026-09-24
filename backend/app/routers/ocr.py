@@ -56,6 +56,7 @@ class VehicleDataOut(BaseModel):
     year: str | None
     uf: str | None
     color: str | None
+    is_mock: bool
 
 
 class CheckinContext(BaseModel):
@@ -116,6 +117,7 @@ async def _build_checkin_context(
             year=vehicle_data.year,
             uf=vehicle_data.uf,
             color=vehicle_data.color,
+            is_mock=vehicle_data.is_mock,
         )
         if vehicle_data is not None
         else None

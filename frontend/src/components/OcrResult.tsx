@@ -9,9 +9,16 @@ function VehicleDataSummary({ data, label }: { data: VehicleData; label: string 
   const parts = [data.brand, data.model, data.year, data.color, data.uf].filter(Boolean)
   if (parts.length === 0) return null
   return (
-    <span className="meta">
-      {label}: {parts.join(' · ')}
-    </span>
+    <>
+      <span className="meta">
+        {label}: {parts.join(' · ')}
+      </span>
+      {data.is_mock && (
+        <span className="hint">
+          Dados de exemplo — em produção, a busca seria feita na API oficial do governo.
+        </span>
+      )}
+    </>
   )
 }
 
