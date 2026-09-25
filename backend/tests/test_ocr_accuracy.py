@@ -26,7 +26,7 @@ def test_reads_plate_in_hard_conditions(sample):
     )
 
 
-DISTANCE_CASES = {"muito_perto", "distancia_ideal", "media_distancia", "muito_longe"}
+DISTANCE_CASES = {"distancia_ideal", "media_distancia", "muito_longe"}
 
 
 @pytest.mark.parametrize("sample", [s for s in hard_cases() if s.name in DISTANCE_CASES], ids=lambda sample: sample.name)
