@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { ApiError, submitPlateManually, type ManualPlateContext, type OcrUploadResponse } from '../services/api'
+import StatusMessage from './StatusMessage'
 
 interface ManualPlateEntryProps {
   onSubmit: (result: OcrUploadResponse) => void
@@ -53,11 +54,7 @@ export default function ManualPlateEntry({ onSubmit, onCancel, context }: Manual
         <p className="hint">A foto será salva junto com a placa digitada, só de resguardo.</p>
       )}
 
-      {error && (
-        <p className="message error" role="alert">
-          {error}
-        </p>
-      )}
+      {error && <StatusMessage tone="error">{error}</StatusMessage>}
 
       <div className="camera-actions">
         <button type="submit" className="primary" disabled={sending || plate.trim().length === 0}>

@@ -90,10 +90,10 @@ export default function LogsPage() {
             <tbody>
               {logs.map((log) => (
                 <tr key={log.id}>
-                  <td>{dateFormatter.format(new Date(log.created_at))}</td>
-                  <td>{log.employee_username}</td>
-                  <td>{ENDPOINT_LABEL[log.endpoint]}</td>
-                  <td>
+                  <td data-label="Quando">{dateFormatter.format(new Date(log.created_at))}</td>
+                  <td data-label="Funcionário">{log.employee_username}</td>
+                  <td data-label="Origem">{ENDPOINT_LABEL[log.endpoint]}</td>
+                  <td data-label="Placa">
                     {log.final_plate ? (
                       <>
                         <span className="plate">{formatPlate(log.final_plate, log.final_plate_format)}</span>
@@ -106,8 +106,8 @@ export default function LogsPage() {
                       <div className="hint">{plateFormatLabel(log.final_plate_format)}</div>
                     )}
                   </td>
-                  <td>{log.client_ip ?? '—'}</td>
-                  <td>{log.has_photo ? <PhotoLink logId={log.id} /> : '—'}</td>
+                  <td data-label="IP">{log.client_ip ?? '—'}</td>
+                  <td data-label="Foto">{log.has_photo ? <PhotoLink logId={log.id} /> : '—'}</td>
                 </tr>
               ))}
             </tbody>

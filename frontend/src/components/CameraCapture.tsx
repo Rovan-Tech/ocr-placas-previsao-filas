@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import StatusMessage from './StatusMessage'
 
 const canUseLiveCamera = Boolean(navigator.mediaDevices?.getUserMedia) && window.isSecureContext
 
@@ -121,7 +122,7 @@ export default function CameraCapture({ onCapture, disabled = false }: CameraCap
         {cameraOn && <div className="camera-guide" aria-hidden="true" />}
       </div>
 
-      {cameraError && <p className="message error">{cameraError}</p>}
+      {cameraError && <StatusMessage tone="error">{cameraError}</StatusMessage>}
 
       <div className="camera-actions">
         {canUseLiveCamera && !cameraOn && (

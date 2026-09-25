@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import StatusMessage from '../components/StatusMessage'
 import ThemeToggle from '../components/ThemeToggle'
 import { useAuth } from '../context/AuthContext'
 import { changePassword } from '../services/auth'
@@ -77,11 +78,7 @@ export default function ChangePasswordPage() {
           disabled={sending}
         />
 
-        {error && (
-          <p className="message error" role="alert">
-            {error}
-          </p>
-        )}
+        {error && <StatusMessage tone="error">{error}</StatusMessage>}
 
         <div className="camera-actions">
           <button

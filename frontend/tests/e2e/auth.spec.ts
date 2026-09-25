@@ -85,7 +85,7 @@ test('mostra o erro do backend quando o login falha', async ({ page }) => {
   await page.getByRole('button', { name: 'Entrar' }).click()
 
   await expect(page.getByText('Usuário ou senha inválidos.')).toBeVisible()
-  await expect(page.getByLabel('Usuário')).toBeVisible() // continua no login
+  await expect(page.getByLabel('Usuário')).toBeVisible()
 })
 
 test('login com senha temporária leva direto pra tela de trocar senha', async ({ page }) => {
@@ -177,7 +177,7 @@ test.describe('admin master cadastra funcionário', () => {
     })
     await page.goto('/')
 
-    await page.getByRole('link', { name: 'Funcionários' }).click()
+    await page.getByRole('link', { name: /Funcionários|Equipe/ }).click()
     await page.getByLabel('Usuário').fill('fiscal.novo')
     await page.getByLabel('Nome completo').fill('Fiscal Novo')
     await page.getByLabel('Senha temporária').fill('temp12345')
