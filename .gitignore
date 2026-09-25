@@ -32,6 +32,10 @@ backend/data/uploads/
 # Docker
 *.pid
 
+# graphify (/graphify) — grafo de conhecimento gerado localmente, cache incluído; regerar quando
+# precisar, não versionar (ver "Grafo de conhecimento" no CLAUDE.md).
+graphify-out/
+
 # Editors / OS
 .vscode/
 .idea/
