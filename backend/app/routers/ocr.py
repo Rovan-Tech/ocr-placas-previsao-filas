@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
-from app.models import Employee, UploadEndpoint, UploadLog
+from app.models import CargoCategory, CheckIn, CheckInStatus, Employee, UploadEndpoint, UploadLog
 from app.rate_limit import limiter
 from app.services.auth import get_client_ip, get_current_employee
 from app.services.ocr_service import read_plate
@@ -39,13 +39,18 @@ class Verification(BaseModel):
     source: str | None = None
 
 
+class CargoItemInfo(BaseModel):
+    product_name: str
+    category: CargoCategory
+
+
 class ScheduleInfo(BaseModel):
+    id: int
     driver_name: str
     driver_document: str
-    has_driver_document_photo_front: bool
-    has_driver_document_photo_back: bool
-    has_vehicle_document_photo: bool
-    cargo_type: str
+    driver_document_validated: bool
+    driver_document_validation_detail: str
+    cargo_items: list[CargoItemInfo]
     scheduled_date: date
     status: ScheduleStatus
 
@@ -63,6 +68,7 @@ class CheckinContext(BaseModel):
     found: bool
     schedule: ScheduleInfo | None
     vehicle_data: VehicleDataOut | None
+    checkin_id: int | None = None
 
 
 class PlateReadResponse(BaseModel):
@@ -87,8 +93,28 @@ def _verify(plate: str | None, verifier: PlateVerifier) -> Verification | None:
     return Verification(status=result.status, detail=result.detail, source=result.source)
 
 
+def _create_waiting_checkin(
+    db: Session, *, plate: str, schedule_id: int | None, employee: Employee
+) -> CheckIn | None:
+    try:
+        checkin = CheckIn(
+            plate=plate,
+            status=CheckInStatus.WAITING,
+            schedule_id=schedule_id,
+            created_by_id=employee.id,
+        )
+        db.add(checkin)
+        db.commit()
+        db.refresh(checkin)
+        return checkin
+    except SQLAlchemyError:
+        db.rollback()
+        logger.exception("Não foi possível registrar o check-in automático para a placa %s.", plate)
+        return None
+
+
 async def _build_checkin_context(
-    db: Session, plate: str | None, vehicle_provider: VehicleDataProvider
+    db: Session, plate: str | None, vehicle_provider: VehicleDataProvider, employee: Employee
 ) -> CheckinContext | None:
     if plate is None:
         return None
@@ -96,12 +122,15 @@ async def _build_checkin_context(
     match = match_schedule_for_plate(db, plate, date.today())
     schedule_info = (
         ScheduleInfo(
+            id=match.schedule.id,
             driver_name=match.schedule.driver_name,
             driver_document=match.schedule.driver_document,
-            has_driver_document_photo_front=match.schedule.driver_document_photo_front_path is not None,
-            has_driver_document_photo_back=match.schedule.driver_document_photo_back_path is not None,
-            has_vehicle_document_photo=match.schedule.vehicle_document_photo_path is not None,
-            cargo_type=match.schedule.cargo_type,
+            driver_document_validated=match.schedule.driver_document_validated,
+            driver_document_validation_detail=match.schedule.driver_document_validation_detail,
+            cargo_items=[
+                CargoItemInfo(product_name=item.product_name, category=item.category)
+                for item in match.schedule.cargo_items
+            ],
             scheduled_date=match.schedule.scheduled_date,
             status=match.status,
         )
@@ -109,24 +138,42 @@ async def _build_checkin_context(
         else None
     )
 
-    vehicle_data = await vehicle_provider.lookup(plate)
-    vehicle_data_out = (
-        VehicleDataOut(
-            brand=vehicle_data.brand,
-            model=vehicle_data.model,
-            year=vehicle_data.year,
-            uf=vehicle_data.uf,
-            color=vehicle_data.color,
-            is_mock=vehicle_data.is_mock,
+    if match is not None:
+        vehicle_data_out = VehicleDataOut(
+            brand=match.schedule.vehicle_brand,
+            model=match.schedule.vehicle_model,
+            year=match.schedule.vehicle_year,
+            uf=None,
+            color=match.schedule.vehicle_color,
+            is_mock=False,
         )
-        if vehicle_data is not None
-        else None
+    else:
+        vehicle_data = await vehicle_provider.lookup(plate)
+        vehicle_data_out = (
+            VehicleDataOut(
+                brand=vehicle_data.brand,
+                model=vehicle_data.model,
+                year=vehicle_data.year,
+                uf=vehicle_data.uf,
+                color=vehicle_data.color,
+                is_mock=vehicle_data.is_mock,
+            )
+            if vehicle_data is not None
+            else None
+        )
+
+    checkin = _create_waiting_checkin(
+        db,
+        plate=plate,
+        schedule_id=match.schedule.id if match is not None else None,
+        employee=employee,
     )
 
     return CheckinContext(
         found=schedule_info is not None or vehicle_data_out is not None,
         schedule=schedule_info,
         vehicle_data=vehicle_data_out,
+        checkin_id=checkin.id if checkin is not None else None,
     )
 
 
@@ -216,7 +263,7 @@ async def upload_plate_image(
         needs_review=reading.needs_review,
         verification=_verify(reading.plate, verifier),
         detections=[Detection(**detection) for detection in reading.detections],
-        checkin=await _build_checkin_context(db, reading.plate, vehicle_provider),
+        checkin=await _build_checkin_context(db, reading.plate, vehicle_provider, employee),
     )
 
 
@@ -293,6 +340,6 @@ async def submit_plate_manually(
         needs_review=False,
         verification=_verify(normalized, verifier),
         detections=[],
-        checkin=await _build_checkin_context(db, normalized, vehicle_provider),
+        checkin=await _build_checkin_context(db, normalized, vehicle_provider, employee),
         audit_saved=audit_saved,
     )
