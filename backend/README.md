@@ -109,16 +109,42 @@ Revise sempre o arquivo gerado em `migrations/versions/` antes de commitar. O te
 - `GET /logs` — quem enviou cada foto/placa, de qual endereço, e o que a leitura deu (paginado,
   `?limit=&offset=`). Qualquer funcionário logado pode ver.
 - `GET /logs/{id}/photo` — baixa a foto de resguardo daquele log, quando existe (404 se não).
-- `POST /schedules` — cadastra um agendamento de chegada (`multipart/form-data`: `plate`,
-  `driver_name`, `driver_document`, `cargo_type`, `scheduled_date`, e opcionalmente
-  `driver_document_photo_front`/`driver_document_photo_back`/`vehicle_document_photo` — o
-  documento do motorista tem frente e verso porque CNH/RG costumam ter dado relevante nos dois
-  lados). Qualquer funcionário logado pode cadastrar — não é gestão de funcionário, é dado
-  operacional.
+- `POST /schedules` — cadastra um agendamento de chegada completo (`multipart/form-data`): dados
+  do motorista (nome, data/local de nascimento com UF, tipo de documento — CPF/RG/CNH — e número),
+  dados do veículo (marca, modelo, ano, chassi, cor, comprimento/altura/largura), origem e
+  destino, `cargo_items` (string JSON com a lista de produtos da carga, cada um com uma
+  categoria: perecível/não perecível/químico/tóxico/inflamável), `scheduled_date`, e as quatro
+  fotos (`driver_document_photo_front`, `driver_document_photo_back`, `vehicle_document_photo`,
+  `manifest_photo`) — **todas obrigatórias**, tanto aqui quanto no cadastro rápido feito na tela
+  de captura. A foto da frente do documento do motorista é conferida por OCR contra o número
+  digitado (ver "Validação de documento" abaixo). Qualquer funcionário logado pode cadastrar —
+  não é gestão de funcionário, é dado operacional. **409 se já existir agendamento com a mesma
+  placa, o mesmo documento do motorista ou o mesmo chassi na mesma `scheduled_date`** — evita
+  cadastro duplicado do mesmo caminhão/motorista pro mesmo dia (checagem de aplicação +
+  `UniqueConstraint` no banco como rede de segurança).
 - `GET /schedules` — lista os agendamentos (aceita `?plate=` pra filtrar por placa).
-- `GET /schedules/{id}/driver-document-photo-front`, `GET /schedules/{id}/driver-document-photo-back`
-  e `GET /schedules/{id}/vehicle-document-photo` — baixam as fotos dos documentos daquele
-  agendamento, quando existem (404 se não).
+- `GET /schedules/{id}/driver-document-photo-front`, `GET /schedules/{id}/driver-document-photo-back`,
+  `GET /schedules/{id}/vehicle-document-photo` e `GET /schedules/{id}/manifest-photo` — baixam as
+  fotos daquele agendamento (404 se não existirem — hoje sempre existem, já que as quatro são
+  obrigatórias no cadastro).
+- `POST /checkins` — registra a decisão do fiscal de autorizar (`status=admitted`) ou recusar
+  (`status=cancelled`) a entrada, com `plate`, `schedule_id` e, quando a decisão é sobre um
+  check-in criado automaticamente pela leitura da placa (ver "Check-in inteligente" abaixo),
+  `checkin_id` — nesse caso atualiza a linha `waiting` existente em vez de criar uma nova.
+  **`schedule_id` é obrigatório** (422 sem ele, mesmo o próprio `checkin_id` já apontando pra um
+  agendamento) — não dá pra autorizar nem recusar a entrada sem motorista/carga/caminhão
+  cadastrados, ver "Registro do check-in" abaixo.
+- `GET /checkins` — lista os check-ins recentes (aceita `?limit=`), mais recente primeiro, com
+  `estimated_wait_minutes` (previsão de fila, ver "Registro do check-in" abaixo).
+
+### Validação de documento (`app/services/document_validation.py`)
+
+Não existe API gratuita de validação de CPF/RG/CNH (diferente da API Brasil de placas), então a
+"validação" aqui é outra: roda o mesmo `EasyOCR` já usado pra ler placa sobre a foto do documento
+do motorista (sem o alfabeto restrito a placa) e confere se o número digitado no cadastro aparece
+no texto lido, comparando só os dígitos. Roda uma vez, na criação do agendamento — o resultado
+(`driver_document_validated`/`driver_document_validation_detail`) fica salvo e aparece no
+check-in. Nunca bloqueia o cadastro: se não bater, só fica sinalizado pra conferência manual.
 
 ### Login e cadastro de funcionário
 
@@ -150,10 +176,14 @@ em si. `GET /logs/{id}/photo` é o único jeito de baixar essa foto de volta, e 
 Depois de ler a placa (OCR ou digitação manual), o `/ocr/upload`/`/ocr/manual` cruzam com duas
 fontes e devolvem tudo junto em `checkin`:
 
-- **Agendamento interno** (`Schedule`, tabela `schedules`) — motorista, documento, tipo de carga
-  e data prevista, cadastrados via `POST /schedules`. `checkin.schedule.status` diz `on_time`
-  (agendado pra hoje), `early` (data agendada no futuro — "adiantado") ou `late` (data agendada
-  no passado — "atrasado"), sempre com a data agendada original.
+- **Agendamento interno** (`Schedule`, tabela `schedules`) — motorista (com validação por OCR do
+  documento), lista de produtos da carga e data prevista, cadastrados via `POST /schedules`.
+  `checkin.schedule.status` diz `on_time` (agendado pra hoje), `early` (data agendada no futuro —
+  "adiantado", com aviso explícito na tela) ou `late` (data agendada no passado — "atrasado"),
+  sempre com a data agendada original. Toda leitura de placa válida (OCR ou digitação manual) já
+  cria um `CheckIn` com `status=waiting` na hora (`checkin.checkin_id`, `null` só se a gravação
+  falhar — nunca derruba a resposta principal do OCR). Depois, o fiscal autoriza ou recusa a
+  entrada (`POST /checkins`) — ver "Registro do check-in" abaixo.
 - **API Brasil** (`app/services/vehicle_data_api.py`, produto "Consulta Placa Veículo", plano
   free — 100 requisições/dia) — marca, modelo, ano, UF e cor do veículo, em `checkin.vehicle_data`.
   Roda sempre que uma placa válida é lida, mesmo com agendamento (entra como confirmação/
@@ -263,12 +293,29 @@ Para inspecionar as imagens de teste: `python -m tests.plate_samples /tmp/amostr
 
 Tabela `checkins` (modelo `CheckIn` em `app/models/checkin.py`):
 
-| Coluna       | Tipo            | Observação                                                   |
-| ------------ | --------------- | ------------------------------------------------------------ |
-| `id`         | `integer`       | chave primária                                               |
-| `plate`      | `varchar(7)`    | placa normalizada: 7 caracteres maiúsculos, sem hífen (CHECK) |
-| `created_at` | `timestamptz`   | data/hora do check-in, `now()` por padrão, indexada          |
-| `status`     | `varchar(20)`   | `waiting` (padrão), `admitted` ou `cancelled` (CHECK)        |
+| Coluna          | Tipo            | Observação                                                   |
+| ---------------- | --------------- | ------------------------------------------------------------ |
+| `id`             | `integer`       | chave primária                                               |
+| `plate`          | `varchar(7)`    | placa normalizada: 7 caracteres maiúsculos, sem hífen (CHECK) |
+| `created_at`     | `timestamptz`   | data/hora da leitura da placa (criação automática), `now()` por padrão, indexada |
+| `status`         | `varchar(20)`   | `waiting` (padrão, criado automaticamente), `admitted` ou `cancelled` (CHECK) |
+| `created_by_id`  | `integer`       | FK `employees.id` — quem tomou a decisão (ou leu a placa, se ainda `waiting`) |
+| `schedule_id`    | `integer`       | FK `schedules.id`, opcional — vínculo com o agendamento, se houver |
+| `decided_at`     | `timestamptz`   | opcional — hora em que o fiscal autorizou/recusou, `null` enquanto `waiting` |
 
-Ainda não implementado: gravar o check-in a partir do OCR, `GET /checkins` (consumido pelo
-frontend) e o cálculo da fila estimada.
+### Registro do check-in
+
+Toda leitura de placa válida cria automaticamente uma linha `waiting` (ver "Check-in inteligente"
+acima). Quando o fiscal decide, `POST /checkins` **atualiza essa mesma linha** em vez de criar
+uma nova — casa por `checkin_id` + placa + status `waiting`; sem correspondência (placa diferente,
+já decidido, ou `checkin_id` não veio), cria uma linha nova como fallback. **Autorizar ou recusar
+sem `schedule_id` associado devolve 422** — a decisão só é aceita depois de motorista, carga e
+caminhão estarem cadastrados no sistema (via agendamento prévio ou cadastro avulso na hora),
+nunca antes. `GET /checkins` lista os registros mais recentes primeiro.
+
+**Previsão de fila** (`app/services/queue_prediction.py`, `estimated_wait_minutes` em cada linha):
+para um check-in ainda `waiting`, é a quantidade de caminhões `waiting` que chegaram antes dele
+multiplicada pela média de tempo de atendimento (`decided_at - created_at`) dos últimos 5
+check-ins já decididos (5 minutos fixos como padrão até existir histórico); para um check-in já
+decidido, é o tempo real que levou. É uma média móvel simples, de propósito — não modela
+capacidade do pátio nem o que acontece depois da autorização (ver `CLAUDE.md` da raiz).

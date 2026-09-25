@@ -26,10 +26,10 @@ de espera com base no histórico de caminhões já registrados.
 É um projeto de demonstração para mostrar no site da Rovan — sem cliente real por trás, mas
 construído com qualidade de produção para servir de portfólio técnico.
 
-> **Status atual**: a leitura de placa (OCR) e o login/auditoria de funcionário estão
-> **implementados e testados de ponta a ponta**. O check-in automático e a previsão de fila
-> ainda **não** — ver [Como o sistema funciona](#como-o-sistema-funciona) para o que existe hoje
-> vs. o que é o próximo passo planejado.
+> **Status atual**: leitura de placa (OCR), login/auditoria de funcionário, agendamento de
+> chegada, check-in automático e previsão de fila estão **implementados e testados de ponta a
+> ponta** — ver [Como o sistema funciona](#como-o-sistema-funciona) pra saber o que cada
+> parte faz.
 
 ## Como o sistema funciona
 
@@ -80,17 +80,18 @@ cada peça do backend, [`backend/CLAUDE.md`](backend/CLAUDE.md)).
 11. **Verificação oficial** — `app/services/plate_verification.py` é o ponto de integração
     com uma base oficial (SENATRAN/Serpro); hoje sempre devolve `NOT_CHECKED` (stub
     documentado, sem provedor real).
+12. **Check-in automático** — toda vez que `/ocr/upload` ou `/ocr/manual` lê uma placa em
+    formato válido, nasce um `CheckIn` com `status=waiting` (mesma tolerância a falha do log de
+    auditoria: se não conseguir gravar, só loga e segue). Quando o fiscal autoriza ou recusa a
+    entrada (`POST /checkins`), essa mesma linha é atualizada — não nasce uma segunda.
+13. **Previsão de fila** — `estimate_wait_minutes()` em `app/services/queue_prediction.py`
+    calcula uma média móvel do tempo de atendimento dos últimos check-ins decididos e multiplica
+    pela quantidade de caminhões esperando na frente; ver a fórmula completa em
+    [`backend/CLAUDE.md`](backend/CLAUDE.md). Aparece em `GET /checkins`
+    (`CheckinsPage.tsx`, tabela + gráfico de tendência).
 
-**O que ainda não existe** (documentado em detalhe em
-[`backend/CLAUDE.md`](backend/CLAUDE.md#próximos-passos-planejados)): o modelo `CheckIn`
-existe, está migrado (Alembic) e testado isoladamente, mas **nenhum código cria uma linha
-nele** — não há router `/checkins`, e o `GET /checkins` que o frontend já espera
-(`CheckinsPage.tsx`, com uma mensagem amigável de "endpoint ainda não existe") devolve 404. A
-previsão de fila (média móvel simples sobre check-ins recentes) também é só plano. Se a tarefa
-for "implementar check-in" ou "implementar previsão de fila", **isto é greenfield** — não existe
-lógica parcial escondida em algum lugar para reaproveitar; comece por
-`POST /ocr/upload` criando o `CheckIn` logo após `_log_upload()`, depois um router novo
-`app/routers/checkins.py`.
+Detalhe fino de cada peça (contrato exato da API, fórmula da previsão, decisões de segurança
+do agendamento) está em [`backend/CLAUDE.md`](backend/CLAUDE.md).
 
 ## Stack
 
@@ -279,8 +280,10 @@ Outras diretrizes de estilo que valem para qualquer tarefa neste repo:
 - **Sem abstração prematura**: três linhas parecidas são melhores que uma abstração cedo demais
   — este projeto é pequeno de propósito (é portfólio, não vira produto com dezenas de squads).
 - **Nunca inventar dado**: se uma resposta de API, endpoint ou campo não existir de verdade no
-  código (ex.: `GET /checkins` hoje), não trate como se existisse — confirme lendo o código ou
-  o grafo antes de assumir.
+  código, não trate como se existisse — confirme lendo o código ou o grafo antes de assumir. Isso
+  vale também pra este próprio arquivo: ele já ficou desatualizado antes (dizia que `/checkins`
+  não existia bem depois de o router ter sido implementado) — na dúvida, o código manda, não o
+  `CLAUDE.md`.
 
 ## Deploy (produção)
 

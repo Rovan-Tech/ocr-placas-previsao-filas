@@ -10,8 +10,8 @@ pagas, testes obrigatórios, fluxo de PR) estão no `CLAUDE.md` da raiz e valem 
 - EasyOCR para ler os caracteres — escolhido no lugar do Tesseract porque instala 100% via pip,
   sem binário de sistema. Roda com `gpu=False` para não depender de hardware específico.
 - pytest + `httpx` (via `TestClient` do FastAPI) para os testes
-- PostgreSQL + SQLAlchemy + Alembic (modelos em `app/models/`: `CheckIn`, `Employee`, `Schedule`,
-  `UploadLog`)
+- PostgreSQL + SQLAlchemy + Alembic (modelos em `app/models/`: `CargoItem`, `CheckIn`,
+  `Employee`, `Schedule`, `UploadLog`)
 - `bcrypt` (hash de senha) + `pyjwt` (token de login) — ver "Login e auditoria" abaixo
 - `httpx` (async) para a API Brasil (consulta de dados do veículo) — ver "Check-in inteligente" abaixo
 
@@ -43,7 +43,9 @@ app/
     photo_storage.py        salva/lê a foto de resguardo em disco (nunca no banco)
     schedule_matching.py    cruza a placa lida com os agendamentos (hoje/adiantado/atrasado)
     vehicle_data_api.py     cliente da API Brasil (marca/modelo/ano/UF/cor), com fallback gracioso
-  models/         modelos SQLAlchemy (CheckIn, Employee, Schedule, UploadLog)
+    document_validation.py  confere por OCR se a foto do documento do motorista bate com o
+                             número digitado no cadastro
+  models/         modelos SQLAlchemy (CargoItem, CheckIn, Employee, Schedule, UploadLog)
 tests/            um arquivo test_<módulo>.py por router/service
 ```
 
@@ -133,11 +135,15 @@ Convenções:
 - **Regra de status do agendamento**: `on_time` (hoje), `early` (data agendada no futuro),
   `late` (data agendada no passado). Com mais de um agendamento pra mesma placa,
   `match_schedule_for_plate` usa o mais próximo de hoje.
-- **A consulta externa roda sempre**, mesmo com agendamento — ela entra como confirmação/
-  complemento (marca/modelo/ano/UF/cor), não substitui o agendamento. Isso consome a cota
-  diária da API Brasil (100/dia no plano free) em toda leitura de placa válida, de propósito
-  (ver o pedido original da feature) — se a cota se mostrar curta, ajustar aqui antes de trocar
-  de fornecedor.
+- **Com agendamento, o veículo mostrado é o cadastrado, nunca a consulta externa.** Quando
+  `match_schedule_for_plate` encontra um agendamento, `vehicle_data` de `CheckinContext` é
+  montado a partir dos próprios campos do `Schedule` (`vehicle_brand`/`vehicle_model`/
+  `vehicle_year`/`vehicle_color`, sempre `is_mock=False`) — `vehicle_provider.lookup()` nem é
+  chamado nesse caso. Antes disso era bug: com o `MockVehicleDataProvider` (sem token
+  configurado, ver abaixo), o fiscal via um veículo aleatório sem relação nenhuma com o
+  caminhão agendado, escolhido só pela soma dos caracteres da placa. A consulta externa (real
+  ou mock) só roda **sem agendamento** — aí sim pode ser dado aleatório (mock) ou real (API
+  Brasil), servindo de pista pro fiscal decidir se cadastra o motorista na hora.
 - **Nunca derruba o check-in.** `ApiBrasilVehicleDataProvider.lookup` nunca levanta exceção:
   timeout, erro de rede, 429, status != 200, JSON malformado ou placa não encontrada viram
   `None` (com log).
@@ -156,13 +162,69 @@ Convenções:
   (maiúscula/minúscula, com/sem wrapper `dados`/`response`/`resposta`) — conferir contra uma
   resposta real assim que existir conta de teste, e ajustar `_BRAND_KEYS`/`_MODEL_KEYS`/etc. se
   necessário.
-- **Fotos de documento (motorista frente/verso + veículo) seguem a mesma regra de upload do
-  resto do projeto**: tipo e tamanho validados, nunca salvas com o nome enviado pelo cliente
-  (`photo_storage.py`, subpasta `schedules`), nunca em bytea no banco. O documento do motorista
-  tem duas fotos (`driver_document_photo_front_path`/`_back_path`) — CNH e RG normalmente têm
-  dado relevante nos dois lados.
+- **As quatro fotos (frente e verso do documento do motorista, documento do veículo, manifesto
+  de carga) são obrigatórias** — `File(...)`, não `File(None)` — tanto em `/agendamentos` quanto
+  no cadastro rápido feito na tela de captura. Seguem a mesma regra de upload do resto do
+  projeto: tipo e tamanho validados, conteúdo decodificado de verdade (`decode_image`, não só o
+  `Content-Type` declarado), nunca salvas com o nome enviado pelo cliente (`photo_storage.py`,
+  subpasta `schedules`), nunca em bytea no banco. O documento do motorista tem frente e verso
+  (`driver_document_photo_front_path`/`driver_document_photo_back_path`) — documento de
+  identificação (CNH etc.) tem informação nos dois lados, então uma foto só não bastava para
+  conferência (decisão de segurança pedida explicitamente; já tinha sido tentado e revertido
+  antes nesta mesma branch, depois reconfirmado).
+- **Validação do documento do motorista por OCR** (`app/services/document_validation.py`) roda
+  só sobre a foto da **frente** (é onde o número do documento normalmente aparece impresso):
+  reaproveita o mesmo `easyocr.Reader` de `ocr_service.py` (via `read_raw_text`, sem o
+  `PLATE_ALLOWLIST`, já que documento tem letras e pontuação livres) pra ler a foto anexada e
+  conferir se o número informado (`driver_document`) aparece nela, comparando só os dígitos
+  (`re.sub(r"\D", "", ...)` dos dois lados). Roda uma vez, na criação do agendamento — não a
+  cada leitura de check-in, já que a foto não muda — e o resultado fica salvo em
+  `driver_document_validated`/`driver_document_validation_detail`. Não é uma API de validação de
+  CPF/RG de verdade (não existe uma gratuita) — é uma conferência "a foto bate com o número
+  digitado", e nunca bloqueia o cadastro: se não bater, só fica sinalizado pra conferência manual,
+  mesma filosofia do OCR de placa.
+- **Chassi só aceita 17 caracteres alfanuméricos.** `_clean_chassis` (`app/routers/schedules.py`)
+  remove espaço e símbolo antes de contar (`re.sub(r"[^A-Za-z0-9]", "", value)`), deixa
+  maiúsculo e exige exatamente 17 caracteres — mesmo padrão de tamanho do VIN real, mas sem
+  checar dígito verificador (não é o objetivo aqui). `Schedule.vehicle_chassis` é
+  `String(17)` com `CheckConstraint` (`vehicle_chassis_format`, mesmo esquema do `plate_format`)
+  como segunda barreira no banco.
+- **Dimensões do veículo são sempre `float` arredondado a 2 casas decimais.** `_clean_dimension_m`
+  arredonda (`round(value, 2)`) e rejeita valor ≤ 0 pra `vehicle_length_m`/`vehicle_height_m`/
+  `vehicle_width_m` — evita salvar precisão maior do que faz sentido pra medida de veículo.
+- **Carga é uma lista de produtos** (`CargoItem`, tabela `cargo_items`, um-para-muitos com
+  `Schedule`, `cascade="all, delete-orphan"`), cada um com `category` (`CargoCategory`:
+  `perecivel`/`nao_perecivel`/`quimico`/`toxico`/`inflamavel`) — substituiu o campo solto
+  `cargo_type` de texto livre.
 - `POST /schedules` e `GET /schedules` exigem login (`get_current_employee`), sem gate de
   admin — cadastro de agendamento é dado operacional, não gestão de funcionário.
+- **Check-in automático ao ler a placa.** `_build_checkin_context` (`app/routers/ocr.py`), chamada
+  por `POST /ocr/upload` e `POST /ocr/manual` sempre que uma placa em formato válido foi lida,
+  cria um `CheckIn` com `status=waiting` (`_create_waiting_checkin`) — mesmo padrão de tolerância
+  a falha do `_log_upload`: se a gravação falhar, só loga a exceção e segue, nunca derruba a
+  resposta principal do OCR. O `id` desse check-in volta no `checkin_id` de
+  `PlateReadResponse.checkin`, pra o frontend poder decidir sobre ele depois.
+- **Decisão de entrada atualiza o check-in que já existe, não cria um segundo** (`POST
+  /checkins`, `app/routers/checkins.py`): quando o frontend manda `checkin_id` (vindo do
+  `checkin_id` acima) e ele aponta pra um check-in `waiting` da mesma placa, o endpoint só troca o
+  `status` pra `admitted`/`cancelled` e grava `decided_at=now()` — não insere linha nova.
+  `checkin_id` ausente, de placa diferente, ou já decidido cai no caminho antigo (cria um `CheckIn`
+  novo, com `decided_at` igual ao `created_at`) — resiliente ao caso do check-in automático ter
+  falhado silenciosamente, ou a chamadas antigas do frontend/testes que não mandam `checkin_id`.
+  `status` só aceita `admitted` (autorizar) ou `cancelled` (recusar) — `waiting` é o valor padrão
+  da coluna, nunca uma decisão explícita do fiscal. O frontend chama isso em **qualquer** resultado
+  de check-in (agendado, adiantado, atrasado ou sem agendamento), não só num caso específico.
+- **Previsão de fila** (`app/services/queue_prediction.py`, `estimate_wait_minutes`): média móvel
+  simples sobre os últimos `RECENT_SERVICE_WINDOW` (5) check-ins já decididos (`admitted` ou
+  `cancelled`, com `decided_at` preenchido) — tempo médio de atendimento = média de
+  `decided_at - created_at` desses 5. Sem nenhum check-in decidido ainda (sistema recém-instalado),
+  usa `DEFAULT_SERVICE_MINUTES` (5 min) como chute inicial. Pra um check-in **`waiting`**, a estimativa
+  é `tempo médio de atendimento × quantidade de caminhões esperando que chegaram antes dele`
+  (contagem de `CheckIn.status=waiting` com `created_at` menor) — ou seja, quanto tempo até chegar
+  a vez dele, não o tempo total incluindo ele. Pra um check-in já **decidido**, o campo mostra o
+  tempo real que ele esperou (`decided_at - created_at`), não mais uma estimativa. Limitação
+  conhecida e aceita: é uma média simples, não pondera por período do dia nem detecta rajadas de
+  chegada — se isso importar pro portfólio, o próximo passo seria pesar por horário.
 
 ## Contrato com o frontend
 
@@ -182,32 +244,38 @@ então não há CORS configurado. Toda chamada abaixo, exceto `/auth/login`, exi
 | `POST /ocr/manual`      | Mesma forma acima + `audit_saved`, a partir de `multipart/form-data` (`plate`, `photo?`, `ocr_plate?`, `ocr_confidence?`) — sempre `confidence: 1.0`, `needs_review: false`, `detections: []`; formato inválido é 400 |
 | `GET /logs`             | Lista de `{ id, employee_id, employee_username, endpoint, client_ip, ocr_plate, ocr_confidence, manual_plate, final_plate, final_plate_format, needs_review, has_photo, created_at }` |
 | `GET /logs/{id}/photo`  | Arquivo da foto de resguardo (404 se não houver) |
-| `POST /schedules`       | `ScheduleOut` (`{ id, plate, driver_name, driver_document, has_driver_document_photo_front, has_driver_document_photo_back, has_vehicle_document_photo, cargo_type, scheduled_date, created_at }`), a partir de `multipart/form-data` (`plate`, `driver_name`, `driver_document`, `cargo_type`, `scheduled_date`, `driver_document_photo_front?`, `driver_document_photo_back?`, `vehicle_document_photo?`) |
+| `POST /schedules`       | `ScheduleOut` completo (ver `app/routers/schedules.py`: dados do motorista, tipo/validação do documento, dados do veículo, origem/destino, `cargo_items`, `scheduled_date`, `created_at`), a partir de `multipart/form-data` com todos os campos de texto, `cargo_items` como string JSON (`[{ product_name, category }]`) e as quatro fotos (`driver_document_photo_front`, `driver_document_photo_back`, `vehicle_document_photo`, `manifest_photo`) — todas obrigatórias; **409 se já existir agendamento com a mesma placa, o mesmo `driver_document` ou o mesmo `vehicle_chassis` na mesma `scheduled_date`** (`_reject_duplicate_schedule()`, checagem de aplicação antes de salvar fotos; reforçada por três `UniqueConstraint` em `Schedule` — `(plate, scheduled_date)`, `(driver_document, scheduled_date)`, `(vehicle_chassis, scheduled_date)` — como rede de segurança contra corrida, convertida de volta pra 409 em vez de vazar um erro 500) |
 | `GET /schedules`        | Lista de `ScheduleOut`; aceita `?plate=` pra filtrar |
 | `GET /schedules/{id}/driver-document-photo-front` | Arquivo da foto da frente do documento do motorista (404 se não houver) |
 | `GET /schedules/{id}/driver-document-photo-back` | Arquivo da foto do verso do documento do motorista (404 se não houver) |
 | `GET /schedules/{id}/vehicle-document-photo` | Arquivo da foto do documento do veículo (404 se não houver) |
-| `GET /checkins`         | **a criar** — lista de `{ id, plate, created_at, estimated_wait_minutes }`   |
+| `GET /schedules/{id}/manifest-photo` | Arquivo da foto do manifesto de carga (404 se não houver) |
+| `POST /checkins`        | `{ id, plate, created_at, status, schedule_id, estimated_wait_minutes }`, a partir de `multipart/form-data` (`plate`, `status` — só `admitted` ou `cancelled` —, `schedule_id?`, `checkin_id?` — quando bate com um check-in `waiting` da mesma placa, atualiza em vez de criar); **422 se não houver `schedule_id` efetivo** (nem no request, nem já gravado no check-in `waiting` sendo atualizado) — vale para `admitted` e para `cancelled` |
+| `GET /checkins`         | Lista de `{ id, plate, created_at, status, schedule_id, estimated_wait_minutes }`, aceita `?limit=` (o frontend envia `20`), ordenado do mais recente pro mais antigo — `estimated_wait_minutes` é a previsão (check-in `waiting`) ou o tempo real que levou (check-in decidido); ver "Previsão de fila" acima |
 
 `checkin` em `PlateReadResponse` é `null` quando nenhuma placa em formato válido foi lida, ou
-`{ found, schedule, vehicle_data }`: `schedule` é `null` sem agendamento, senão `{ driver_name,
-driver_document, has_driver_document_photo_front, has_driver_document_photo_back,
-has_vehicle_document_photo, cargo_type, scheduled_date, status }` (`status`: `"on_time" | "early"
-| "late"`); `vehicle_data` é `null` sem retorno da API Brasil, senão `{ brand, model, year, uf,
-color }` (qualquer campo pode vir `null` se a API Brasil não devolveu).
+`{ found, schedule, vehicle_data, checkin_id }`: `checkin_id` é o id do `CheckIn` `waiting` criado
+automaticamente por essa leitura (`null` só se a gravação tiver falhado); `schedule` é `null` sem agendamento, senão `{ id, driver_name,
+driver_document, driver_document_validated, driver_document_validation_detail, cargo_items,
+scheduled_date, status }` (`status`: `"on_time" | "early" | "late"`); `vehicle_data` é `null` sem
+retorno da API Brasil/mock, senão `{ brand, model, year, uf, color, is_mock }`.
 
 Sem agendamento (`checkin.schedule === null`), o frontend oferece cadastrar o motorista/carga/
 caminhão na hora, direto na tela de captura (`POST /schedules` com `scheduled_date` de hoje) —
-ver "Check-in inteligente" acima e `CapturePage.tsx`/`ScheduleForm.tsx` no frontend.
-
-`GET /checkins` aceita `?limit=` (o frontend envia `20`), ordenado do mais recente para o mais
-antigo, com `created_at` em ISO 8601. Ao mudar esse formato, atualizar também
-`frontend/src/services/api.ts` e `frontend/README.md`.
+ver "Check-in inteligente" acima e `CapturePage.tsx`/`ScheduleForm.tsx` no frontend. **Autorizar
+ou recusar a entrada exige agendamento cadastrado** (`checkin.schedule !== null`): sem ele, nem
+"Autorizar entrada" nem "Recusar entrada" aparecem (`EntryDecision`/`canDecide` em
+`OcrResult.tsx`), só um aviso apontando pro cadastro. Essa regra é reforçada em duas camadas: a
+UI esconde os dois botões, **e** o backend valida de novo em `POST /checkins`
+(`MISSING_SCHEDULE_FOR_DECISION` em `app/routers/checkins.py`, 422 sem `schedule_id` efetivo,
+para qualquer `status`) — não é só estética, uma chamada direta à API sem passar pela tela
+também é bloqueada. Motivo: liberar (ou até recusar) um caminhão sem saber quem é o motorista, o
+que ele carrega e qual é o veículo é o buraco de segurança que esse fluxo inteiro existe pra
+fechar — o cadastro motorista/carga/caminhão precisa acontecer **antes** de qualquer decisão
+registrada em sistema, nunca depois ou nunca.
 
 ## Próximos passos planejados
 
-- Registro do check-in após o OCR e `GET /checkins`
-- Fila estimada por média móvel simples sobre os check-ins recentes
 - Provedor real em `plate_verification.py`, se houver contrato com a base oficial (SENATRAN/Serpro)
 - Medir a precisão com fotos reais da guarita (as métricas atuais são de fotos sintéticas)
 - `GET /logs` hoje é visível pra qualquer funcionário logado — se isso precisar virar admin-only,
