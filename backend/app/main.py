@@ -19,8 +19,6 @@ SECURITY_HEADERS = {
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    # Carrega o modelo do EasyOCR (~2 s) em segundo plano assim que o servidor sobe, em vez de
-    # na primeira foto: a API já responde enquanto isso, e o fiscal não paga esse tempo.
     threading.Thread(target=get_reader, name="easyocr-warmup", daemon=True).start()
     yield
 
@@ -35,9 +33,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Lista explícita de origens (nunca "*" junto com allow_credentials) — vazia em
-# dev local, onde o proxy do Vite dispensa CORS; em produção vem de
-# FRONTEND_ORIGINS (backend/app/config.py).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.frontend_origins_list,
@@ -46,9 +41,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Rate limiting no endpoint pesado (OCR) contra DoS — limite configurável via
-# OCR_UPLOAD_RATE_LIMIT (backend/app/config.py); o decorator fica no router
-# (app/routers/ocr.py) para poder usar um limite específico dessa rota.
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

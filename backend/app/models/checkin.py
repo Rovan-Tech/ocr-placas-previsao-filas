@@ -8,15 +8,14 @@ from app.db import Base
 
 
 class CheckInStatus(str, enum.Enum):
-    WAITING = "waiting"  # aguardando na fila do pátio
-    ADMITTED = "admitted"  # liberado para entrar no pátio
-    CANCELLED = "cancelled"  # check-in cancelado (ex.: leitura errada)
+    WAITING = "waiting"
+    ADMITTED = "admitted"
+    CANCELLED = "cancelled"
 
 
 class CheckIn(Base):
     __tablename__ = "checkins"
     __table_args__ = (
-        # Placa normalizada: 7 caracteres, maiúsculos, sem hífen (Mercosul ou padrão antigo).
         CheckConstraint("plate ~ '^[A-Z0-9]{7}$'", name="plate_format"),
     )
 
@@ -25,8 +24,6 @@ class CheckIn(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
-    # native_enum=False + create_constraint: grava como VARCHAR + CHECK, mais simples de evoluir em
-    # migrações do que um tipo ENUM do PostgreSQL.
     status: Mapped[CheckInStatus] = mapped_column(
         Enum(
             CheckInStatus,

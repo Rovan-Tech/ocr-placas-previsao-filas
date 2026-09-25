@@ -1,5 +1,3 @@
-"""GET /logs e GET /logs/{id}/photo — quem enviou cada foto/placa, de onde, e a foto de resguardo
-quando existe. Ver app/routers/logs.py e app/models/upload_log.py."""
 
 from app.models import UploadEndpoint, UploadLog
 from app.services.photo_storage import save_photo
@@ -28,7 +26,7 @@ def test_lists_logs_newest_first_with_who_sent_and_from_where(authenticated_clie
     assert response.status_code == 200
     body = response.json()
     assert len(body) == 2
-    assert body[0]["final_plate"] == "BBB2222"  # mais recente primeiro
+    assert body[0]["final_plate"] == "BBB2222"
     assert body[0]["employee_username"] == employee.username
     assert body[0]["client_ip"] == "127.0.0.1"
 
@@ -42,7 +40,6 @@ def test_has_photo_reflects_whether_a_safeguard_photo_was_saved(authenticated_cl
     by_endpoint = {entry["endpoint"]: entry["has_photo"] for entry in body}
     assert by_endpoint["upload"] is False
     assert by_endpoint["manual"] is True
-    # o caminho em disco em si nunca é exposto na listagem.
     assert not any("photo_path" in entry or "manual_reviews" in str(entry) for entry in body)
 
 
@@ -65,7 +62,7 @@ def test_limit_is_capped_even_if_a_larger_value_is_requested(authenticated_clien
     response = authenticated_client.get("/logs?limit=99999")
 
     assert response.status_code == 200
-    assert len(response.json()) == 3  # não tem 200 registros pra devolver, mas não trava/erra
+    assert len(response.json()) == 3
 
 
 def test_downloads_the_saved_photo(authenticated_client, db_session, employee, tmp_path, monkeypatch):
@@ -97,7 +94,6 @@ def test_returns_404_for_a_nonexistent_log(authenticated_client):
 
 
 def test_returns_404_when_the_photo_file_is_missing_from_disk(authenticated_client, db_session, employee, tmp_path, monkeypatch):
-    """O registro aponta pra uma foto que não existe mais em disco — não deve virar erro 500."""
     import app.services.photo_storage as photo_storage
 
     monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))

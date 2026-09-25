@@ -1,20 +1,4 @@
 #!/usr/bin/env python
-"""Cadastra o primeiro admin master — depois disso, o cadastro dos demais funcionários é feito
-por ele mesmo, logado, em POST /auth/employees (ver app/routers/auth.py).
-
-Não existe endpoint de auto-cadastro de propósito: qualquer pessoa poder criar um login próprio
-tornaria inútil saber "quem enviou cada foto" (ver UploadLog e backend/CLAUDE.md). O primeiro
-admin, por sua vez, não tem ninguém que já esteja logado pra cadastrá-lo — daí este script,
-rodado direto no servidor por quem administra o sistema.
-
-Uso (a partir de backend/, com o venv ativado e o PostgreSQL no ar):
-
-    python scripts/create_employee.py --username admin --full-name "Fulano" --admin
-
-Sem --password, pede a senha de forma interativa (não fica no histórico do terminal). A senha
-criada aqui é tratada como temporária, igual a qualquer cadastro feito pelo admin: no primeiro
-login, o próprio dono da conta é obrigado a trocá-la (ver Employee.must_change_password).
-"""
 
 import argparse
 import getpass

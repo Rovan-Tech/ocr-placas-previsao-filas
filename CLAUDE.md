@@ -198,6 +198,19 @@ Ordem de trabalho: escrever/ajustar o teste junto com o código (de preferência
 ver passar. Bug corrigido = teste de regressão que falhava antes da correção. Um PR com testes
 quebrados ou faltando não deve ser mergeado — o CI roda tudo em todo push e PR.
 
+## Código sem comentários
+
+Código autoexplicativo: nomes de variável/função claros em vez de comentário explicando o óbvio.
+**Nenhum comentário (`#`, `//`, `/* */`, docstring) fica no código** — nem em português
+explicando "o quê", nem docstring de função. Decisão não-óbvia de negócio/segurança vai para o
+`CLAUDE.md` do módulo ou a mensagem do commit, não para dentro do código. Exceção: diretivas que
+mudam o comportamento de uma ferramenta (`# noqa`, `# nosec`, `# type: ignore`,
+`// eslint-disable`, `/// <reference`) continuam — removê-las reintroduz avisos que o projeto já
+silenciou de propósito.
+
+Ao terminar qualquer tarefa (e sempre antes de `/prepare-pr`), rode o skill `/clean-code` nos
+arquivos alterados — ver `.claude/skills/clean-code/SKILL.md`.
+
 ## Segurança é obrigatória
 
 Este projeto recebe upload de imagem de usuários e vai expor uma API pública como portfólio,
@@ -327,8 +340,8 @@ uma tarefa, pare, avise o que mudou e como testar, e espere o usuário testar e 
 
 A `main` é protegida: só aceita mudanças via PR, com CI passando (lint, testes de backend e
 frontend, build). Rode o skill `/prepare-pr`: ele sincroniza a branch com a `main`, roda
-`/security-check`, os testes do backend (`pytest`) e do frontend (Vitest, Playwright, build),
-corrige o que falhar e abre o PR — ver `.claude/skills/prepare-pr/SKILL.md`.
+`/clean-code`, `/security-check`, os testes do backend (`pytest`) e do frontend (Vitest,
+Playwright, build), corrige o que falhar e abre o PR — ver `.claude/skills/prepare-pr/SKILL.md`.
 
 ### PR de outra pessoa com CI falhando
 

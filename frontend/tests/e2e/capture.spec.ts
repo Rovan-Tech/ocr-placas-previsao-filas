@@ -42,8 +42,6 @@ function mockManual(page: Page, { status = 200, body }: { status?: number; body:
   )
 }
 
-/** Escolhe uma foto e confirma que ela ficou boa — chega ao mesmo ponto que `sendPhoto` tinha
- * antes da tela de conferência da foto existir. */
 async function sendPhoto(page: Page) {
   const fileChooserPromise = page.waitForEvent('filechooser')
   await page.getByRole('button', { name: 'Enviar foto do aparelho' }).click()
@@ -158,7 +156,6 @@ test('placa não lida: não aceita em silêncio, exige tirar outra foto ou digit
   await expect(page.getByText(/leitura incerta não é registrada sozinha/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Tirar outra foto' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Digitar manualmente' })).toBeVisible()
-  // Sem nenhum jeito de simplesmente seguir em frente com essa leitura.
   await expect(page.getByRole('button', { name: /confirmar/i })).toHaveCount(0)
 })
 
@@ -220,10 +217,6 @@ test('reduz o tamanho de uma foto grande do celular antes de enviar', async ({ p
   })
   await page.goto('/')
 
-  // Simula uma foto de celular: um PNG válido "inflado" com bytes extras depois
-  // do IEND (o navegador ignora o lixo ao decodificar), reproduzindo o caso real
-  // de fotos de câmera saindo com 8+ MB — acima do limite de 5 MB do backend
-  // (MAX_UPLOAD_BYTES em backend/app/routers/ocr.py).
   const oversizedPng = Buffer.concat([PNG_1PX, Buffer.alloc(6 * 1024 * 1024)])
   expect(oversizedPng.byteLength).toBeGreaterThan(5 * 1024 * 1024)
 
@@ -233,7 +226,6 @@ test('reduz o tamanho de uma foto grande do celular antes de enviar', async ({ p
   await page.getByRole('button', { name: 'Sim, continuar' }).click()
 
   await expect(page.getByText('ABC1D23', { exact: true })).toBeVisible()
-  // O redimensionamento no navegador precisa deixar o upload bem abaixo do limite de 5 MB.
   expect(uploadedBytes).toBeGreaterThan(0)
   expect(uploadedBytes).toBeLessThan(1024 * 1024)
 })
@@ -308,7 +300,6 @@ test.describe('digitação manual da placa', () => {
     await page.getByRole('button', { name: 'Confirmar placa' }).click()
 
     await expect(page.getByText(/Formato de placa inválido/)).toBeVisible()
-    // Continua na tela de digitação — não finge que deu certo.
     await expect(page.getByLabel('Digite a placa do veículo')).toBeVisible()
   })
 

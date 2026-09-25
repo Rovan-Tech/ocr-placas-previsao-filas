@@ -47,7 +47,12 @@ origin/main..HEAD --oneline` para entender o que já foi commitado nesta branch.
      for ambíguo o suficiente para arriscar quebrar lógica de negócio (OCR, previsão de fila,
      modelos do banco), pare e pergunte ao usuário em vez de adivinhar.
 
-4. **Rodar os checks do CI localmente**, na mesma ordem de `.github/workflows/ci.yml` quando ele
+4. **Código limpo**: rode o skill `/clean-code` nos arquivos alterados por esta branch
+   (`git diff origin/main...HEAD --name-only`) — ver `.claude/skills/clean-code/SKILL.md`. Se
+   remover algum comentário, isso conta como mudança a mais nesta branch: confirme os testes de
+   novo antes de seguir para o passo 5.
+
+5. **Rodar os checks do CI localmente**, na mesma ordem de `.github/workflows/ci.yml` quando ele
    existir, e corrigir o que falhar antes de seguir. Rode só as partes que já existem no
    repositório (ex: se `frontend/package.json` ainda não existe, pule o bloco do frontend e diga
    isso no PR).
@@ -87,13 +92,13 @@ origin/main..HEAD --oneline` para entender o que já foi commitado nesta branch.
    pergunte em vez de "consertar" adivinhando. Depois de qualquer correção, rode a sequência
    completa de novo do início.
 
-5. **Subir a branch**:
+6. **Subir a branch**:
 
    ```bash
    git push -u origin $(git branch --show-current)
    ```
 
-6. **Abrir o PR** com título e descrição gerados a partir do que realmente mudou (releia
+7. **Abrir o PR** com título e descrição gerados a partir do que realmente mudou (releia
    `git log origin/main..HEAD` e `git diff origin/main...HEAD`, não invente):
    - Título: curto (menos de 70 caracteres), no imperativo, resume o efeito da mudança.
    - Descrição: seção `## Summary` com 1-3 bullets do que mudou e por quê, e `## Test plan` com
@@ -121,7 +126,7 @@ origin/main..HEAD --oneline` para entender o que já foi commitado nesta branch.
    )"
    ```
 
-7. **Reportar** a URL do PR ao usuário. Não faça merge do PR — a responsabilidade deste skill
+8. **Reportar** a URL do PR ao usuário. Não faça merge do PR — a responsabilidade deste skill
    termina em abrir o PR pronto para revisão.
 
 ## O que não fazer
@@ -130,6 +135,6 @@ origin/main..HEAD --oneline` para entender o que já foi commitado nesta branch.
   de uma branch que já foi para o `origin`, a não ser que o usuário peça explicitamente.
 - Não resolva conflito de merge apagando um dos lados sem entender a intenção; quando em dúvida,
   pergunte.
-- Não pule nenhum dos checks do passo 4 para "economizar tempo".
+- Não pule nenhum dos checks do passo 5 para "economizar tempo".
 - Não faça merge/approve do próprio PR.
 - Não commite `.env`, credenciais ou imagens de placas reais.

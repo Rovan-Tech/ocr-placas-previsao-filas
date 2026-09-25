@@ -29,8 +29,6 @@ class LogEntry(BaseModel):
     final_plate: str | None
     final_plate_format: PlateFormat | None
     needs_review: bool
-    # Não expõe o caminho em disco (ver photo_storage.py) — só se há foto de resguardo pra essa
-    # linha, que dá pra baixar em GET /logs/{id}/photo.
     has_photo: bool
     created_at: datetime
 
@@ -40,10 +38,8 @@ def list_logs(
     limit: int = 50,
     offset: int = 0,
     db: Session = Depends(get_db),
-    _employee: Employee = Depends(get_current_employee),  # exige login; qualquer fiscal vê os logs
+    _employee: Employee = Depends(get_current_employee),
 ) -> list[LogEntry]:
-    """Quem enviou cada foto/placa, de qual endereço, e o que a leitura deu — para auditoria e
-    para corrigir uma digitação errada depois de conferir a foto salva de resguardo."""
     limit = max(1, min(limit, MAX_LIMIT))
     rows = db.execute(
         select(UploadLog, Employee.username)

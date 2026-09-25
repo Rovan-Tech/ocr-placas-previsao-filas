@@ -1,6 +1,5 @@
 import { useTheme } from '../context/ThemeContext'
 
-/** Alterna entre fundo claro e escuro — visível em toda tela, inclusive antes do login. */
 export default function ThemeToggle() {
   const { theme, toggleTheme } = useTheme()
   const isDark = theme === 'dark'

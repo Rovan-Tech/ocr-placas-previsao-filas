@@ -9,7 +9,6 @@ from app.db import Base
 
 config = context.config
 
-# Quem chama pode passar a URL (ex.: tests/test_migrations.py); senão usa DATABASE_URL.
 if not config.get_main_option("sqlalchemy.url"):
     config.set_main_option("sqlalchemy.url", settings.database_url)
 
@@ -20,7 +19,6 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    """Gera o SQL sem conectar no banco (alembic upgrade head --sql)."""
     context.configure(
         url=config.get_main_option("sqlalchemy.url"),
         target_metadata=target_metadata,
@@ -33,7 +31,6 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Aplica as migrações conectando no banco."""
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

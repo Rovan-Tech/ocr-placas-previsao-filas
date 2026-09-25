@@ -85,10 +85,6 @@ def test_returns_400_when_the_image_cannot_be_decoded(mock_read_plate, authentic
 
 
 def test_ocr_runs_off_the_event_loop_so_the_api_keeps_responding(authenticated_client):
-    """Antes, o OCR (~1-3 s) rodava dentro do loop async e travava o servidor inteiro: até o
-    /health esperava a leitura acabar. As duas requisições aqui dividem o mesmo event loop, como
-    no uvicorn. authenticated_client não é usado diretamente (o cliente async abaixo é que faz as
-    chamadas), mas manter a fixture ativa mantém os dependency_overrides de login/banco no ar."""
     import asyncio
     import time
 
@@ -98,7 +94,7 @@ def test_ocr_runs_off_the_event_loop_so_the_api_keeps_responding(authenticated_c
     finished = []
 
     def slow_read(_):
-        time.sleep(0.5)  # OCR síncrono e pesado
+        time.sleep(0.5)
         return READING
 
     async def scenario():
@@ -111,7 +107,7 @@ def test_ocr_runs_off_the_event_loop_so_the_api_keeps_responding(authenticated_c
                 finished.append("upload")
 
             async def health():
-                await asyncio.sleep(0.1)  # chega com a leitura já em andamento
+                await asyncio.sleep(0.1)
                 await async_client.get("/health")
                 finished.append("health")
 
@@ -124,7 +120,6 @@ def test_ocr_runs_off_the_event_loop_so_the_api_keeps_responding(authenticated_c
 
 
 class TestManualPlateEntry:
-    """POST /ocr/manual — o fiscal digita a placa quando a câmera não lê, ou prefere digitar."""
 
     def _submit(self, authenticated_client, plate: str, **extra):
         return authenticated_client.post("/ocr/manual", data={"plate": plate, **extra})
@@ -139,7 +134,7 @@ class TestManualPlateEntry:
         assert body["confidence"] == 1.0
         assert body["needs_review"] is False
         assert body["detections"] == []
-        assert body["audit_saved"] is None  # sem foto anexada, nada pra guardar de resguardo
+        assert body["audit_saved"] is None
         verifier.verify.assert_called_once_with("ABC1D23")
 
     def test_detects_old_format_by_character_order(self, authenticated_client):
@@ -165,8 +160,6 @@ class TestManualPlateEntry:
         assert "formato" in response.json()["detail"].lower()
 
     def test_rejects_empty_plate(self, authenticated_client):
-        """Campo vazio nem chega a passar pela nossa validação de formato: o multipart do FastAPI
-        já trata ``plate=`` como campo ausente, então a rejeição sai 422 (Pydantic), não 400."""
         response = self._submit(authenticated_client, "")
 
         assert response.status_code == 422
@@ -195,7 +188,6 @@ class TestManualPlateEntry:
         verifier.verify.assert_not_called()
 
     def test_does_not_reflect_unsanitized_input_in_the_response(self, authenticated_client):
-        """A resposta só traz o resultado normalizado (A-Z0-9) — texto malicioso nunca volta cru."""
         response = self._submit(authenticated_client, "<script>alert(1)</script>")
 
         assert response.status_code == 400
@@ -220,8 +212,6 @@ class TestManualPlateEntry:
         assert saved_files[0].read_bytes() == b"fake-image-bytes"
 
     def test_invalid_ocr_plate_context_is_dropped_instead_of_failing(self, authenticated_client, tmp_path, monkeypatch):
-        """ocr_plate é o que o OCR tentou ler — texto do cliente também, então formato inválido é
-        descartado (vira None) em vez de travar o resguardo por causa de um dado só de contexto."""
         import app.services.photo_storage as photo_storage
 
         monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
