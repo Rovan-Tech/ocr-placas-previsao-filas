@@ -13,7 +13,7 @@ from app.services.image_preprocessing import (
     remove_scratches,
     resize_to_height,
 )
-from tests.plate_samples import render_plate
+from app.services.plate_samples import render_plate
 
 
 def _dark(image: np.ndarray, factor: float = 0.25) -> np.ndarray:

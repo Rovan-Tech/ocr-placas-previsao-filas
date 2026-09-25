@@ -37,7 +37,7 @@ def use_reader(monkeypatch):
         monkeypatch.setattr(
             ocr_service,
             "find_plate_candidates",
-            lambda image: [(np.full((50, 160, 3), 200, np.uint8), False)] * candidates,
+            lambda image, max_candidates=3: [(np.full((50, 160, 3), 200, np.uint8), False)] * candidates,
         )
         return reader
 
@@ -129,7 +129,7 @@ def test_low_confidence_read_needs_review(use_reader, image_bytes):
 def test_falls_back_to_full_image_when_no_crop_has_a_valid_plate(monkeypatch, image_bytes):
     reader = FakeReader([(_box(0), "BRASIL", 0.99)])
     monkeypatch.setattr(ocr_service, "get_reader", lambda: reader)
-    monkeypatch.setattr(ocr_service, "find_plate_candidates", lambda image: [])
+    monkeypatch.setattr(ocr_service, "find_plate_candidates", lambda image, max_candidates=3: [])
 
     reading = ocr_service.read_plate(image_bytes)
 
@@ -188,7 +188,7 @@ def test_hard_time_budget_stops_even_without_a_plate(use_reader, image_bytes, mo
 def test_full_image_fallback_only_tries_the_basic_variants(monkeypatch, image_bytes):
     reader = FakeReader([(_box(0), "BRASIL", 0.99)])
     monkeypatch.setattr(ocr_service, "get_reader", lambda: reader)
-    monkeypatch.setattr(ocr_service, "find_plate_candidates", lambda image: [])
+    monkeypatch.setattr(ocr_service, "find_plate_candidates", lambda image, max_candidates=3: [])
 
     ocr_service.read_plate(image_bytes)
 
@@ -198,7 +198,7 @@ def test_full_image_fallback_only_tries_the_basic_variants(monkeypatch, image_by
 def test_weak_evidence_alone_always_needs_review_even_with_high_confidence(use_reader, image_bytes, monkeypatch):
     use_reader(FakeReader([(_box(0), "BRA2E19", 0.95)] * 3))
     monkeypatch.setattr(
-        ocr_service, "find_plate_candidates", lambda image: [(np.full((50, 160, 3), 200, np.uint8), True)]
+        ocr_service, "find_plate_candidates", lambda image, max_candidates=3: [(np.full((50, 160, 3), 200, np.uint8), True)]
     )
 
     reading = ocr_service.read_plate(image_bytes)
@@ -211,7 +211,7 @@ def test_strong_evidence_from_any_crop_is_enough_to_trust_the_vote(use_reader, i
     monkeypatch.setattr(
         ocr_service,
         "find_plate_candidates",
-        lambda image: [
+        lambda image, max_candidates=3: [
             (np.full((50, 160, 3), 200, np.uint8), False),
             (np.full((50, 160, 3), 200, np.uint8), True),
         ],

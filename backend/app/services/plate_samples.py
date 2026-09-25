@@ -131,7 +131,8 @@ def _darken(image: np.ndarray, factor: float, rng: np.random.Generator, noise: f
 
 def _jpeg(image: np.ndarray, quality: int) -> bytes:
     ok, encoded = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, quality])
-    assert ok
+    if not ok:
+        raise RuntimeError("Falha ao codificar a imagem sintética em JPEG.")
     return encoded.tobytes()
 
 
@@ -246,6 +247,14 @@ def hard_cases() -> list[PlateSample]:
         _build("arranhada_suja", "HFD2N88", "arranhada e com barro por cima", 22, scratches=4, dirt=10),
         _build("contraluz_chuva", "ELS6C40", "contraluz de farol na chuva — pior caso combinado", 23,
                backlight=(-60, -20, 95, 85), rain=True),
+        _build("muito_perto", "PWK4L26", "câmera muito perto: a placa ocupa quase todo o quadro", 24,
+               plate_width=1700),
+        _build("distancia_ideal", "AZR9M31", "distância recomendada pelo app: placa nítida e bem enquadrada", 25,
+               plate_width=500),
+        _build("media_distancia", "BQF3N77", "distância média: placa menor no quadro, ainda legível", 26,
+               plate_width=350),
+        _build("muito_longe", "YTC5P08", "câmera muito longe: placa pequena e comprimida", 27,
+               plate_width=150, quality=45),
     ]
 
 

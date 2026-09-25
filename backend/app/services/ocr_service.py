@@ -26,8 +26,8 @@ CONFIDENT_SINGLE_READ = 0.9
 CONFIDENT_AGREEING_READS = 2
 CONFIDENT_AGREEING_MIN = 0.5
 
-SOFT_TIME_BUDGET_S = 2.5
-HARD_TIME_BUDGET_S = 3.5
+SOFT_TIME_BUDGET_S = 4.5
+HARD_TIME_BUDGET_S = 6.0
 FULL_IMAGE_MAX_VARIANTS = 2
 
 REVIEW_CONFIDENCE = 0.65
@@ -145,13 +145,25 @@ def _vote(votes: dict[str, _Vote], results: list, is_weak_evidence: bool) -> Non
 
 def _read_images(reader: easyocr.Reader, images: Iterable[tuple[np.ndarray, bool]], votes: dict[str, _Vote],
                  detections: list[dict], started: float, max_variants: int | None = None) -> bool:
-    for region, is_weak_evidence in images:
-        for index, (_, variant) in enumerate(ocr_variants(region)):
+    prepared = [(is_weak_evidence, list(ocr_variants(region))) for region, is_weak_evidence in images]
+    if max_variants is not None:
+        prepared = [(is_weak_evidence, variants[:max_variants]) for is_weak_evidence, variants in prepared]
+
+    exhausted = [False] * len(prepared)
+    round_index = 0
+    while not all(exhausted):
+        progressed = False
+        for i, (is_weak_evidence, variants) in enumerate(prepared):
+            if exhausted[i]:
+                continue
+            if round_index >= len(variants):
+                exhausted[i] = True
+                continue
+            progressed = True
             elapsed = time.monotonic() - started
             if elapsed > HARD_TIME_BUDGET_S or (votes and elapsed > SOFT_TIME_BUDGET_S):
                 return False
-            if max_variants is not None and index >= max_variants:
-                break
+            _, variant = variants[round_index]
             results = reader.readtext(variant, allowlist=PLATE_ALLOWLIST)
             detections.extend(
                 {"text": text, "confidence": round(float(confidence), 4)} for _, text, confidence in results
@@ -160,8 +172,17 @@ def _read_images(reader: easyocr.Reader, images: Iterable[tuple[np.ndarray, bool
             if votes and _is_confident(max(votes.values(), key=lambda v: v.score)):
                 return True
             if not votes and _looks_truncated(results):
-                break
+                exhausted[i] = True
+        round_index += 1
+        if not progressed:
+            break
     return False
+
+
+def read_raw_text(image: np.ndarray) -> list:
+    with _inference_lock:
+        reader = get_reader()
+        return reader.readtext(image)
 
 
 def read_plate(image_bytes: bytes) -> PlateReading:
@@ -172,7 +193,8 @@ def read_plate(image_bytes: bytes) -> PlateReading:
     with _inference_lock:
         reader = get_reader()
         started = time.monotonic()
-        if not _read_images(reader, find_plate_candidates(image), votes, detections, started) and not votes:
+        candidates = find_plate_candidates(image, max_candidates=6)
+        if not _read_images(reader, candidates, votes, detections, started) and not votes:
             _read_images(reader, [(_full_image(image), True)], votes, detections, started, FULL_IMAGE_MAX_VARIANTS)
 
     if not votes:

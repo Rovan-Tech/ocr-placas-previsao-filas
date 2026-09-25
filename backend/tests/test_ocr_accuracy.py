@@ -2,7 +2,7 @@
 import pytest
 
 from app.services.ocr_service import read_plate
-from tests.plate_samples import hard_cases, random_cases
+from app.services.plate_samples import hard_cases, random_cases
 
 pytestmark = pytest.mark.ocr_real
 
@@ -23,6 +23,18 @@ def test_reads_plate_in_hard_conditions(sample):
     assert reading.plate is None or reading.needs_review, (
         f"{sample.description}: leu {reading.plate!r} (esperado {sample.plate!r}) sem pedir "
         "revisão — placa errada com confiança é o que os testes de segurança devem impedir"
+    )
+
+
+DISTANCE_CASES = {"muito_perto", "distancia_ideal", "media_distancia", "muito_longe"}
+
+
+@pytest.mark.parametrize("sample", [s for s in hard_cases() if s.name in DISTANCE_CASES], ids=lambda sample: sample.name)
+def test_reads_plate_correctly_across_camera_distances(sample):
+    reading = read_plate(sample.image_bytes)
+
+    assert reading.plate == sample.plate, (
+        f"{sample.description}: leu {reading.plate!r} (esperado {sample.plate!r})"
     )
 
 

@@ -10,7 +10,7 @@ from app.services.plate_locator import (
     locate_plate,
     rectify,
 )
-from tests.plate_samples import hard_cases, render_plate
+from app.services.plate_samples import hard_cases, render_plate
 
 
 def _decode(image_bytes: bytes) -> np.ndarray:
