@@ -31,6 +31,19 @@ def test_lists_logs_newest_first_with_who_sent_and_from_where(authenticated_clie
     assert body[0]["client_ip"] == "127.0.0.1"
 
 
+def test_breaks_a_tie_in_created_at_by_insertion_order(authenticated_client, db_session, employee):
+    from datetime import datetime, timezone
+
+    same_instant = datetime.now(timezone.utc)
+    _add_log(db_session, employee, final_plate="AAA1111", created_at=same_instant)
+    _add_log(db_session, employee, final_plate="BBB2222", created_at=same_instant)
+
+    body = authenticated_client.get("/logs").json()
+
+    plates = [entry["final_plate"] for entry in body]
+    assert plates == ["BBB2222", "AAA1111"]
+
+
 def test_has_photo_reflects_whether_a_safeguard_photo_was_saved(authenticated_client, db_session, employee):
     _add_log(db_session, employee, endpoint=UploadEndpoint.UPLOAD, photo_path=None)
     _add_log(db_session, employee, endpoint=UploadEndpoint.MANUAL, photo_path="manual_reviews/algumacoisa.jpg")
