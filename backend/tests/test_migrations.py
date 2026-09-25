@@ -24,4 +24,4 @@ def test_downgrade_and_upgrade_are_reversible(test_engine):
 
     command.upgrade(config, "head")
     columns = {column["name"] for column in inspect(test_engine).get_columns("checkins")}
-    assert columns == {"id", "plate", "created_at", "status"}
+    assert columns == {"id", "plate", "created_at", "status", "created_by_id", "schedule_id", "decided_at"}

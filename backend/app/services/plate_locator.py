@@ -1,11 +1,13 @@
 import cv2
 import numpy as np
 
+from app.services.plate_format import PLATE_LENGTH
+
 MIN_PLATE_ASPECT_RATIO = 2.0
 MAX_PLATE_ASPECT_RATIO = 6.5
 MIN_PLATE_WIDTH_PX = 60
 MIN_AREA_FRACTION = 0.001
-MAX_AREA_FRACTION = 0.35
+MAX_AREA_FRACTION = 0.95
 
 SEARCH_MAX_WIDTH = 1000
 RECTIFIED_HEIGHT = 160
@@ -106,7 +108,9 @@ def _split_by_horizontal_gap(
     return segments
 
 
-def _cluster_characters_into_lines(boxes: list[tuple[float, float, float, float]]) -> list[np.ndarray]:
+def _group_by_baseline(
+    boxes: list[tuple[float, float, float, float]],
+) -> list[list[tuple[float, float, float, float]]]:
     baseline_groups: list[list[tuple[float, float, float, float]]] = []
     for box in sorted(boxes, key=lambda b: b[1] + b[3] / 2):
         _, y, _, h = box
@@ -122,9 +126,12 @@ def _cluster_characters_into_lines(boxes: list[tuple[float, float, float, float]
                 break
         else:
             baseline_groups.append([box])
+    return baseline_groups
 
+
+def _cluster_characters_into_lines(boxes: list[tuple[float, float, float, float]]) -> list[np.ndarray]:
     corners = []
-    for group in baseline_groups:
+    for group in _group_by_baseline(boxes):
         for cluster in _split_by_horizontal_gap(group):
             if len(cluster) < MIN_CLUSTER_CHARACTERS:
                 continue
@@ -137,6 +144,14 @@ def _cluster_characters_into_lines(boxes: list[tuple[float, float, float, float]
                 continue
             corners.append(np.float32([[x0, y0], [x1, y0], [x1, y1], [x0, y1]]))
     return corners
+
+
+def _best_character_run(boxes: list[tuple[float, float, float, float]]) -> int:
+    best = 0
+    for group in _group_by_baseline(boxes):
+        for cluster in _split_by_horizontal_gap(group):
+            best = max(best, len(cluster))
+    return best
 
 
 def _candidate_corners(gray: np.ndarray) -> list[tuple[np.ndarray, bool]]:
@@ -184,6 +199,17 @@ def _candidate_corners(gray: np.ndarray) -> list[tuple[np.ndarray, bool]]:
     return candidates
 
 
+def _character_count_bonus(gray: np.ndarray, corners: np.ndarray) -> float:
+    patch = rectify(gray, corners, height=RECTIFIED_HEIGHT)
+    run = _best_character_run(_character_boxes(patch))
+    off_by = abs(run - PLATE_LENGTH)
+    if off_by == 0:
+        return 1.0
+    if off_by == 1:
+        return 0.4
+    return 0.1
+
+
 def _text_score(gray: np.ndarray, corners: np.ndarray) -> float:
     patch = rectify(gray, corners, height=48)
     if patch.shape[1] < 8:
@@ -191,7 +217,8 @@ def _text_score(gray: np.ndarray, corners: np.ndarray) -> float:
     vertical_edges = np.absolute(cv2.Sobel(patch, cv2.CV_32F, 1, 0, ksize=3)).mean()
     horizontal_edges = np.absolute(cv2.Sobel(patch, cv2.CV_32F, 0, 1, ksize=3)).mean()
     contrast = float(patch.std())
-    return float(vertical_edges / (horizontal_edges + 1.0)) * contrast
+    base_score = float(vertical_edges / (horizontal_edges + 1.0)) * contrast
+    return base_score * _character_count_bonus(gray, corners)
 
 
 def _boxes(a: np.ndarray, b: np.ndarray) -> tuple[tuple[float, float, float, float], tuple[float, float, float, float]]:
@@ -213,6 +240,11 @@ def _overlap(a: np.ndarray, b: np.ndarray) -> float:
 def _covered_by(region: np.ndarray, other: np.ndarray) -> float:
     (_, _, rw, rh), _ = _boxes(region, other)
     return _intersection_area(region, other) / float(rw * rh or 1)
+
+
+def _region_area(corners: np.ndarray) -> float:
+    _, _, w, h = cv2.boundingRect(corners.astype(np.float32))
+    return float(w * h)
 
 
 def find_plate_candidates(image: np.ndarray, max_candidates: int = 3) -> list[tuple[np.ndarray, bool]]:
@@ -243,6 +275,12 @@ def find_plate_candidates(image: np.ndarray, max_candidates: int = 3) -> list[tu
             index = 1 if chosen else 0
             chosen.insert(index, best_cluster)
             chosen_is_weak.insert(index, True)
+
+    if non_cluster:
+        largest = max(non_cluster, key=_region_area)
+        if all(_covered_by(largest, other) < 0.6 for other in chosen):
+            chosen.append(largest)
+            chosen_is_weak.append(False)
 
     crops = [
         (rectify(image, _expand(corners / scale, CROP_MARGIN_X, CROP_MARGIN_Y)), is_weak)

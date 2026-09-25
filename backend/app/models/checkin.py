@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, Enum, String, func
+from sqlalchemy import CheckConstraint, DateTime, Enum, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -36,6 +36,9 @@ class CheckIn(Base):
         default=CheckInStatus.WAITING,
         server_default=CheckInStatus.WAITING.value,
     )
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("employees.id"))
+    schedule_id: Mapped[int | None] = mapped_column(ForeignKey("schedules.id"))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     def __repr__(self) -> str:
         return f"CheckIn(id={self.id!r}, plate={self.plate!r}, status={self.status.value!r})"

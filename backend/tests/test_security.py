@@ -1,3 +1,4 @@
+import json
 import os
 from unittest.mock import patch
 
@@ -295,3 +296,83 @@ class TestPasswordValidationDoesNotReflectTheInput:
 
         assert response.status_code == 422
         assert short_password not in response.text
+
+
+def _schedule_form_data(**overrides):
+    data = {
+        "plate": "ABC1D23",
+        "driver_name": "João da Silva",
+        "driver_birth_date": "1990-01-01",
+        "driver_birth_place": "São Luís - MA",
+        "driver_birth_state": "MA",
+        "driver_document_type": "cpf",
+        "driver_document": "11144477735",
+        "vehicle_brand": "Volvo",
+        "vehicle_model": "FH 540",
+        "vehicle_year": "2020",
+        "vehicle_chassis": "9BWZZZ377VT004251",
+        "vehicle_color": "Branco",
+        "vehicle_length_m": "12.5",
+        "vehicle_height_m": "4.0",
+        "vehicle_width_m": "2.6",
+        "origin_location": "São Paulo - SP",
+        "destination_location": "São Luís - MA",
+        "cargo_items": json.dumps([{"product_name": "Grãos", "category": "nao_perecivel"}]),
+        "scheduled_date": "2026-09-24",
+    }
+    data.update(overrides)
+    return data
+
+
+def _schedule_form_files():
+    _, encoded = cv2.imencode(".jpg", np.full((10, 10, 3), 120, dtype=np.uint8))
+    photo = ("foto.jpg", encoded.tobytes(), "image/jpeg")
+    return {
+        "driver_document_photo_front": photo,
+        "driver_document_photo_back": photo,
+        "vehicle_document_photo": photo,
+        "manifest_photo": photo,
+    }
+
+
+class TestScheduleSecurity:
+
+    def test_sql_injection_payloads_in_schedule_fields_are_treated_as_plain_text(self, authenticated_client):
+        payload = "'; DROP TABLE schedules;--"
+        short_payload = "ab12'or'1"
+        response = authenticated_client.post(
+            "/schedules",
+            data=_schedule_form_data(driver_name=payload, driver_document_type="rg", driver_document=short_payload),
+            files=_schedule_form_files(),
+        )
+
+        assert response.status_code == 201
+        assert response.json()["driver_name"] == payload
+
+        listing = authenticated_client.get("/schedules")
+        assert listing.status_code == 200
+
+    def test_sql_injection_payload_in_a_cargo_item_name_is_treated_as_plain_text(self, authenticated_client):
+        payload = "'; DROP TABLE cargo_items;--"
+        response = authenticated_client.post(
+            "/schedules",
+            data=_schedule_form_data(cargo_items=json.dumps([{"product_name": payload, "category": "quimico"}])),
+            files=_schedule_form_files(),
+        )
+
+        assert response.status_code == 201
+        assert response.json()["cargo_items"][0]["product_name"] == payload
+
+        listing = authenticated_client.get("/schedules")
+        assert listing.status_code == 200
+
+    def test_requires_authentication_to_create(self):
+        response = client.post("/schedules", data=_schedule_form_data(), files=_schedule_form_files())
+
+        assert response.status_code == 401
+
+    def test_photo_endpoints_require_authentication(self):
+        assert client.get("/schedules/1/driver-document-photo-front").status_code == 401
+        assert client.get("/schedules/1/driver-document-photo-back").status_code == 401
+        assert client.get("/schedules/1/vehicle-document-photo").status_code == 401
+        assert client.get("/schedules/1/manifest-photo").status_code == 401

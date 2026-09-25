@@ -44,7 +44,7 @@ def list_logs(
     rows = db.execute(
         select(UploadLog, Employee.username)
         .join(Employee, UploadLog.employee_id == Employee.id)
-        .order_by(UploadLog.created_at.desc())
+        .order_by(UploadLog.created_at.desc(), UploadLog.id.desc())
         .offset(offset)
         .limit(limit)
     ).all()

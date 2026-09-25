@@ -1,4 +1,7 @@
+import { Eye, EyeOff } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
+import StatusMessage from '../components/StatusMessage'
 import ThemeToggle from '../components/ThemeToggle'
 import { useAuth } from '../context/AuthContext'
 import { login } from '../services/auth'
@@ -7,6 +10,7 @@ export default function LoginPage() {
   const { loginWithResponse } = useAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,25 +46,37 @@ export default function LoginPage() {
         />
 
         <label htmlFor="login-password">Senha</label>
-        <input
-          id="login-password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          disabled={sending}
-        />
+        <div className="password-field">
+          <input
+            id="login-password"
+            type={showPassword ? 'text' : 'password'}
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            disabled={sending}
+          />
+          <button
+            type="button"
+            className="toggle-password"
+            onClick={() => setShowPassword((current) => !current)}
+            aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+            title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+          >
+            {showPassword ? <EyeOff size={13} aria-hidden="true" /> : <Eye size={13} aria-hidden="true" />}
+            <span>{showPassword ? 'Ocultar' : 'Mostrar'}</span>
+          </button>
+        </div>
 
-        {error && (
-          <p className="message error" role="alert">
-            {error}
-          </p>
-        )}
+        {error && <StatusMessage tone="error">{error}</StatusMessage>}
 
         <button type="submit" className="primary" disabled={sending || !username || !password}>
           {sending ? 'Entrando…' : 'Entrar'}
         </button>
       </form>
+
+      <p className="manual-entry-link">
+        Só quer conhecer o sistema? <Link to="/demo">Testar sem login</Link>
+      </p>
     </section>
   )
 }

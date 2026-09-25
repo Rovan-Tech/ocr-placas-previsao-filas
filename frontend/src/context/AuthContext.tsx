@@ -38,16 +38,21 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<StoredSession | null>(() => loadStoredSession())
+function clearSession(setSession: (session: StoredSession | null) => void) {
+  setAuthToken(null)
+  setSession(null)
+}
 
-  useEffect(() => {
-    setAuthToken(session?.token ?? null)
-  }, [session])
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<StoredSession | null>(() => {
+    const initial = loadStoredSession()
+    setAuthToken(initial?.token ?? null)
+    return initial
+  })
 
   useEffect(() => {
     setAuthCallbacks({
-      onSessionInvalid: () => setSession(null),
+      onSessionInvalid: () => clearSession(setSession),
       onPasswordChangeRequired: () =>
         setSession((current) => (current ? { ...current, mustChangePassword: true } : current)),
     })
@@ -55,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!session) return
-    fetchCurrentEmployee(session.token).catch(() => setSession(null))
+    fetchCurrentEmployee(session.token).catch(() => clearSession(setSession))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -66,15 +71,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       employee: session?.employee ?? null,
       token: session?.token ?? null,
       mustChangePassword: session?.mustChangePassword ?? false,
-      loginWithResponse: (response) =>
+      loginWithResponse: (response) => {
+        setAuthToken(response.access_token)
         setSession({
           token: response.access_token,
           employee: response.employee,
           mustChangePassword: response.must_change_password,
-        }),
+        })
+      },
       onPasswordChanged: (employee) =>
         setSession((current) => (current ? { ...current, employee, mustChangePassword: false } : current)),
-      logout: () => setSession(null),
+      logout: () => clearSession(setSession),
     }),
     [session],
   )

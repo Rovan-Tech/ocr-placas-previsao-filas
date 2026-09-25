@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ApiError, fetchRecentCheckins, type Checkin } from '../services/api'
+import CheckinsTrendChart from '../components/CheckinsTrendChart'
+import { fetchRecentCheckins, type Checkin } from '../services/api'
+import { checkInStatusLabel } from '../services/plate'
 
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 
@@ -15,13 +17,7 @@ export default function CheckinsPage() {
         setError(null)
       })
       .catch((err: unknown) => {
-        setError(
-          err instanceof ApiError && err.status === 404
-            ? 'O endpoint de check-ins (GET /checkins) ainda não existe no backend.'
-            : err instanceof Error
-              ? err.message
-              : 'Erro inesperado ao carregar os check-ins.',
-        )
+        setError(err instanceof Error ? err.message : 'Erro inesperado ao carregar os check-ins.')
       })
       .finally(() => setLoading(false))
   }, [])
@@ -53,21 +49,32 @@ export default function CheckinsPage() {
       )}
 
       {!loading && !error && checkins.length > 0 && (
+        <>
+          <h2>Tendência do tempo de espera</h2>
+          <CheckinsTrendChart checkins={checkins} />
+        </>
+      )}
+
+      {!loading && !error && checkins.length > 0 && (
         <div className="table-scroll">
           <table className="checkins">
             <thead>
               <tr>
                 <th>Placa</th>
                 <th>Entrada</th>
+                <th>Decisão</th>
                 <th>Espera estimada</th>
               </tr>
             </thead>
             <tbody>
               {checkins.map((checkin) => (
                 <tr key={checkin.id}>
-                  <td className="plate">{checkin.plate}</td>
-                  <td>{checkin.created_at ? dateFormatter.format(new Date(checkin.created_at)) : '—'}</td>
-                  <td>
+                  <td className="plate" data-label="Placa">{checkin.plate}</td>
+                  <td data-label="Entrada">
+                    {checkin.created_at ? dateFormatter.format(new Date(checkin.created_at)) : '—'}
+                  </td>
+                  <td data-label="Decisão">{checkInStatusLabel(checkin.status)}</td>
+                  <td data-label="Espera estimada">
                     {checkin.estimated_wait_minutes != null
                       ? `${Math.round(checkin.estimated_wait_minutes)} min`
                       : '—'}

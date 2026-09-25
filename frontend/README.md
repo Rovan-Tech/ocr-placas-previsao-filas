@@ -7,6 +7,18 @@ Interface em React + TypeScript (Vite) usada pelo fiscal na guarita:
   digitação manual como alternativa (câmera não lê, ou o fiscal prefere digitar)
 - Lista dos check-ins recentes
 - Logs de quem enviou cada foto/placa, de onde, e o que a leitura deu
+- Check-in inteligente: o resultado do OCR já mostra se a placa tem agendamento (motorista,
+  validação por OCR do documento, produtos da carga, data — com aviso explícito de "chegou
+  adiantado"/"Atrasado"), os dados do veículo trazidos pela API Brasil (ou um perfil fictício
+  sinalizado como "dados de exemplo", quando a API Brasil não está configurada no backend), ou
+  que a placa não foi reconhecida em nenhuma fonte. Sem agendamento, dá pra cadastrar o
+  motorista/carga/caminhão ali mesmo, sem sair da tela de captura. Em qualquer resultado, o
+  fiscal autoriza ou recusa a entrada, e dá pra abrir a foto da frente ou do verso do documento
+  do motorista numa aba nova
+- Cadastro de agendamento de chegada completo (placa, dados do motorista incluindo data/local de
+  nascimento com UF e tipo de documento, dados do veículo, origem/destino, lista de produtos da carga
+  com categoria de risco, e as quatro fotos — frente e verso do documento do motorista, documento
+  do veículo e manifesto de carga — todas obrigatórias) — qualquer funcionário, não só admin
 - Cadastro e exclusão de funcionário (só para quem é admin master)
 - Tema claro/escuro à escolha (segue o sistema até o fiscal trocar manualmente)
 
@@ -52,13 +64,16 @@ O dev server fica exposto na rede local (`host: true`), então dá para abrir
 
 ```
 src/
-├── components/   # Layout, CameraCapture, ManualPlateEntry, OcrResult, ThemeToggle
+├── components/   # Layout, CameraCapture, ManualPlateEntry, OcrResult (inclui o check-in
+│                 # inteligente), ScheduleForm (cadastro de agendamento — reaproveitado na
+│                 # tela de captura, quando não há agendamento, e em /agendamentos), ThemeToggle
 ├── context/      # AuthContext (sessão/token/"precisa trocar senha"), ThemeContext (claro/escuro)
 ├── pages/        # LoginPage, ChangePasswordPage, CapturePage (/), CheckinsPage (/checkins),
-│                 # LogsPage (/logs), CreateEmployeePage (/funcionarios — lista, cadastra e
-│                 # exclui, só admin)
-└── services/     # api.ts (chamadas autenticadas), auth.ts (login/troca de senha/funcionários),
-                  # authToken.ts (ponte entre api.ts e o AuthContext, sem depender do React)
+│                 # LogsPage (/logs), CreateSchedulePage (/agendamentos), CreateEmployeePage
+│                 # (/funcionarios — lista, cadastra e exclui, só admin)
+└── services/     # api.ts (chamadas autenticadas, inclui agendamento/check-in), auth.ts
+                  # (login/troca de senha/funcionários), authToken.ts (ponte entre api.ts e o
+                  # AuthContext, sem depender do React)
 tests/
 ├── unit/         # Vitest — src/services
 └── e2e/          # Playwright — fluxos de login, captura e listagem (backend mockado com
@@ -78,13 +93,16 @@ Toda chamada, exceto o próprio login, exige estar autenticado — `api.ts` anex
 | Login                      | `POST /auth/login`                        | ✅ existe |
 | Troca de senha             | `POST /auth/change-password`              | ✅ existe |
 | Funcionários (listar/cadastrar/excluir) | `GET`/`POST /auth/employees`, `DELETE /auth/employees/{id}` | ✅ existe (só admin) |
-| Capturar placa             | `POST /ocr/upload`, `POST /ocr/manual`    | ✅ existe |
+| Capturar placa (com check-in inteligente) | `POST /ocr/upload`, `POST /ocr/manual`    | ✅ existe |
 | Logs                       | `GET /logs`, `GET /logs/{id}/photo`       | ✅ existe |
-| Check-ins recentes         | `GET /checkins?limit=20`                  | ⏳ ainda não implementado |
+| Agendamentos (listar/cadastrar) | `GET`/`POST /schedules`               | ✅ existe |
+| Autorizar/recusar entrada  | `POST /checkins`                          | ✅ existe |
+| Check-ins recentes         | `GET /checkins?limit=20`                  | ✅ existe |
 
-A tela de check-ins espera uma lista de objetos com `id`, `plate`, `created_at` (ISO 8601) e
-`estimated_wait_minutes`. Enquanto o endpoint não existir, a tela mostra um aviso no lugar da
-lista.
+A tela de check-ins lista `id`, `plate`, `created_at` (ISO 8601), `status`
+(`waiting`/`admitted`/`cancelled`) e `estimated_wait_minutes` (previsão de fila por média móvel,
+ou tempo real já decorrido pra check-ins já decididos — ver `backend/README.md`), com um gráfico
+de tendência desse tempo de espera ao longo do turno.
 
 ## Scripts
 

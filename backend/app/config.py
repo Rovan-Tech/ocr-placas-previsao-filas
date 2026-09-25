@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     frontend_origins: str = ""
 
     ocr_upload_rate_limit: str = "10/minute"
+    ocr_demo_rate_limit: str = "5/minute"
+
+    api_brasil_device_token: str = ""
+    api_brasil_bearer_token: str = ""
+    api_brasil_timeout_seconds: float = 5.0
 
     @property
     def frontend_origins_list(self) -> list[str]:

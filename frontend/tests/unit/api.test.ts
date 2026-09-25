@@ -1,5 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, fetchRecentCheckins, submitPlateManually, uploadPlateImage } from '../../src/services/api'
+import {
+  ApiError,
+  createCheckin,
+  createSchedule,
+  demoSampleImageUrl,
+  fetchDemoSamples,
+  fetchRecentCheckins,
+  listSchedules,
+  submitDemoOcr,
+  submitPlateManually,
+  uploadPlateImage,
+} from '../../src/services/api'
 
 function mockFetch(response: Response) {
   const fetchMock = vi.fn().mockResolvedValue(response)
@@ -123,5 +134,178 @@ describe('fetchRecentCheckins', () => {
     await fetchRecentCheckins({ limit: 5 })
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/checkins?limit=5')
+  })
+})
+
+function validScheduleInput(overrides: Partial<Parameters<typeof createSchedule>[0]> = {}) {
+  const photo = new File(['fake'], 'foto.jpg', { type: 'image/jpeg' })
+  return {
+    plate: 'ABC1D23',
+    driverName: 'João da Silva',
+    driverBirthDate: '1990-01-01',
+    driverBirthPlace: 'São Luís',
+    driverBirthState: 'MA',
+    driverDocumentType: 'cpf' as const,
+    driverDocument: '12345678900',
+    vehicleBrand: 'Volvo',
+    vehicleModel: 'FH 540',
+    vehicleYear: '2020',
+    vehicleChassis: '9BWZZZ377VT004251',
+    vehicleColor: 'Branco',
+    vehicleLengthM: '12.5',
+    vehicleHeightM: '4.0',
+    vehicleWidthM: '2.6',
+    originLocation: 'São Paulo - SP',
+    destinationLocation: 'São Luís - MA',
+    cargoItems: [{ productName: 'Grãos', category: 'nao_perecivel' as const }],
+    scheduledDate: '2026-09-24',
+    driverDocumentPhotoFront: photo,
+    driverDocumentPhotoBack: photo,
+    vehicleDocumentPhoto: photo,
+    manifestPhoto: photo,
+    ...overrides,
+  }
+}
+
+describe('createSchedule', () => {
+  it('envia os campos, os produtos da carga e as fotos como multipart para /api/schedules', async () => {
+    const body = { id: 1, plate: 'ABC1D23' }
+    const fetchMock = mockFetch(jsonResponse(body, 201))
+
+    const result = await createSchedule(validScheduleInput())
+
+    expect(result).toEqual(body)
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/api/schedules')
+    expect(options.method).toBe('POST')
+    const form = options.body as FormData
+    expect(form.get('plate')).toBe('ABC1D23')
+    expect(form.get('driver_name')).toBe('João da Silva')
+    expect(form.get('driver_birth_place')).toBe('São Luís')
+    expect(form.get('driver_birth_state')).toBe('MA')
+    expect(form.get('driver_document_type')).toBe('cpf')
+    expect(form.get('vehicle_brand')).toBe('Volvo')
+    expect(JSON.parse(form.get('cargo_items') as string)).toEqual([
+      { product_name: 'Grãos', category: 'nao_perecivel' },
+    ])
+    expect(form.get('scheduled_date')).toBe('2026-09-24')
+    expect((form.get('driver_document_photo_front') as File).name).toBe('foto.jpg')
+    expect((form.get('driver_document_photo_back') as File).name).toBe('foto.jpg')
+    expect((form.get('vehicle_document_photo') as File).name).toBe('foto.jpg')
+    expect((form.get('manifest_photo') as File).name).toBe('foto.jpg')
+  })
+
+  it('usa o detail do FastAPI quando a placa é inválida', async () => {
+    mockFetch(jsonResponse({ detail: 'Formato de placa inválido.' }, 400))
+
+    const error = await createSchedule(validScheduleInput({ plate: 'NAO-VALIDA' })).catch((err) => err)
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error.status).toBe(400)
+  })
+})
+
+describe('createCheckin', () => {
+  it('envia placa e decisão como multipart para /api/checkins', async () => {
+    const body = { id: 1, plate: 'ABC1D23', status: 'admitted', schedule_id: null }
+    const fetchMock = mockFetch(jsonResponse(body, 201))
+
+    const result = await createCheckin('ABC1D23', 'admitted')
+
+    expect(result).toEqual(body)
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/api/checkins')
+    const form = options.body as FormData
+    expect(form.get('plate')).toBe('ABC1D23')
+    expect(form.get('status')).toBe('admitted')
+    expect(form.has('schedule_id')).toBe(false)
+  })
+
+  it('inclui o schedule_id quando informado', async () => {
+    const fetchMock = mockFetch(jsonResponse({ id: 1 }, 201))
+
+    await createCheckin('ABC1D23', 'cancelled', 7)
+
+    const options = fetchMock.mock.calls[0]?.[1] as RequestInit
+    const form = options.body as FormData
+    expect(form.get('schedule_id')).toBe('7')
+  })
+
+  it('inclui o checkin_id quando informado, pra atualizar o check-in automático', async () => {
+    const fetchMock = mockFetch(jsonResponse({ id: 42 }, 201))
+
+    await createCheckin('ABC1D23', 'admitted', null, 42)
+
+    const options = fetchMock.mock.calls[0]?.[1] as RequestInit
+    const form = options.body as FormData
+    expect(form.get('checkin_id')).toBe('42')
+    expect(form.has('schedule_id')).toBe(false)
+  })
+})
+
+describe('listSchedules', () => {
+  it('busca /api/schedules sem filtro', async () => {
+    const fetchMock = mockFetch(jsonResponse([]))
+
+    await listSchedules()
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/schedules')
+  })
+
+  it('filtra por placa quando informada', async () => {
+    const fetchMock = mockFetch(jsonResponse([]))
+
+    await listSchedules('ABC1D23')
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/schedules?plate=ABC1D23')
+  })
+})
+
+describe('fetchDemoSamples', () => {
+  it('busca /api/ocr/demo-samples', async () => {
+    const body = [{ id: 'limpa_mercosul', description: 'foto boa, controle' }]
+    const fetchMock = mockFetch(jsonResponse(body))
+
+    const result = await fetchDemoSamples()
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/ocr/demo-samples')
+    expect(result).toEqual(body)
+  })
+})
+
+describe('demoSampleImageUrl', () => {
+  it('monta a URL da imagem do exemplo', () => {
+    expect(demoSampleImageUrl('limpa_mercosul')).toBe('/api/ocr/demo-samples/limpa_mercosul/image')
+  })
+
+  it('escapa o id do exemplo na URL', () => {
+    expect(demoSampleImageUrl('a/b')).toBe('/api/ocr/demo-samples/a%2Fb/image')
+  })
+})
+
+describe('submitDemoOcr', () => {
+  it('envia sample_id como multipart para /api/ocr/demo-upload', async () => {
+    const body = { plate: 'ABC1D23', plate_format: 'mercosul', confidence: 0.9, needs_review: false, detections: [] }
+    const fetchMock = mockFetch(jsonResponse(body))
+
+    const result = await submitDemoOcr({ sampleId: 'limpa_mercosul' })
+
+    expect(result).toEqual(body)
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('/api/ocr/demo-upload')
+    expect((options.body as FormData).get('sample_id')).toBe('limpa_mercosul')
+    expect((options.body as FormData).get('file')).toBeNull()
+  })
+
+  it('envia file como multipart para /api/ocr/demo-upload', async () => {
+    const body = { plate: null, plate_format: null, confidence: null, needs_review: true, detections: [] }
+    const fetchMock = mockFetch(jsonResponse(body))
+    const file = new File(['fake'], 'placa.jpg', { type: 'image/jpeg' })
+
+    await submitDemoOcr({ file })
+
+    const [, options] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(((options.body as FormData).get('file') as File).name).toBe('placa.jpg')
+    expect((options.body as FormData).get('sample_id')).toBeNull()
   })
 })

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import StatusMessage from '../components/StatusMessage'
 import { useAuth } from '../context/AuthContext'
 import { createEmployee, deactivateEmployee, listEmployees, type Employee } from '../services/auth'
 
@@ -41,11 +42,7 @@ function DeactivateConfirmation({
         Ele perde o acesso imediatamente. O histórico de fotos e placas que ele já enviou continua
         registrado nos logs.
       </span>
-      {error && (
-        <p className="message error" role="alert">
-          {error}
-        </p>
-      )}
+      {error && <StatusMessage tone="error">{error}</StatusMessage>}
       <div className="camera-actions">
         <button type="button" className="primary" onClick={handleConfirm} disabled={sending}>
           {sending ? 'Excluindo…' : 'Sim, excluir'}
@@ -72,7 +69,7 @@ function EmployeesTable({
   onSelectForDeactivation: (employee: Employee) => void
 }) {
   if (loading) return <p className="message">Carregando…</p>
-  if (error) return <p className="message error">{error}</p>
+  if (error) return <StatusMessage tone="error">{error}</StatusMessage>
   if (employees.length === 0) return <p className="message">Nenhum funcionário cadastrado ainda.</p>
 
   return (
@@ -90,11 +87,11 @@ function EmployeesTable({
         <tbody>
           {employees.map((employee) => (
             <tr key={employee.id}>
-              <td>{employee.full_name}</td>
-              <td>{employee.username}</td>
-              <td>{employee.is_admin ? 'Admin master' : 'Fiscal'}</td>
-              <td>{employee.active ? 'Ativo' : 'Excluído'}</td>
-              <td>
+              <td data-label="Nome">{employee.full_name}</td>
+              <td data-label="Usuário">{employee.username}</td>
+              <td data-label="Papel">{employee.is_admin ? 'Admin master' : 'Fiscal'}</td>
+              <td data-label="Situação">{employee.active ? 'Ativo' : 'Excluído'}</td>
+              <td data-label="">
                 {employee.active && employee.id !== currentEmployeeId && (
                   <button type="button" className="link" onClick={() => onSelectForDeactivation(employee)}>
                     Excluir
@@ -237,16 +234,8 @@ export default function CreateEmployeePage() {
           Também é admin master (pode cadastrar e excluir outros funcionários)
         </label>
 
-        {formError && (
-          <p className="message error" role="alert">
-            {formError}
-          </p>
-        )}
-        {created && (
-          <p className="message" role="status">
-            {created}
-          </p>
-        )}
+        {formError && <StatusMessage tone="error">{formError}</StatusMessage>}
+        {created && <StatusMessage tone="success">{created}</StatusMessage>}
 
         <button
           type="submit"

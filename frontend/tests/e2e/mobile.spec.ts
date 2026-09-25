@@ -10,6 +10,7 @@ async function hasHorizontalOverflow(page: Page) {
 }
 
 test('tela de captura não estoura a largura em viewport mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
 
   await expect(page.getByRole('button', { name: /Abrir câmera|Fotografar placa/ })).toBeInViewport()
@@ -96,4 +97,66 @@ test('lista de funcionários não estoura a largura em viewport mobile (rola por
 
   await expect(page.getByRole('table')).toBeVisible()
   expect(await hasHorizontalOverflow(page)).toBe(false)
+})
+
+test.describe('navegação responsiva', () => {
+  test('em viewport mobile, a tab bar do rodapé aparece e o menu horizontal some', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+
+    const tabBar = page.getByRole('navigation', { name: 'Navegação principal' })
+    await expect(tabBar).toBeVisible()
+    await expect(tabBar.getByRole('link', { name: 'Check-ins' })).toBeVisible()
+  })
+
+  test('em viewport desktop, o menu horizontal aparece e a tab bar não', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.goto('/')
+
+    await expect(page.getByRole('link', { name: 'Check-ins recentes' })).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'Navegação principal' })).toBeHidden()
+  })
+
+  test('a tab bar navega para a página certa sem cobrir o conteúdo', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.route('**/api/checkins?*', (route) => route.fulfill({ contentType: 'application/json', body: '[]' }))
+    await page.goto('/')
+
+    await page
+      .getByRole('navigation', { name: 'Navegação principal' })
+      .getByRole('link', { name: 'Check-ins' })
+      .click()
+
+    await expect(page.getByRole('heading', { name: 'Check-ins recentes' })).toBeInViewport()
+  })
+
+  test('o botão principal de captura tem alvo de toque de pelo menos 44x44px em mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+
+    const box = await page.getByRole('button', { name: /Abrir câmera|Fotografar placa/ }).boundingBox()
+    expect(box?.width).toBeGreaterThanOrEqual(44)
+    expect(box?.height).toBeGreaterThanOrEqual(44)
+  })
+})
+
+test.describe('tabelas viram cards em viewport mobile', () => {
+  test('tabela de check-ins reflow para lista de cards, mantendo os dados acessíveis', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.route('**/api/checkins?*', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify([
+          { id: 1, plate: 'ABC1D23', created_at: '2026-09-23T14:05:00Z', status: 'admitted', estimated_wait_minutes: 12.4 },
+        ]),
+      }),
+    )
+    await page.goto('/checkins')
+
+    const display = await page.locator('table.checkins').evaluate((el) => getComputedStyle(el).display)
+    expect(display).toBe('block')
+    await expect(page.getByRole('row', { name: /ABC1D23/ })).toBeVisible()
+    await expect(page.getByRole('cell', { name: 'ABC1D23' })).toBeVisible()
+    expect(await hasHorizontalOverflow(page)).toBe(false)
+  })
 })

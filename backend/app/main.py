@@ -8,7 +8,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.config import settings
 from app.rate_limit import limiter
-from app.routers import auth, health, logs, ocr
+from app.routers import auth, checkins, health, logs, ocr, ocr_demo, schedules
 from app.services.ocr_service import get_reader
 
 SECURITY_HEADERS = {
@@ -55,4 +55,7 @@ async def add_security_headers(request: Request, call_next):
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(ocr.router)
+app.include_router(ocr_demo.router)
 app.include_router(logs.router)
+app.include_router(schedules.router)
+app.include_router(checkins.router)

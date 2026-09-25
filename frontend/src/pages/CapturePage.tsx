@@ -2,9 +2,45 @@ import { useState } from 'react'
 import CameraCapture from '../components/CameraCapture'
 import ManualPlateEntry from '../components/ManualPlateEntry'
 import OcrResult from '../components/OcrResult'
-import { uploadPlateImage, type ManualPlateContext, type OcrUploadResponse } from '../services/api'
+import ScheduleForm from '../components/ScheduleForm'
+import StatusMessage from '../components/StatusMessage'
+import { uploadPlateImage, type ManualPlateContext, type OcrUploadResponse, type ScheduleOut } from '../services/api'
+import { todayIsoDate } from '../services/plate'
 
 type Status = 'idle' | 'reviewing_photo' | 'sending' | 'needs_decision' | 'confirmed' | 'error'
+
+function UnscheduledArrivalRegistration({
+  plate,
+  onRegistered,
+}: {
+  plate: string
+  onRegistered: (schedule: ScheduleOut) => void
+}) {
+  const [registering, setRegistering] = useState(false)
+
+  if (!registering) {
+    return (
+      <p className="manual-entry-link">
+        <button type="button" className="link" onClick={() => setRegistering(true)}>
+          Cadastrar motorista, carga e caminhão
+        </button>
+      </p>
+    )
+  }
+
+  return (
+    <>
+      <h2>Cadastrar chegada sem agendamento</h2>
+      <ScheduleForm
+        idPrefix="arrival"
+        initialPlate={plate}
+        initialScheduledDate={todayIsoDate()}
+        plateReadOnly
+        onCreated={onRegistered}
+      />
+    </>
+  )
+}
 
 export default function CapturePage() {
   const [photo, setPhoto] = useState<File | null>(null)
@@ -48,6 +84,30 @@ export default function CapturePage() {
     setResult(response)
     setManualEntry(false)
     setStatus('confirmed')
+  }
+
+  function handleScheduleRegistered(schedule: ScheduleOut) {
+    setResult((current) =>
+      current && current.checkin
+        ? {
+            ...current,
+            checkin: {
+              ...current.checkin,
+              found: true,
+              schedule: {
+                id: schedule.id,
+                driver_name: schedule.driver_name,
+                driver_document: schedule.driver_document,
+                driver_document_validated: schedule.driver_document_validated,
+                driver_document_validation_detail: schedule.driver_document_validation_detail,
+                cargo_items: schedule.cargo_items,
+                scheduled_date: schedule.scheduled_date,
+                status: 'on_time',
+              },
+            },
+          }
+        : current,
+    )
   }
 
   function openManualEntry(withPhotoContext: boolean) {
@@ -101,9 +161,7 @@ export default function CapturePage() {
 
           {status === 'reviewing_photo' && photo && (
             <>
-              <p className="message" role="status">
-                A foto ficou nítida e a placa está legível?
-              </p>
+              <StatusMessage tone="info">A foto ficou nítida e a placa está legível?</StatusMessage>
               <div className="camera-actions">
                 <button type="button" className="primary" onClick={() => sendToOcr(photo)}>
                   Sim, continuar
@@ -121,18 +179,16 @@ export default function CapturePage() {
           )}
 
           {status === 'sending' && (
-            <p className="message" role="status">
+            <StatusMessage tone="info">
               <strong>EM PROCESSAMENTO</strong>
               <br />
               Lendo a placa…
-            </p>
+            </StatusMessage>
           )}
 
           {status === 'error' && photo && (
             <>
-              <p className="message error" role="alert">
-                {error}
-              </p>
+              <StatusMessage tone="error">{error}</StatusMessage>
               <div className="camera-actions">
                 <button type="button" className="primary" onClick={() => sendToOcr(photo)}>
                   Tentar novamente
@@ -147,10 +203,10 @@ export default function CapturePage() {
           {status === 'needs_decision' && result && (
             <>
               <OcrResult result={result} />
-              <p className="message warning" role="alert">
+              <StatusMessage tone="warning">
                 Não foi possível confirmar a placa por essa foto. Tire outra foto ou digite a
                 placa manualmente — a leitura incerta não é registrada sozinha.
-              </p>
+              </StatusMessage>
               <div className="camera-actions">
                 <button type="button" className="primary" onClick={reset}>
                   Tirar outra foto
@@ -159,6 +215,9 @@ export default function CapturePage() {
                   Digitar manualmente
                 </button>
               </div>
+              {result.plate && result.checkin && !result.checkin.schedule && (
+                <UnscheduledArrivalRegistration plate={result.plate} onRegistered={handleScheduleRegistered} />
+              )}
             </>
           )}
 
@@ -166,9 +225,9 @@ export default function CapturePage() {
             <>
               <OcrResult result={result} />
               {result.audit_saved === false && (
-                <p className="message warning" role="alert">
+                <StatusMessage tone="warning">
                   A placa foi confirmada, mas não foi possível guardar a foto de resguardo desta vez.
-                </p>
+                </StatusMessage>
               )}
               <p className="manual-entry-link">
                 Não é essa placa?{' '}
@@ -181,6 +240,9 @@ export default function CapturePage() {
                   Nova foto
                 </button>
               </div>
+              {result.plate && result.checkin && !result.checkin.schedule && (
+                <UnscheduledArrivalRegistration plate={result.plate} onRegistered={handleScheduleRegistered} />
+              )}
             </>
           )}
         </div>
