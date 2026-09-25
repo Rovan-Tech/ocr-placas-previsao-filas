@@ -281,7 +281,7 @@ test.describe('alternância de tema', () => {
     await page.goto('/')
 
     const html = page.locator('html')
-    const toggle = page.getByRole('button', { name: /Mudar para tema/ })
+    const toggle = page.getByRole('switch', { name: /Mudar para tema/ })
     const initialTheme = await html.getAttribute('data-theme')
 
     await toggle.click()

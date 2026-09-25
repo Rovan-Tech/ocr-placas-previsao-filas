@@ -1,4 +1,7 @@
+import { Eye, EyeOff } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
+import StatusMessage from '../components/StatusMessage'
 import ThemeToggle from '../components/ThemeToggle'
 import { useAuth } from '../context/AuthContext'
 import { login } from '../services/auth'
@@ -59,20 +62,21 @@ export default function LoginPage() {
             aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
             title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
           >
-            {showPassword ? '🙈' : '👁️'}
+            {showPassword ? <EyeOff size={13} aria-hidden="true" /> : <Eye size={13} aria-hidden="true" />}
+            <span>{showPassword ? 'Ocultar' : 'Mostrar'}</span>
           </button>
         </div>
 
-        {error && (
-          <p className="message error" role="alert">
-            {error}
-          </p>
-        )}
+        {error && <StatusMessage tone="error">{error}</StatusMessage>}
 
         <button type="submit" className="primary" disabled={sending || !username || !password}>
           {sending ? 'Entrando…' : 'Entrar'}
         </button>
       </form>
+
+      <p className="manual-entry-link">
+        Só quer conhecer o sistema? <Link to="/demo">Testar sem login</Link>
+      </p>
     </section>
   )
 }
