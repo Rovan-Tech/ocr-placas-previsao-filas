@@ -3,6 +3,7 @@ import CameraCapture from '../components/CameraCapture'
 import ManualPlateEntry from '../components/ManualPlateEntry'
 import OcrResult from '../components/OcrResult'
 import ScheduleForm from '../components/ScheduleForm'
+import StatusMessage from '../components/StatusMessage'
 import { uploadPlateImage, type ManualPlateContext, type OcrUploadResponse, type ScheduleOut } from '../services/api'
 import { todayIsoDate } from '../services/plate'
 
@@ -94,12 +95,12 @@ export default function CapturePage() {
               ...current.checkin,
               found: true,
               schedule: {
+                id: schedule.id,
                 driver_name: schedule.driver_name,
                 driver_document: schedule.driver_document,
-                has_driver_document_photo_front: schedule.has_driver_document_photo_front,
-                has_driver_document_photo_back: schedule.has_driver_document_photo_back,
-                has_vehicle_document_photo: schedule.has_vehicle_document_photo,
-                cargo_type: schedule.cargo_type,
+                driver_document_validated: schedule.driver_document_validated,
+                driver_document_validation_detail: schedule.driver_document_validation_detail,
+                cargo_items: schedule.cargo_items,
                 scheduled_date: schedule.scheduled_date,
                 status: 'on_time',
               },
@@ -160,9 +161,7 @@ export default function CapturePage() {
 
           {status === 'reviewing_photo' && photo && (
             <>
-              <p className="message" role="status">
-                A foto ficou nítida e a placa está legível?
-              </p>
+              <StatusMessage tone="info">A foto ficou nítida e a placa está legível?</StatusMessage>
               <div className="camera-actions">
                 <button type="button" className="primary" onClick={() => sendToOcr(photo)}>
                   Sim, continuar
@@ -180,18 +179,16 @@ export default function CapturePage() {
           )}
 
           {status === 'sending' && (
-            <p className="message" role="status">
+            <StatusMessage tone="info">
               <strong>EM PROCESSAMENTO</strong>
               <br />
               Lendo a placa…
-            </p>
+            </StatusMessage>
           )}
 
           {status === 'error' && photo && (
             <>
-              <p className="message error" role="alert">
-                {error}
-              </p>
+              <StatusMessage tone="error">{error}</StatusMessage>
               <div className="camera-actions">
                 <button type="button" className="primary" onClick={() => sendToOcr(photo)}>
                   Tentar novamente
@@ -206,10 +203,10 @@ export default function CapturePage() {
           {status === 'needs_decision' && result && (
             <>
               <OcrResult result={result} />
-              <p className="message warning" role="alert">
+              <StatusMessage tone="warning">
                 Não foi possível confirmar a placa por essa foto. Tire outra foto ou digite a
                 placa manualmente — a leitura incerta não é registrada sozinha.
-              </p>
+              </StatusMessage>
               <div className="camera-actions">
                 <button type="button" className="primary" onClick={reset}>
                   Tirar outra foto
@@ -228,9 +225,9 @@ export default function CapturePage() {
             <>
               <OcrResult result={result} />
               {result.audit_saved === false && (
-                <p className="message warning" role="alert">
+                <StatusMessage tone="warning">
                   A placa foi confirmada, mas não foi possível guardar a foto de resguardo desta vez.
-                </p>
+                </StatusMessage>
               )}
               <p className="manual-entry-link">
                 Não é essa placa?{' '}

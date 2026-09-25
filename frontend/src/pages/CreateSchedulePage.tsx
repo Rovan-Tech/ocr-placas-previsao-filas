@@ -1,19 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import ScheduleForm from '../components/ScheduleForm'
 import { listSchedules, type ScheduleOut } from '../services/api'
-import { formatScheduledDate } from '../services/plate'
+import { cargoCategoryLabel, formatScheduledDate } from '../services/plate'
 
-function documentsSummary(schedule: ScheduleOut): string {
-  const parts = []
-  if (schedule.has_driver_document_photo_front && schedule.has_driver_document_photo_back) {
-    parts.push('motorista (frente e verso)')
-  } else if (schedule.has_driver_document_photo_front) {
-    parts.push('motorista (só frente)')
-  } else if (schedule.has_driver_document_photo_back) {
-    parts.push('motorista (só verso)')
-  }
-  if (schedule.has_vehicle_document_photo) parts.push('veículo')
-  return parts.length > 0 ? parts.join(' · ') : 'Nenhum'
+function cargoSummary(schedule: ScheduleOut): string {
+  return schedule.cargo_items.map((item) => `${item.product_name} (${cargoCategoryLabel(item.category)})`).join(', ')
 }
 
 function SchedulesTable({ schedules, loading, error }: { schedules: ScheduleOut[]; loading: boolean; error: string | null }) {
@@ -29,18 +20,24 @@ function SchedulesTable({ schedules, loading, error }: { schedules: ScheduleOut[
             <th>Placa</th>
             <th>Motorista</th>
             <th>Carga</th>
+            <th>Origem → Destino</th>
             <th>Data prevista</th>
-            <th>Documentos</th>
+            <th>Documento</th>
           </tr>
         </thead>
         <tbody>
           {schedules.map((schedule) => (
             <tr key={schedule.id}>
-              <td className="plate">{schedule.plate}</td>
-              <td>{schedule.driver_name}</td>
-              <td>{schedule.cargo_type}</td>
-              <td>{formatScheduledDate(schedule.scheduled_date)}</td>
-              <td>{documentsSummary(schedule)}</td>
+              <td className="plate" data-label="Placa">{schedule.plate}</td>
+              <td data-label="Motorista">{schedule.driver_name}</td>
+              <td data-label="Carga">{cargoSummary(schedule)}</td>
+              <td data-label="Origem → Destino">
+                {schedule.origin_location} → {schedule.destination_location}
+              </td>
+              <td data-label="Data prevista">{formatScheduledDate(schedule.scheduled_date)}</td>
+              <td data-label="Documento">
+                {schedule.driver_document_validated ? 'Confere com a foto' : 'Confira manualmente'}
+              </td>
             </tr>
           ))}
         </tbody>

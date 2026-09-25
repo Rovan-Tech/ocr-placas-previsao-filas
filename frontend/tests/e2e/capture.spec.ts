@@ -113,6 +113,18 @@ test('tira foto pela câmera e envia para o OCR', async ({ page }) => {
   expect(uploadedContentType).toContain('multipart/form-data')
 })
 
+test('erro ao abrir a câmera aparece como alerta acessível para leitor de tela', async ({ page }) => {
+  await page.addInitScript(() => {
+    navigator.mediaDevices.getUserMedia = () =>
+      Promise.reject(new DOMException('Permissão negada pelo usuário.', 'NotAllowedError'))
+  })
+  await page.goto('/')
+
+  await page.getByRole('button', { name: 'Abrir câmera' }).click()
+
+  await expect(page.getByRole('alert')).toContainText('Permissão da câmera negada')
+})
+
 test('mostra o erro do backend e permite tentar de novo, ou digitar manualmente', async ({ page }) => {
   let calls = 0
   await page.route('**/api/ocr/upload', (route) => {
@@ -206,6 +218,23 @@ test('mostra placa regular quando a base oficial confirma', async ({ page }) => 
   await expect(page.getByRole('alert')).toHaveCount(0)
 })
 
+test('não mostra aviso de verificação quando a integração oficial não está configurada', async ({ page }) => {
+  await mockOcr(page, {
+    body: ocrResponse({
+      verification: {
+        status: 'not_checked',
+        detail: 'Placa não verificada na base oficial (integração com a SENATRAN não configurada).',
+        source: null,
+      },
+    }),
+  })
+  await page.goto('/')
+  await sendPhoto(page)
+
+  await expect(page.getByText('Não verificada na base oficial')).toHaveCount(0)
+  await expect(page.getByText('SENATRAN')).toHaveCount(0)
+})
+
 test('reduz o tamanho de uma foto grande do celular antes de enviar', async ({ page }) => {
   let uploadedBytes = 0
   await page.route('**/api/ocr/upload', (route) => {
@@ -259,7 +288,7 @@ test.describe('digitação manual da placa', () => {
     })
     await page.goto('/')
     await page.getByRole('button', { name: 'Digitar a placa manualmente' }).click()
-    await expect(page.getByRole('radio')).toHaveCount(0) // nenhuma escolha manual de formato
+    await expect(page.getByRole('radio')).toHaveCount(0)
 
     await page.getByLabel('Digite a placa do veículo').fill('ABC1D23')
     await page.getByRole('button', { name: 'Confirmar placa' }).click()
@@ -382,7 +411,7 @@ test.describe('resguardo: foto salva junto com a digitação manual', () => {
     await page.getByRole('button', { name: 'Confirmar placa' }).click()
 
     await expect(page.getByText('ABC1D23', { exact: true })).toBeVisible()
-    expect(calledUpload).toBe(false) // recusou antes de chegar a chamar o OCR
+    expect(calledUpload).toBe(false)
   })
 
   test('não anexa foto quando a digitação parte da tela inicial, sem foto nenhuma', async ({ page }) => {
