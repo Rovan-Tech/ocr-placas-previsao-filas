@@ -99,8 +99,8 @@ def test_ignores_a_degenerate_approx_polygon_for_the_plate_outline_candidate(mon
         long_side, short_side = max(w, h), min(w, h)
         assert short_side > 0
         ratio = long_side / short_side
-        assert MIN_PLATE_ASPECT_RATIO <= ratio <= MAX_PLATE_ASPECT_RATIO, (
-            f"candidato com aspect ratio {ratio:.2f} fora da faixa de uma placa"
+        assert _is_plausible_plate_ratio(ratio), (
+            f"candidato com aspect ratio {ratio:.2f} fora da faixa de uma placa (carro ou moto)"
         )
 
 

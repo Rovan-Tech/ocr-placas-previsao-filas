@@ -7,7 +7,10 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+BUNDLED_FONT = Path(__file__).parent / "fonts" / "LiberationSansNarrow-Bold.ttf"
+
 FONT_CANDIDATES = [
+    str(BUNDLED_FONT),
     "/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Bold.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Bold.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
