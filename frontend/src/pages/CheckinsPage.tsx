@@ -1,9 +1,15 @@
+import { RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import CheckinsTrendChart from '../components/CheckinsTrendChart'
 import { fetchRecentCheckins, type Checkin } from '../services/api'
-import { checkInStatusLabel } from '../services/plate'
+import { checkInStatusInfo } from '../services/plate'
 
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+
+function StatusBadge({ status }: { status: Checkin['status'] }) {
+  const { label, tone } = checkInStatusInfo(status)
+  return <span className={`status-badge status-badge-${tone}`}>{label}</span>
+}
 
 export default function CheckinsPage() {
   const [checkins, setCheckins] = useState<Checkin[]>([])
@@ -31,13 +37,14 @@ export default function CheckinsPage() {
   }
 
   return (
-    <section className="page">
+    <section className="page page-wide">
       <div className="page-header">
         <div>
           <h1>Check-ins recentes</h1>
           <p className="subtitle">Últimos caminhões registrados na guarita.</p>
         </div>
-        <button type="button" onClick={handleRefresh} disabled={loading}>
+        <button type="button" className="refresh-button" onClick={handleRefresh} disabled={loading}>
+          <RefreshCw aria-hidden="true" size={18} />
           Atualizar
         </button>
       </div>
@@ -50,8 +57,10 @@ export default function CheckinsPage() {
 
       {!loading && !error && checkins.length > 0 && (
         <>
-          <h2>Tendência do tempo de espera</h2>
-          <CheckinsTrendChart checkins={checkins} />
+          <div className="checkins-trend-card">
+            <h2 className="card-title">Tendência do tempo de espera</h2>
+            <CheckinsTrendChart checkins={checkins} />
+          </div>
         </>
       )}
 
@@ -75,7 +84,9 @@ export default function CheckinsPage() {
                   <td data-label="Entrada">
                     {checkin.created_at ? dateFormatter.format(new Date(checkin.created_at)) : '—'}
                   </td>
-                  <td data-label="Decisão">{checkInStatusLabel(checkin.status)}</td>
+                  <td data-label="Decisão">
+                    <StatusBadge status={checkin.status} />
+                  </td>
                   <td data-label="Espera estimada">
                     {checkin.estimated_wait_minutes != null
                       ? `${Math.round(checkin.estimated_wait_minutes)} min`

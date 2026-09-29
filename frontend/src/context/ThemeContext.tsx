@@ -3,6 +3,21 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 type Theme = 'light' | 'dark'
 
 const STORAGE_KEY = 'ocr-placas.theme'
+const CHOICE_KEY = 'ocr-placas.theme-chosen'
+
+function hasChosenTheme(): boolean {
+  try {
+    return localStorage.getItem(CHOICE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function rememberThemeChoice() {
+  try {
+    localStorage.setItem(CHOICE_KEY, '1')
+  } catch {}
+}
 
 function loadStoredTheme(): Theme | null {
   try {
@@ -16,6 +31,7 @@ function loadStoredTheme(): Theme | null {
 interface ThemeContextValue {
   theme: Theme
   toggleTheme: () => void
+  preferDarkUnlessChosen: () => void
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
@@ -33,7 +49,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ThemeContextValue>(
     () => ({
       theme,
-      toggleTheme: () => setTheme((current) => (current === 'dark' ? 'light' : 'dark')),
+      toggleTheme: () => {
+        rememberThemeChoice()
+        setTheme((current) => (current === 'dark' ? 'light' : 'dark'))
+      },
+      preferDarkUnlessChosen: () => {
+        if (!hasChosenTheme()) setTheme('dark')
+      },
     }),
     [theme],
   )

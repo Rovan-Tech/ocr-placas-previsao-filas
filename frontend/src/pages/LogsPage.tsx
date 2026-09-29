@@ -61,7 +61,7 @@ export default function LogsPage() {
   }
 
   return (
-    <section className="page">
+    <section className="page page-wide">
       <div className="page-header">
         <div>
           <h1>Logs</h1>

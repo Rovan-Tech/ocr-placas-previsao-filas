@@ -36,8 +36,8 @@ test('lista os check-ins recentes vindos do backend', async ({ page }) => {
   const rows = page.getByRole('row')
   await expect(rows).toHaveCount(3)
   await expect(page.getByRole('row', { name: /ABC1D23/ })).toContainText('12 min')
-  await expect(page.getByRole('row', { name: /ABC1D23/ })).toContainText('Entrada autorizada')
-  await expect(page.getByRole('row', { name: /XYZ9A87/ })).toContainText('Entrada recusada')
+  await expect(page.getByRole('row', { name: /ABC1D23/ })).toContainText('Autorizado')
+  await expect(page.getByRole('row', { name: /XYZ9A87/ })).toContainText('Recusado')
 })
 
 test('mostra lista vazia', async ({ page }) => {
@@ -160,4 +160,61 @@ test('mostra o erro do backend e recarrega com Atualizar', async ({ page }) => {
   shouldFail = false
   await page.getByRole('button', { name: 'Atualizar' }).click()
   await expect(page.getByRole('row', { name: /ABC1D23/ })).toBeVisible()
+})
+
+test('mostra o selo de status e o pico de espera no gráfico', async ({ page }) => {
+  await page.route('**/api/checkins?*', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: 1,
+          plate: 'ABC1D23',
+          created_at: '2026-09-23T14:05:00Z',
+          status: 'waiting',
+          schedule_id: null,
+          estimated_wait_minutes: 14,
+        },
+        {
+          id: 2,
+          plate: 'XYZ9A87',
+          created_at: '2026-09-23T13:50:00Z',
+          status: 'admitted',
+          schedule_id: null,
+          estimated_wait_minutes: 6,
+        },
+      ]),
+    }),
+  )
+  await page.goto('/checkins')
+
+  await expect(page.getByRole('row', { name: /ABC1D23/ })).toContainText('Aguardando')
+  await expect(page.getByRole('row', { name: /XYZ9A87/ })).toContainText('Autorizado')
+  await expect(page.getByRole('img', { name: /Tendência do tempo de espera/ })).toContainText(
+    '14 min',
+  )
+})
+
+test('no celular cada check-in vira um cartão com selo de status', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 })
+  await page.route('**/api/checkins?*', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify([
+        {
+          id: 1,
+          plate: 'ABC1D23',
+          created_at: '2026-09-23T14:05:00Z',
+          status: 'cancelled',
+          schedule_id: null,
+          estimated_wait_minutes: null,
+        },
+      ]),
+    }),
+  )
+  await page.goto('/checkins')
+
+  const card = page.getByRole('row', { name: /ABC1D23/ })
+  await expect(card).toContainText('Recusado')
+  await expect(card).toBeVisible()
 })
