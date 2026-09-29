@@ -150,7 +150,7 @@ export default function CapturePage() {
   }
 
   return (
-    <section className="page">
+    <section className={status === 'idle' ? 'page' : 'page page-wide'}>
       <h1>Capturar placa</h1>
       <p className="subtitle">Fotografe a placa do caminhão para registrar o check-in.</p>
 
@@ -168,7 +168,12 @@ export default function CapturePage() {
 
       {status !== 'idle' && (photo || result) && (
         <div className="capture-review">
-          {previewUrl && <img src={previewUrl} alt="Foto tirada da placa" />}
+          {previewUrl && (
+            <div className="capture-photo">
+              <img src={previewUrl} alt="Foto tirada da placa" />
+              <span className="photo-tag">Foto capturada</span>
+            </div>
+          )}
 
           {status === 'reviewing_photo' && photo && (
             <>
@@ -250,7 +255,7 @@ export default function CapturePage() {
                   Digitar manualmente
                 </button>
               </p>
-              <div className="camera-actions">
+              <div className="camera-actions camera-actions-static">
                 <button type="button" onClick={reset}>
                   Nova foto
                 </button>

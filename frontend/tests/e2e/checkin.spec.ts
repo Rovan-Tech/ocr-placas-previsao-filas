@@ -304,3 +304,34 @@ test('sem agendamento: cadastra motorista/carga na hora e a tela passa a mostrar
   await expect(page.getByText(/Contêiner/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Autorizar entrada' })).toBeVisible()
 })
+
+test('placa em chip de placa real, cartão sólido e recusa com borda vermelha (tema claro)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await mockAndSend(page, { found: true, schedule: scheduleInfo() })
+
+  const plate = page.locator('.ocr-result .plate')
+  await expect(plate).toHaveCSS('border-top-width', '3px')
+  await expect(plate).toHaveCSS('background-color', 'rgb(255, 255, 255)')
+  await expect(plate).toHaveCSS('color', 'rgb(16, 32, 26)')
+
+  const verification = page.getByRole('status').filter({ hasText: 'Agendado para hoje' })
+  await expect(verification).toHaveCSS('background-color', 'rgb(11, 110, 76)')
+  await expect(verification).toHaveCSS('color', 'rgb(255, 255, 255)')
+
+  await expect(page.getByRole('button', { name: 'Recusar entrada' })).toHaveCSS(
+    'border-top-color',
+    'rgb(192, 57, 43)',
+  )
+  await expect(page.getByText('Foto capturada')).toBeVisible()
+})
+
+test('no desktop a foto fica à esquerda e o resultado à direita', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await mockAndSend(page, { found: true, schedule: scheduleInfo() })
+
+  const photo = await page.getByRole('img', { name: 'Foto tirada da placa' }).boundingBox()
+  const authorize = await page.getByRole('button', { name: 'Autorizar entrada' }).boundingBox()
+  expect(photo && authorize && authorize.x > photo.x + photo.width).toBe(true)
+})
