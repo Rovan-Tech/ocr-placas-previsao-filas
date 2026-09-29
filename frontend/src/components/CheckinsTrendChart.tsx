@@ -4,8 +4,10 @@ import { niceMax, toTrendPoints, type TrendPoint } from '../services/checkinsTre
 
 const VIEW_WIDTH = 640
 const VIEW_HEIGHT = 220
-const PADDING = { top: 16, right: 16, bottom: 28, left: 40 }
-const Y_TICKS = 4
+const PADDING = { top: 24, right: 24, bottom: 28, left: 24 }
+const Y_TICKS = 2
+const POINT_RADIUS = 5
+const HOVER_POINT_RADIUS = 7
 const MAX_X_LABELS = 6
 
 const timeFormatter = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -55,6 +57,11 @@ export default function CheckinsTrendChart({ checkins }: { checkins: Checkin[] }
         `L ${xForTimestamp(minTimestamp)} ${PADDING.top + plotHeight} Z`
       : ''
 
+  const peak = coordinates.reduce((highest, point) =>
+    point.minutes > highest.minutes ? point : highest,
+  )
+  const markedPoints = hovered && hovered.timestamp !== peak.timestamp ? [peak, hovered] : [peak]
+
   const yTickValues = Array.from({ length: Y_TICKS + 1 }, (_, index) => (yMax / Y_TICKS) * index)
 
   const xLabelStep = Math.max(1, Math.ceil(coordinates.length / MAX_X_LABELS))
@@ -84,6 +91,13 @@ export default function CheckinsTrendChart({ checkins }: { checkins: Checkin[] }
         onPointerMove={handlePointerMove}
         onPointerLeave={() => setHovered(null)}
       >
+        <defs>
+          <linearGradient id="checkins-trend-gradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" className="checkins-trend-gradient-start" />
+            <stop offset="100%" className="checkins-trend-gradient-end" />
+          </linearGradient>
+        </defs>
+
         {yTickValues.map((value) => (
           <g key={value}>
             <line
@@ -93,15 +107,6 @@ export default function CheckinsTrendChart({ checkins }: { checkins: Checkin[] }
               y2={yForMinutes(value)}
               className="checkins-trend-grid"
             />
-            <text
-              x={PADDING.left - 8}
-              y={yForMinutes(value)}
-              className="checkins-trend-axis-label"
-              textAnchor="end"
-              dy="0.32em"
-            >
-              {Math.round(value)}
-            </text>
           </g>
         ))}
 
@@ -117,18 +122,31 @@ export default function CheckinsTrendChart({ checkins }: { checkins: Checkin[] }
           </text>
         ))}
 
-        {areaPath && <path d={areaPath} className="checkins-trend-area" />}
+        {areaPath && (
+          <path d={areaPath} className="checkins-trend-area" fill="url(#checkins-trend-gradient)" />
+        )}
         <path d={linePath} className="checkins-trend-line" />
 
-        {coordinates.map((point) => (
+        {markedPoints.map((point) => (
           <circle
             key={point.timestamp}
             cx={point.x}
             cy={point.y}
-            r={point.timestamp === hovered?.timestamp ? 6 : 4}
+            r={point.timestamp === hovered?.timestamp ? HOVER_POINT_RADIUS : POINT_RADIUS}
             className="checkins-trend-point"
           />
         ))}
+
+        {!hovered && (
+          <text
+            x={peak.x}
+            y={peak.y - 12}
+            className="checkins-trend-peak-label"
+            textAnchor="middle"
+          >
+            {Math.round(peak.minutes)} min
+          </text>
+        )}
 
         {hovered && (
           <line

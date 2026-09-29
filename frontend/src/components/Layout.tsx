@@ -2,6 +2,7 @@ import { Camera, ClipboardList, FileClock, NotebookPen, Users } from 'lucide-rea
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 import ThemeToggle from './ThemeToggle'
 
 const MOBILE_NAV_QUERY = '(max-width: 640px)'
@@ -41,6 +42,11 @@ function useIsMobileNav(): boolean {
 export default function Layout() {
   const { employee, logout } = useAuth()
   const isMobileNav = useIsMobileNav()
+  const { preferDarkUnlessChosen } = useTheme()
+
+  useEffect(() => {
+    if (!isMobileNav) preferDarkUnlessChosen()
+  }, [isMobileNav, preferDarkUnlessChosen])
 
   const items = employee?.is_admin
     ? [
@@ -64,8 +70,9 @@ export default function Layout() {
         </div>
         {!isMobileNav && (
           <nav className="app-nav">
-            {items.map(({ to, end, label }) => (
+            {items.map(({ to, end, label, icon: Icon }) => (
               <NavLink key={to} to={to} end={end}>
+                <Icon aria-hidden="true" size={20} />
                 {label}
               </NavLink>
             ))}

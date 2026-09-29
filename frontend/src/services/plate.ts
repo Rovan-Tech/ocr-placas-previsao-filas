@@ -161,14 +161,19 @@ export function sanitizeChassis(value: string): string {
     .slice(0, CHASSIS_LENGTH)
 }
 
-const CHECKIN_STATUS_LABELS: Record<CheckInStatus, string> = {
-  waiting: 'Aguardando decisão',
-  admitted: 'Entrada autorizada',
-  cancelled: 'Entrada recusada',
+export interface CheckInStatusInfo {
+  label: string
+  tone: Tone
 }
 
-export function checkInStatusLabel(status: CheckInStatus): string {
-  return CHECKIN_STATUS_LABELS[status]
+const CHECKIN_STATUS_INFO: Record<CheckInStatus, CheckInStatusInfo> = {
+  waiting: { label: 'Aguardando', tone: 'warning' },
+  admitted: { label: 'Autorizado', tone: 'ok' },
+  cancelled: { label: 'Recusado', tone: 'danger' },
+}
+
+export function checkInStatusInfo(status: CheckInStatus): CheckInStatusInfo {
+  return CHECKIN_STATUS_INFO[status]
 }
 
 export function todayIsoDate(): string {
