@@ -4,6 +4,9 @@ from app.services.image_preprocessing import resize_to_height, to_gray
 from app.services.ocr_service import decode_image, read_raw_text
 
 VALID_DETAIL = "Número do documento confere com a foto."
+CPF_LENGTH = 11
+CPF_ZERO_REMAINDER_LIMIT = 2
+
 INVALID_DETAIL = "Número do documento não foi encontrado na foto — confira manualmente."
 
 
@@ -25,7 +28,9 @@ def document_number_matches(document_number: str, photo_text: str) -> bool:
     return number_digits in _only_digits(photo_text)
 
 
-def validate_document_photo(document_number: str, image_bytes: bytes) -> tuple[bool, str]:
+def validate_document_photo(
+    document_number: str, image_bytes: bytes
+) -> tuple[bool, str]:
     photo_text = extract_text(image_bytes)
     if document_number_matches(document_number, photo_text):
         return True, VALID_DETAIL
@@ -35,13 +40,13 @@ def validate_document_photo(document_number: str, image_bytes: bytes) -> tuple[b
 def _cpf_check_digit(digits: str) -> str:
     weight = len(digits) + 1
     total = sum(int(digit) * (weight - index) for index, digit in enumerate(digits))
-    remainder = total % 11
-    return "0" if remainder < 2 else str(11 - remainder)
+    remainder = total % CPF_LENGTH
+    return "0" if remainder < CPF_ZERO_REMAINDER_LIMIT else str(CPF_LENGTH - remainder)
 
 
 def is_valid_cpf(cpf: str) -> bool:
     digits = _only_digits(cpf)
-    if len(digits) != 11 or digits == digits[0] * 11:
+    if len(digits) != CPF_LENGTH or digits == digits[0] * CPF_LENGTH:
         return False
     first_digit = _cpf_check_digit(digits[:9])
     second_digit = _cpf_check_digit(digits[:9] + first_digit)

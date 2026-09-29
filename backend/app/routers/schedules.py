@@ -28,28 +28,63 @@ MIN_CARGO_ITEMS = 1
 MAX_CARGO_ITEMS = 30
 MAX_CARGO_ITEMS_JSON_LENGTH = 8 * 1024
 CHASSIS_LENGTH = 17
-INVALID_CHASSIS_MESSAGE = "Chassi inválido. Informe 17 letras e/ou números (sem espaços ou símbolos)."
+INVALID_CHASSIS_MESSAGE = (
+    "Chassi inválido. Informe 17 letras e/ou números (sem espaços ou símbolos)."
+)
 CPF_LENGTH = 11
 INVALID_CPF_MESSAGE = "CPF inválido. Confira os 11 dígitos digitados."
 CNH_LENGTH = 11
-INVALID_CNH_MESSAGE = "Número de registro da CNH inválido. Informe os 11 dígitos (9 do registro + 2 verificadores)."
+INVALID_CNH_MESSAGE = (
+    "Número de registro da CNH inválido. Informe os 11 dígitos (9 do registro + "
+    "2 verificadores)."
+)
 RG_MIN_LENGTH = 7
 RG_MAX_LENGTH = 9
 INVALID_RG_MESSAGE = (
-    "RG inválido. Informe de 7 a 9 caracteres (padrão estadual) ou, se for a nova Carteira de "
-    "Identidade Nacional, os 11 dígitos do CPF."
+    "RG inválido. Informe de 7 a 9 caracteres (padrão estadual) ou, se for a nova "
+    "Carteira de Identidade Nacional, os 11 dígitos do CPF."
 )
 VALID_UFS = {
-    "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB",
-    "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+    "AC",
+    "AL",
+    "AP",
+    "AM",
+    "BA",
+    "CE",
+    "DF",
+    "ES",
+    "GO",
+    "MA",
+    "MT",
+    "MS",
+    "MG",
+    "PA",
+    "PB",
+    "PR",
+    "PE",
+    "PI",
+    "RJ",
+    "RN",
+    "RS",
+    "RO",
+    "RR",
+    "SC",
+    "SP",
+    "SE",
+    "TO",
 }
 INVALID_UF_MESSAGE = "UF de nascimento inválida."
 
 INVALID_PLATE = HTTPException(
     status_code=400,
-    detail="Formato de placa inválido. Use o padrão Mercosul (ex.: ABC1D23) ou o padrão antigo (ex.: ABC1234).",
+    detail=(
+        "Formato de placa inválido. Use o padrão Mercosul (ex.: ABC1D23) ou o "
+        "padrão antigo (ex.: ABC1234)."
+    ),
 )
-INVALID_CARGO_ITEMS = HTTPException(status_code=422, detail="Lista de produtos da carga inválida.")
+INVALID_CARGO_ITEMS = HTTPException(
+    status_code=422, detail="Lista de produtos da carga inválida."
+)
 DUPLICATE_PLATE = HTTPException(
     status_code=409, detail="Já existe um agendamento para esta placa nesta data."
 )
@@ -60,7 +95,8 @@ DUPLICATE_VEHICLE_CHASSIS = HTTPException(
     status_code=409, detail="Já existe um agendamento para este chassi nesta data."
 )
 DUPLICATE_SCHEDULE = HTTPException(
-    status_code=409, detail="Já existe um agendamento com esta placa, motorista ou chassi nesta data."
+    status_code=409,
+    detail="Já existe um agendamento com esta placa, motorista ou chassi nesta data.",
 )
 
 
@@ -124,7 +160,9 @@ def _to_schedule_out(schedule: Schedule) -> ScheduleOut:
         origin_location=schedule.origin_location,
         destination_location=schedule.destination_location,
         cargo_items=[
-            CargoItemOut(id=item.id, product_name=item.product_name, category=item.category)
+            CargoItemOut(
+                id=item.id, product_name=item.product_name, category=item.category
+            )
             for item in schedule.cargo_items
         ],
         scheduled_date=schedule.scheduled_date,
@@ -154,7 +192,11 @@ def _clean_uf(value: str) -> str:
 
 
 def _clean_driver_document(document_type: DriverDocumentType, value: str) -> str:
-    stripped = _require_non_empty(value, max_length=MAX_DOCUMENT_LENGTH, message="Documento do motorista inválido.")
+    stripped = _require_non_empty(
+        value,
+        max_length=MAX_DOCUMENT_LENGTH,
+        message="Documento do motorista inválido.",
+    )
 
     if document_type == DriverDocumentType.CPF:
         digits = re.sub(r"\D", "", stripped)
@@ -190,14 +232,17 @@ def _parse_cargo_items(raw: str) -> list[CargoItemIn]:
         raise INVALID_CARGO_ITEMS
     try:
         payload = json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
-        raise INVALID_CARGO_ITEMS
-    if not isinstance(payload, list) or not MIN_CARGO_ITEMS <= len(payload) <= MAX_CARGO_ITEMS:
+    except (json.JSONDecodeError, TypeError) as error:
+        raise INVALID_CARGO_ITEMS from error
+    if (
+        not isinstance(payload, list)
+        or not MIN_CARGO_ITEMS <= len(payload) <= MAX_CARGO_ITEMS
+    ):
         raise INVALID_CARGO_ITEMS
     try:
         items = [CargoItemIn.model_validate(entry) for entry in payload]
-    except ValidationError:
-        raise INVALID_CARGO_ITEMS
+    except ValidationError as error:
+        raise INVALID_CARGO_ITEMS from error
     for item in items:
         if not item.product_name.strip() or len(item.product_name) > MAX_TEXT_LENGTH:
             raise INVALID_CARGO_ITEMS
@@ -205,21 +250,30 @@ def _parse_cargo_items(raw: str) -> list[CargoItemIn]:
 
 
 def _reject_duplicate_schedule(
-    db: Session, *, plate: str, driver_document: str, vehicle_chassis: str, scheduled_date: date
+    db: Session,
+    *,
+    plate: str,
+    driver_document: str,
+    vehicle_chassis: str,
+    scheduled_date: date,
 ) -> None:
     if db.execute(
-        select(Schedule.id).where(Schedule.plate == plate, Schedule.scheduled_date == scheduled_date)
+        select(Schedule.id).where(
+            Schedule.plate == plate, Schedule.scheduled_date == scheduled_date
+        )
     ).first():
         raise DUPLICATE_PLATE
     if db.execute(
         select(Schedule.id).where(
-            Schedule.driver_document == driver_document, Schedule.scheduled_date == scheduled_date
+            Schedule.driver_document == driver_document,
+            Schedule.scheduled_date == scheduled_date,
         )
     ).first():
         raise DUPLICATE_DRIVER_DOCUMENT
     if db.execute(
         select(Schedule.id).where(
-            Schedule.vehicle_chassis == vehicle_chassis, Schedule.scheduled_date == scheduled_date
+            Schedule.vehicle_chassis == vehicle_chassis,
+            Schedule.scheduled_date == scheduled_date,
         )
     ).first():
         raise DUPLICATE_VEHICLE_CHASSIS
@@ -229,21 +283,27 @@ async def _save_required_photo(photo: UploadFile) -> tuple[str, bytes]:
     if photo.content_type not in ALLOWED_CONTENT_TYPES:
         raise HTTPException(
             status_code=400,
-            detail="Tipo de arquivo não suportado. Envie uma imagem JPEG, PNG ou WebP.",
+            detail=(
+                "Tipo de arquivo não suportado. Envie uma imagem JPEG, PNG ou WebP."
+            ),
         )
     content = await photo.read(MAX_UPLOAD_BYTES + 1)
     if len(content) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="Imagem muito grande. O limite é de 5 MB.")
+        raise HTTPException(
+            status_code=413, detail="Imagem muito grande. O limite é de 5 MB."
+        )
     try:
         await run_in_threadpool(decode_image, content)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
-    path = await run_in_threadpool(save_photo, content, photo.content_type, subdir="schedules")
+    path = await run_in_threadpool(
+        save_photo, content, photo.content_type, subdir="schedules"
+    )
     return path, content
 
 
 @router.post("", response_model=ScheduleOut, status_code=201)
-async def create_schedule(
+async def create_schedule(  # noqa: PLR0913, PLR0917 - campos de formulário e dependências do FastAPI
     plate: str = Form(...),
     driver_name: str = Form(...),
     driver_birth_date: date = Form(...),
@@ -274,24 +334,46 @@ async def create_schedule(
     if plate_format(normalized_plate) is None:
         raise INVALID_PLATE
 
-    clean_driver_name = _require_non_empty(driver_name, max_length=MAX_TEXT_LENGTH, message="Nome do motorista inválido.")
+    clean_driver_name = _require_non_empty(
+        driver_name, max_length=MAX_TEXT_LENGTH, message="Nome do motorista inválido."
+    )
     clean_birth_place = _require_non_empty(
-        driver_birth_place, max_length=MAX_TEXT_LENGTH, message="Local de nascimento inválido."
+        driver_birth_place,
+        max_length=MAX_TEXT_LENGTH,
+        message="Local de nascimento inválido.",
     )
     clean_birth_state = _clean_uf(driver_birth_state)
-    clean_driver_document = _clean_driver_document(driver_document_type, driver_document)
-    clean_brand = _require_non_empty(vehicle_brand, max_length=60, message="Marca do veículo inválida.")
-    clean_model = _require_non_empty(vehicle_model, max_length=60, message="Modelo do veículo inválido.")
-    clean_year = _require_non_empty(vehicle_year, max_length=4, message="Ano do veículo inválido.")
+    clean_driver_document = _clean_driver_document(
+        driver_document_type, driver_document
+    )
+    clean_brand = _require_non_empty(
+        vehicle_brand, max_length=60, message="Marca do veículo inválida."
+    )
+    clean_model = _require_non_empty(
+        vehicle_model, max_length=60, message="Modelo do veículo inválido."
+    )
+    clean_year = _require_non_empty(
+        vehicle_year, max_length=4, message="Ano do veículo inválido."
+    )
     clean_chassis = _clean_chassis(vehicle_chassis)
-    clean_color = _require_non_empty(vehicle_color, max_length=40, message="Cor do veículo inválida.")
-    clean_origin = _require_non_empty(origin_location, max_length=MAX_TEXT_LENGTH, message="Origem inválida.")
+    clean_color = _require_non_empty(
+        vehicle_color, max_length=40, message="Cor do veículo inválida."
+    )
+    clean_origin = _require_non_empty(
+        origin_location, max_length=MAX_TEXT_LENGTH, message="Origem inválida."
+    )
     clean_destination = _require_non_empty(
         destination_location, max_length=MAX_TEXT_LENGTH, message="Destino inválido."
     )
-    clean_length_m = _clean_dimension_m(vehicle_length_m, message="Comprimento do veículo inválido.")
-    clean_height_m = _clean_dimension_m(vehicle_height_m, message="Altura do veículo inválida.")
-    clean_width_m = _clean_dimension_m(vehicle_width_m, message="Largura do veículo inválida.")
+    clean_length_m = _clean_dimension_m(
+        vehicle_length_m, message="Comprimento do veículo inválido."
+    )
+    clean_height_m = _clean_dimension_m(
+        vehicle_height_m, message="Altura do veículo inválida."
+    )
+    clean_width_m = _clean_dimension_m(
+        vehicle_width_m, message="Largura do veículo inválida."
+    )
     parsed_cargo_items = _parse_cargo_items(cargo_items)
 
     _reject_duplicate_schedule(
@@ -302,15 +384,20 @@ async def create_schedule(
         scheduled_date=scheduled_date,
     )
 
-    driver_document_photo_front_path, driver_document_photo_front_bytes = await _save_required_photo(
-        driver_document_photo_front
+    (
+        driver_document_photo_front_path,
+        driver_document_photo_front_bytes,
+    ) = await _save_required_photo(driver_document_photo_front)
+    driver_document_photo_back_path, _ = await _save_required_photo(
+        driver_document_photo_back
     )
-    driver_document_photo_back_path, _ = await _save_required_photo(driver_document_photo_back)
     vehicle_document_photo_path, _ = await _save_required_photo(vehicle_document_photo)
     manifest_photo_path, _ = await _save_required_photo(manifest_photo)
 
     is_valid, validation_detail = await run_in_threadpool(
-        validate_document_photo, clean_driver_document, driver_document_photo_front_bytes
+        validate_document_photo,
+        clean_driver_document,
+        driver_document_photo_front_bytes,
     )
 
     schedule = Schedule(
@@ -339,14 +426,17 @@ async def create_schedule(
         manifest_photo_path=manifest_photo_path,
         scheduled_date=scheduled_date,
         created_by_id=employee.id,
-        cargo_items=[CargoItem(product_name=item.product_name.strip(), category=item.category) for item in parsed_cargo_items],
+        cargo_items=[
+            CargoItem(product_name=item.product_name.strip(), category=item.category)
+            for item in parsed_cargo_items
+        ],
     )
     db.add(schedule)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as error:
         db.rollback()
-        raise DUPLICATE_SCHEDULE
+        raise DUPLICATE_SCHEDULE from error
     db.refresh(schedule)
     return _to_schedule_out(schedule)
 
@@ -380,41 +470,53 @@ def _get_schedule_or_404(schedule_id: int, db: Session) -> Schedule:
 
 @router.get("/{schedule_id}/driver-document-photo-front")
 def get_driver_document_photo_front(
-    schedule_id: int, db: Session = Depends(get_db), _employee: Employee = Depends(get_current_employee)
+    schedule_id: int,
+    db: Session = Depends(get_db),
+    _employee: Employee = Depends(get_current_employee),
 ) -> FileResponse:
     schedule = _get_schedule_or_404(schedule_id, db)
     return _serve_schedule_photo(
         schedule.driver_document_photo_front_path,
-        "Arquivo da foto da frente do documento do motorista não foi encontrado no servidor.",
+        "Arquivo da foto da frente do documento do motorista não foi encontrado no "
+        "servidor.",
     )
 
 
 @router.get("/{schedule_id}/driver-document-photo-back")
 def get_driver_document_photo_back(
-    schedule_id: int, db: Session = Depends(get_db), _employee: Employee = Depends(get_current_employee)
+    schedule_id: int,
+    db: Session = Depends(get_db),
+    _employee: Employee = Depends(get_current_employee),
 ) -> FileResponse:
     schedule = _get_schedule_or_404(schedule_id, db)
     return _serve_schedule_photo(
         schedule.driver_document_photo_back_path,
-        "Arquivo da foto do verso do documento do motorista não foi encontrado no servidor.",
+        "Arquivo da foto do verso do documento do motorista não foi encontrado no "
+        "servidor.",
     )
 
 
 @router.get("/{schedule_id}/vehicle-document-photo")
 def get_vehicle_document_photo(
-    schedule_id: int, db: Session = Depends(get_db), _employee: Employee = Depends(get_current_employee)
+    schedule_id: int,
+    db: Session = Depends(get_db),
+    _employee: Employee = Depends(get_current_employee),
 ) -> FileResponse:
     schedule = _get_schedule_or_404(schedule_id, db)
     return _serve_schedule_photo(
-        schedule.vehicle_document_photo_path, "Arquivo da foto do documento do veículo não foi encontrado no servidor."
+        schedule.vehicle_document_photo_path,
+        "Arquivo da foto do documento do veículo não foi encontrado no servidor.",
     )
 
 
 @router.get("/{schedule_id}/manifest-photo")
 def get_manifest_photo(
-    schedule_id: int, db: Session = Depends(get_db), _employee: Employee = Depends(get_current_employee)
+    schedule_id: int,
+    db: Session = Depends(get_db),
+    _employee: Employee = Depends(get_current_employee),
 ) -> FileResponse:
     schedule = _get_schedule_or_404(schedule_id, db)
     return _serve_schedule_photo(
-        schedule.manifest_photo_path, "Arquivo do manifesto de carga não foi encontrado no servidor."
+        schedule.manifest_photo_path,
+        "Arquivo do manifesto de carga não foi encontrado no servidor.",
     )

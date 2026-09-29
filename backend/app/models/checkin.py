@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db import Base
 
 
-class CheckInStatus(str, enum.Enum):
+class CheckInStatus(enum.StrEnum):
     WAITING = "waiting"
     ADMITTED = "admitted"
     CANCELLED = "cancelled"
@@ -15,9 +15,7 @@ class CheckInStatus(str, enum.Enum):
 
 class CheckIn(Base):
     __tablename__ = "checkins"
-    __table_args__ = (
-        CheckConstraint("plate ~ '^[A-Z0-9]{7}$'", name="plate_format"),
-    )
+    __table_args__ = (CheckConstraint("plate ~ '^[A-Z0-9]{7}$'", name="plate_format"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     plate: Mapped[str] = mapped_column(String(7), index=True)
@@ -41,4 +39,7 @@ class CheckIn(Base):
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     def __repr__(self) -> str:
-        return f"CheckIn(id={self.id!r}, plate={self.plate!r}, status={self.status.value!r})"
+        return (
+            f"CheckIn(id={self.id!r}, plate={self.plate!r}, "
+            f"status={self.status.value!r})"
+        )

@@ -1,47 +1,66 @@
 from datetime import date, timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.main import app
+from app.models import CheckIn, CheckInStatus
 from app.services.ocr_service import PlateReading
 from app.services.plate_format import PlateFormat
 from app.services.vehicle_data_api import VehicleData, get_vehicle_data_provider
 
-READING = PlateReading(plate="ABC1D23", format=PlateFormat.MERCOSUL, confidence=0.98, needs_review=False, detections=[])
-NO_PLATE_READING = PlateReading(plate=None, format=None, confidence=None, needs_review=True, detections=[])
-VEHICLE_DATA = VehicleData(brand="FIAT", model="UNO", year="2015", uf="SP", color="Branco")
+READING = PlateReading(
+    plate="ABC1D23",
+    format=PlateFormat.MERCOSUL,
+    confidence=0.98,
+    needs_review=False,
+    detections=[],
+)
+NO_PLATE_READING = PlateReading(
+    plate=None, format=None, confidence=None, needs_review=True, detections=[]
+)
+VEHICLE_DATA = VehicleData(
+    brand="FIAT", model="UNO", year="2015", uf="SP", color="Branco"
+)
 
 
 class _FakeVehicleProvider:
     def __init__(self, data):
         self._data = data
 
-    async def lookup(self, plate):
+    async def lookup(self, _plate):
         return self._data
 
 
 @pytest.fixture
 def vehicle_provider_found():
-    app.dependency_overrides[get_vehicle_data_provider] = lambda: _FakeVehicleProvider(VEHICLE_DATA)
+    app.dependency_overrides[get_vehicle_data_provider] = lambda: _FakeVehicleProvider(
+        VEHICLE_DATA
+    )
     yield
     del app.dependency_overrides[get_vehicle_data_provider]
 
 
 @pytest.fixture
 def vehicle_provider_not_found():
-    app.dependency_overrides[get_vehicle_data_provider] = lambda: _FakeVehicleProvider(None)
+    app.dependency_overrides[get_vehicle_data_provider] = lambda: _FakeVehicleProvider(
+        None
+    )
     yield
     del app.dependency_overrides[get_vehicle_data_provider]
 
 
 def _upload(authenticated_client):
-    return authenticated_client.post("/ocr/upload", files={"file": ("placa.jpg", b"fake-image-bytes", "image/jpeg")})
+    return authenticated_client.post(
+        "/ocr/upload", files={"file": ("placa.jpg", b"fake-image-bytes", "image/jpeg")}
+    )
 
 
-@patch("app.routers.ocr.read_plate", return_value=READING)
+@patch("app.routers.ocr.read_plate", new=MagicMock(return_value=READING))
+@pytest.mark.usefixtures("vehicle_provider_found")
 def test_scheduled_for_today_shows_schedule_and_vehicle_data(
-    _, authenticated_client, employee, make_schedule, vehicle_provider_found
+    authenticated_client, employee, make_schedule
 ):
     make_schedule(employee, scheduled_date=date.today())
 
@@ -50,19 +69,24 @@ def test_scheduled_for_today_shows_schedule_and_vehicle_data(
     assert body["checkin"]["found"] is True
     assert body["checkin"]["schedule"]["status"] == "on_time"
     assert body["checkin"]["schedule"]["driver_name"] == "João da Silva"
-    assert body["checkin"]["schedule"]["cargo_items"] == [{"product_name": "Grãos", "category": "nao_perecivel"}]
+    assert body["checkin"]["schedule"]["cargo_items"] == [
+        {"product_name": "Grãos", "category": "nao_perecivel"}
+    ]
     assert body["checkin"]["schedule"]["driver_document_validated"] is True
 
 
-@patch("app.routers.ocr.read_plate", return_value=READING)
+@patch("app.routers.ocr.read_plate", new=MagicMock(return_value=READING))
+@pytest.mark.usefixtures("vehicle_provider_found")
 def test_scheduled_shows_the_driver_document_validation_result(
-    _, authenticated_client, employee, make_schedule, vehicle_provider_found
+    authenticated_client, employee, make_schedule
 ):
     make_schedule(
         employee,
         scheduled_date=date.today(),
         driver_document_validated=False,
-        driver_document_validation_detail="Número do documento não foi encontrado na foto — confira manualmente.",
+        driver_document_validation_detail=(
+            "Número do documento não foi encontrado na foto — confira manualmente."
+        ),
     )
 
     body = _upload(authenticated_client).json()
@@ -73,9 +97,10 @@ def test_scheduled_shows_the_driver_document_validation_result(
     )
 
 
-@patch("app.routers.ocr.read_plate", return_value=READING)
+@patch("app.routers.ocr.read_plate", new=MagicMock(return_value=READING))
+@pytest.mark.usefixtures("vehicle_provider_found")
 def test_scheduled_vehicle_shows_the_registered_vehicle_not_the_external_lookup(
-    _, authenticated_client, employee, make_schedule, vehicle_provider_found
+    authenticated_client, employee, make_schedule
 ):
     make_schedule(
         employee,
@@ -89,25 +114,35 @@ def test_scheduled_vehicle_shows_the_registered_vehicle_not_the_external_lookup(
     body = _upload(authenticated_client).json()
 
     assert body["checkin"]["vehicle_data"] == {
-        "brand": "Volvo", "model": "FH 540", "year": "2020", "uf": None, "color": "Branco", "is_mock": False
+        "brand": "Volvo",
+        "model": "FH 540",
+        "year": "2020",
+        "uf": None,
+        "color": "Branco",
+        "is_mock": False,
     }
 
 
-@patch("app.routers.ocr.read_plate", return_value=READING)
+@patch("app.routers.ocr.read_plate", new=MagicMock(return_value=READING))
+@pytest.mark.usefixtures("vehicle_provider_found")
 def test_scheduled_for_a_future_date_is_early(
-    _, authenticated_client, employee, make_schedule, vehicle_provider_found
+    authenticated_client, employee, make_schedule
 ):
     scheduled = make_schedule(employee, scheduled_date=date.today() + timedelta(days=2))
 
     body = _upload(authenticated_client).json()
 
     assert body["checkin"]["schedule"]["status"] == "early"
-    assert body["checkin"]["schedule"]["scheduled_date"] == scheduled.scheduled_date.isoformat()
+    assert (
+        body["checkin"]["schedule"]["scheduled_date"]
+        == scheduled.scheduled_date.isoformat()
+    )
 
 
-@patch("app.routers.ocr.read_plate", return_value=READING)
+@patch("app.routers.ocr.read_plate", new=MagicMock(return_value=READING))
+@pytest.mark.usefixtures("vehicle_provider_found")
 def test_scheduled_for_a_past_date_is_late(
-    _, authenticated_client, employee, make_schedule, vehicle_provider_found
+    authenticated_client, employee, make_schedule
 ):
     make_schedule(employee, scheduled_date=date.today() - timedelta(days=1))
 
@@ -116,8 +151,9 @@ def test_scheduled_for_a_past_date_is_late(
     assert body["checkin"]["schedule"]["status"] == "late"
 
 
-@patch("app.routers.ocr.read_plate", return_value=READING)
-def test_no_schedule_but_found_in_the_external_api(_, authenticated_client, vehicle_provider_found):
+@patch("app.routers.ocr.read_plate", new=MagicMock(return_value=READING))
+@pytest.mark.usefixtures("vehicle_provider_found")
+def test_no_schedule_but_found_in_the_external_api(authenticated_client):
     body = _upload(authenticated_client).json()
 
     assert body["checkin"]["found"] is True
@@ -125,8 +161,9 @@ def test_no_schedule_but_found_in_the_external_api(_, authenticated_client, vehi
     assert body["checkin"]["vehicle_data"]["brand"] == "FIAT"
 
 
-@patch("app.routers.ocr.read_plate", return_value=READING)
-def test_not_found_in_any_source(_, authenticated_client, vehicle_provider_not_found):
+@patch("app.routers.ocr.read_plate", new=MagicMock(return_value=READING))
+@pytest.mark.usefixtures("vehicle_provider_not_found")
+def test_not_found_in_any_source(authenticated_client):
     body = _upload(authenticated_client).json()
 
     assert body["checkin"]["found"] is False
@@ -134,9 +171,10 @@ def test_not_found_in_any_source(_, authenticated_client, vehicle_provider_not_f
     assert body["checkin"]["vehicle_data"] is None
 
 
-@patch("app.routers.ocr.read_plate", return_value=READING)
-def test_schedule_still_shows_the_registered_vehicle_even_when_the_external_api_is_unavailable(
-    _, authenticated_client, employee, make_schedule, vehicle_provider_not_found
+@patch("app.routers.ocr.read_plate", new=MagicMock(return_value=READING))
+@pytest.mark.usefixtures("vehicle_provider_not_found")
+def test_schedule_still_shows_registered_vehicle_when_external_api_is_unavailable(
+    authenticated_client, employee, make_schedule
 ):
     make_schedule(employee, scheduled_date=date.today())
 
@@ -148,14 +186,18 @@ def test_schedule_still_shows_the_registered_vehicle_even_when_the_external_api_
     assert body["checkin"]["vehicle_data"]["is_mock"] is False
 
 
-@patch("app.routers.ocr.read_plate", return_value=NO_PLATE_READING)
-def test_no_checkin_context_when_no_plate_was_read(_, authenticated_client, vehicle_provider_found):
+@patch("app.routers.ocr.read_plate", new=MagicMock(return_value=NO_PLATE_READING))
+@pytest.mark.usefixtures("vehicle_provider_found")
+def test_no_checkin_context_when_no_plate_was_read(authenticated_client):
     body = _upload(authenticated_client).json()
 
     assert body["checkin"] is None
 
 
-def test_manual_entry_also_gets_a_checkin_context(authenticated_client, employee, make_schedule, vehicle_provider_found):
+@pytest.mark.usefixtures("vehicle_provider_found")
+def test_manual_entry_also_gets_a_checkin_context(
+    authenticated_client, employee, make_schedule
+):
     make_schedule(employee, scheduled_date=date.today())
 
     response = authenticated_client.post("/ocr/manual", data={"plate": "ABC1D23"})
@@ -166,10 +208,11 @@ def test_manual_entry_also_gets_a_checkin_context(authenticated_client, employee
     assert body["checkin"]["schedule"]["status"] == "on_time"
 
 
-@patch("app.routers.ocr.read_plate", return_value=READING)
-def test_upload_automatically_creates_a_waiting_checkin(_, authenticated_client, db_session, vehicle_provider_found):
-    from app.models import CheckIn, CheckInStatus
-
+@patch("app.routers.ocr.read_plate", new=MagicMock(return_value=READING))
+@pytest.mark.usefixtures("vehicle_provider_found")
+def test_upload_automatically_creates_a_waiting_checkin(
+    authenticated_client, db_session
+):
     body = _upload(authenticated_client).json()
 
     checkin_id = body["checkin"]["checkin_id"]
@@ -179,14 +222,11 @@ def test_upload_automatically_creates_a_waiting_checkin(_, authenticated_client,
     assert record.status == CheckInStatus.WAITING
 
 
-@patch("app.routers.ocr.read_plate", return_value=READING)
+@patch("app.routers.ocr.read_plate", new=MagicMock(return_value=READING))
+@pytest.mark.usefixtures("vehicle_provider_found")
 def test_upload_still_succeeds_when_the_automatic_checkin_fails_to_save(
-    _, authenticated_client, db_session, vehicle_provider_found
+    authenticated_client, db_session
 ):
-    from sqlalchemy.exc import SQLAlchemyError
-
-    from app.models import CheckIn
-
     with patch.object(db_session, "commit", side_effect=SQLAlchemyError("boom")):
         response = _upload(authenticated_client)
 
@@ -197,12 +237,11 @@ def test_upload_still_succeeds_when_the_automatic_checkin_fails_to_save(
     assert db_session.query(CheckIn).count() == 0
 
 
-@patch("app.routers.ocr.read_plate", return_value=READING)
+@patch("app.routers.ocr.read_plate", new=MagicMock(return_value=READING))
+@pytest.mark.usefixtures("vehicle_provider_found")
 def test_upload_links_the_automatic_checkin_to_the_matched_schedule(
-    _, authenticated_client, db_session, employee, make_schedule, vehicle_provider_found
+    authenticated_client, db_session, employee, make_schedule
 ):
-    from app.models import CheckIn
-
     schedule = make_schedule(employee, scheduled_date=date.today())
 
     body = _upload(authenticated_client).json()
@@ -211,9 +250,10 @@ def test_upload_links_the_automatic_checkin_to_the_matched_schedule(
     assert record.schedule_id == schedule.id
 
 
-def test_manual_entry_automatically_creates_a_waiting_checkin(authenticated_client, db_session, vehicle_provider_found):
-    from app.models import CheckIn, CheckInStatus
-
+@pytest.mark.usefixtures("vehicle_provider_found")
+def test_manual_entry_automatically_creates_a_waiting_checkin(
+    authenticated_client, db_session
+):
     body = authenticated_client.post("/ocr/manual", data={"plate": "ABC1D23"}).json()
 
     record = db_session.get(CheckIn, body["checkin"]["checkin_id"])
@@ -221,10 +261,9 @@ def test_manual_entry_automatically_creates_a_waiting_checkin(authenticated_clie
     assert record.status == CheckInStatus.WAITING
 
 
-@patch("app.routers.ocr.read_plate", return_value=NO_PLATE_READING)
-def test_no_checkin_is_created_when_no_plate_was_read(_, authenticated_client, db_session, vehicle_provider_found):
-    from app.models import CheckIn
-
+@patch("app.routers.ocr.read_plate", new=MagicMock(return_value=NO_PLATE_READING))
+@pytest.mark.usefixtures("vehicle_provider_found")
+def test_no_checkin_is_created_when_no_plate_was_read(authenticated_client, db_session):
     _upload(authenticated_client)
 
     assert db_session.query(CheckIn).count() == 0

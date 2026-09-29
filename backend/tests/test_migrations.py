@@ -13,7 +13,10 @@ def test_migrations_match_the_models(test_engine):
         context = MigrationContext.configure(connection, opts={"compare_type": True})
         diff = compare_metadata(context, Base.metadata)
 
-    assert diff == [], f"Modelos e migrações fora de sincronia — rode alembic revision --autogenerate: {diff}"
+    assert diff == [], (
+        "Modelos e migrações fora de sincronia — "
+        f"rode alembic revision --autogenerate: {diff}"
+    )
 
 
 def test_downgrade_and_upgrade_are_reversible(test_engine):
@@ -23,5 +26,15 @@ def test_downgrade_and_upgrade_are_reversible(test_engine):
     assert "checkins" not in inspect(test_engine).get_table_names()
 
     command.upgrade(config, "head")
-    columns = {column["name"] for column in inspect(test_engine).get_columns("checkins")}
-    assert columns == {"id", "plate", "created_at", "status", "created_by_id", "schedule_id", "decided_at"}
+    columns = {
+        column["name"] for column in inspect(test_engine).get_columns("checkins")
+    }
+    assert columns == {
+        "id",
+        "plate",
+        "created_at",
+        "status",
+        "created_by_id",
+        "schedule_id",
+        "decided_at",
+    }

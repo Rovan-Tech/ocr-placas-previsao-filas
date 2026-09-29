@@ -1,4 +1,3 @@
-
 import uuid
 from pathlib import Path
 
@@ -15,7 +14,9 @@ def _base_dir() -> Path:
     return Path(settings.upload_dir).resolve()
 
 
-def save_photo(content: bytes, content_type: str, *, subdir: str = "manual_reviews") -> str:
+def save_photo(
+    content: bytes, content_type: str, *, subdir: str = "manual_reviews"
+) -> str:
     extension = EXTENSION_BY_CONTENT_TYPE.get(content_type, ".bin")
     relative_path = Path(subdir) / f"{uuid.uuid4().hex}{extension}"
 

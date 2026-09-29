@@ -1,14 +1,20 @@
-from app.services.document_validation import document_number_matches, is_valid_cpf, validate_document_photo
+import cv2
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+
+from app.services.document_validation import (
+    document_number_matches,
+    is_valid_cpf,
+    validate_document_photo,
+)
 
 
 def _document_photo_bytes(text: str) -> bytes:
-    import cv2
-    import numpy as np
-    from PIL import Image, ImageDraw, ImageFont
-
     image = Image.new("RGB", (600, 200), (255, 255, 255))
     draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 36)
+    font = ImageFont.truetype(
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 36
+    )
     draw.text((20, 80), text, font=font, fill=(0, 0, 0))
     array = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
     ok, encoded = cv2.imencode(".jpg", array)

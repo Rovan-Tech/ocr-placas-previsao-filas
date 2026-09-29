@@ -18,5 +18,7 @@ def database_healthcheck(db: Session = Depends(get_db)) -> dict[str, str]:
     try:
         db.execute(text("SELECT 1"))
     except SQLAlchemyError as error:
-        raise HTTPException(status_code=503, detail="Banco de dados indisponível.") from error
+        raise HTTPException(
+            status_code=503, detail="Banco de dados indisponível."
+        ) from error
     return {"status": "ok", "database": "ok"}

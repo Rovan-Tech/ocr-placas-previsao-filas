@@ -22,7 +22,9 @@ DEMO_SAMPLE_NAMES = [
     "reflexo",
 ]
 
-SAMPLE_NOT_FOUND = HTTPException(status_code=404, detail="Exemplo de demonstração não encontrado.")
+SAMPLE_NOT_FOUND = HTTPException(
+    status_code=404, detail="Exemplo de demonstração não encontrado."
+)
 
 
 @lru_cache(maxsize=1)
@@ -55,7 +57,9 @@ class DemoPlateReadResponse(BaseModel):
 @router.get("/demo-samples", response_model=list[DemoSampleInfo])
 def list_demo_samples() -> list[DemoSampleInfo]:
     return [
-        DemoSampleInfo(id=sample.name, plate=sample.plate, description=sample.description)
+        DemoSampleInfo(
+            id=sample.name, plate=sample.plate, description=sample.description
+        )
         for sample in demo_samples()
     ]
 
@@ -69,14 +73,17 @@ def get_demo_sample_image(sample_id: str) -> Response:
 @router.post("/demo-upload", response_model=DemoPlateReadResponse)
 @limiter.limit(lambda: settings.ocr_demo_rate_limit)
 async def demo_upload(
-    request: Request,
+    request: Request,  # noqa: ARG001 - exigido pelo limiter do slowapi
     sample_id: str | None = Form(None),
     file: UploadFile | None = File(None),
 ) -> DemoPlateReadResponse:
     if sample_id is not None and file is not None:
         raise HTTPException(
             status_code=422,
-            detail="Envie um exemplo pré-carregado (sample_id) ou uma foto (file), não os dois.",
+            detail=(
+                "Envie um exemplo pré-carregado (sample_id) ou uma foto (file), "
+                "não os dois."
+            ),
         )
 
     if sample_id is not None:
@@ -85,11 +92,15 @@ async def demo_upload(
         if file.content_type not in ALLOWED_CONTENT_TYPES:
             raise HTTPException(
                 status_code=400,
-                detail="Tipo de arquivo não suportado. Envie uma imagem JPEG, PNG ou WebP.",
+                detail=(
+                    "Tipo de arquivo não suportado. Envie uma imagem JPEG, PNG ou WebP."
+                ),
             )
         image_bytes = await file.read(MAX_UPLOAD_BYTES + 1)
         if len(image_bytes) > MAX_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail="Imagem muito grande. O limite é de 5 MB.")
+            raise HTTPException(
+                status_code=413, detail="Imagem muito grande. O limite é de 5 MB."
+            )
     else:
         raise HTTPException(
             status_code=422,

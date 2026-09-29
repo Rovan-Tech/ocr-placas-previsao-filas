@@ -1,10 +1,9 @@
-
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Protocol
 
 
-class VerificationStatus(str, Enum):
+class VerificationStatus(StrEnum):
     NOT_CHECKED = "not_checked"
     REGULAR = "regular"
     IRREGULAR = "irregular"
@@ -24,11 +23,13 @@ class PlateVerifier(Protocol):
 
 
 class NotConfiguredVerifier:
-
-    def verify(self, plate: str) -> PlateVerification:
+    def verify(self, plate: str) -> PlateVerification:  # noqa: ARG002 - assinatura do protocolo
         return PlateVerification(
             status=VerificationStatus.NOT_CHECKED,
-            detail="Placa não verificada na base oficial (integração com a SENATRAN não configurada).",
+            detail=(
+                "Placa não verificada na base oficial (integração com a SENATRAN não "
+                "configurada)."
+            ),
         )
 
 

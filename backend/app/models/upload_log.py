@@ -8,18 +8,25 @@ from app.db import Base
 from app.services.plate_format import PlateFormat
 
 
-class UploadEndpoint(str, enum.Enum):
+class UploadEndpoint(enum.StrEnum):
     UPLOAD = "upload"
     MANUAL = "manual"
 
 
 class UploadLog(Base):
-
     __tablename__ = "upload_logs"
     __table_args__ = (
-        CheckConstraint("ocr_plate IS NULL OR ocr_plate ~ '^[A-Z0-9]{7}$'", name="ocr_plate_format"),
-        CheckConstraint("manual_plate IS NULL OR manual_plate ~ '^[A-Z0-9]{7}$'", name="manual_plate_format"),
-        CheckConstraint("final_plate IS NULL OR final_plate ~ '^[A-Z0-9]{7}$'", name="final_plate_format"),
+        CheckConstraint(
+            "ocr_plate IS NULL OR ocr_plate ~ '^[A-Z0-9]{7}$'", name="ocr_plate_format"
+        ),
+        CheckConstraint(
+            "manual_plate IS NULL OR manual_plate ~ '^[A-Z0-9]{7}$'",
+            name="manual_plate_format",
+        ),
+        CheckConstraint(
+            "final_plate IS NULL OR final_plate ~ '^[A-Z0-9]{7}$'",
+            name="final_plate_format",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -59,4 +66,7 @@ class UploadLog(Base):
     )
 
     def __repr__(self) -> str:
-        return f"UploadLog(id={self.id!r}, employee_id={self.employee_id!r}, endpoint={self.endpoint!r})"
+        return (
+            f"UploadLog(id={self.id!r}, employee_id={self.employee_id!r}, "
+            f"endpoint={self.endpoint!r})"
+        )

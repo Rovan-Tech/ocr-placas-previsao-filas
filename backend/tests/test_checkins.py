@@ -1,16 +1,22 @@
+from datetime import UTC, datetime, timedelta
+
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.models import CheckIn, CheckInStatus
 
 client = TestClient(app)
 
 
 class TestCreateCheckin:
-    def test_records_an_authorized_entry_linked_to_a_schedule(self, authenticated_client, employee, make_schedule):
+    def test_records_an_authorized_entry_linked_to_a_schedule(
+        self, authenticated_client, employee, make_schedule
+    ):
         schedule = make_schedule(employee, plate="ABC1D23")
 
         response = authenticated_client.post(
-            "/checkins", data={"plate": "ABC1D23", "status": "admitted", "schedule_id": schedule.id}
+            "/checkins",
+            data={"plate": "ABC1D23", "status": "admitted", "schedule_id": schedule.id},
         )
 
         assert response.status_code == 201
@@ -20,20 +26,31 @@ class TestCreateCheckin:
         assert body["schedule_id"] == schedule.id
 
     def test_rejects_authorizing_without_any_schedule(self, authenticated_client):
-        response = authenticated_client.post("/checkins", data={"plate": "ABC1D23", "status": "admitted"})
+        response = authenticated_client.post(
+            "/checkins", data={"plate": "ABC1D23", "status": "admitted"}
+        )
 
         assert response.status_code == 422
 
     def test_rejects_denying_without_any_schedule(self, authenticated_client):
-        response = authenticated_client.post("/checkins", data={"plate": "ABC1D23", "status": "cancelled"})
+        response = authenticated_client.post(
+            "/checkins", data={"plate": "ABC1D23", "status": "cancelled"}
+        )
 
         assert response.status_code == 422
 
-    def test_records_a_denied_entry_linked_to_a_schedule(self, authenticated_client, employee, make_schedule):
+    def test_records_a_denied_entry_linked_to_a_schedule(
+        self, authenticated_client, employee, make_schedule
+    ):
         schedule = make_schedule(employee, plate="XYZ9A87")
 
         response = authenticated_client.post(
-            "/checkins", data={"plate": "XYZ9A87", "status": "cancelled", "schedule_id": schedule.id}
+            "/checkins",
+            data={
+                "plate": "XYZ9A87",
+                "status": "cancelled",
+                "schedule_id": schedule.id,
+            },
         )
 
         assert response.status_code == 201
@@ -42,42 +59,51 @@ class TestCreateCheckin:
         assert body["schedule_id"] == schedule.id
 
     def test_rejects_an_invalid_plate(self, authenticated_client):
-        response = authenticated_client.post("/checkins", data={"plate": "NAO-E-PLACA", "status": "admitted"})
+        response = authenticated_client.post(
+            "/checkins", data={"plate": "NAO-E-PLACA", "status": "admitted"}
+        )
 
         assert response.status_code == 400
 
     def test_rejects_the_waiting_status(self, authenticated_client):
-        response = authenticated_client.post("/checkins", data={"plate": "ABC1D23", "status": "waiting"})
+        response = authenticated_client.post(
+            "/checkins", data={"plate": "ABC1D23", "status": "waiting"}
+        )
 
         assert response.status_code == 422
 
     def test_rejects_an_unknown_schedule_id(self, authenticated_client):
         response = authenticated_client.post(
-            "/checkins", data={"plate": "ABC1D23", "status": "admitted", "schedule_id": 999999}
+            "/checkins",
+            data={"plate": "ABC1D23", "status": "admitted", "schedule_id": 999999},
         )
 
         assert response.status_code == 404
 
     def test_requires_authentication(self):
-        response = client.post("/checkins", data={"plate": "ABC1D23", "status": "admitted"})
+        response = client.post(
+            "/checkins", data={"plate": "ABC1D23", "status": "admitted"}
+        )
 
         assert response.status_code == 401
 
     def test_updates_the_existing_waiting_checkin_instead_of_creating_a_new_one(
         self, authenticated_client, employee, make_schedule, db_session
     ):
-        from app.models import CheckIn, CheckInStatus
-
         schedule = make_schedule(employee, plate="ABC1D23")
         waiting = CheckIn(
-            plate="ABC1D23", status=CheckInStatus.WAITING, created_by_id=employee.id, schedule_id=schedule.id
+            plate="ABC1D23",
+            status=CheckInStatus.WAITING,
+            created_by_id=employee.id,
+            schedule_id=schedule.id,
         )
         db_session.add(waiting)
         db_session.flush()
         db_session.refresh(waiting)
 
         response = authenticated_client.post(
-            "/checkins", data={"plate": "ABC1D23", "status": "admitted", "checkin_id": waiting.id}
+            "/checkins",
+            data={"plate": "ABC1D23", "status": "admitted", "checkin_id": waiting.id},
         )
 
         assert response.status_code == 201
@@ -89,17 +115,22 @@ class TestCreateCheckin:
     def test_updating_a_waiting_checkin_sets_its_schedule_when_provided(
         self, authenticated_client, employee, make_schedule, db_session
     ):
-        from app.models import CheckIn, CheckInStatus
-
         schedule = make_schedule(employee, plate="ABC1D23")
-        waiting = CheckIn(plate="ABC1D23", status=CheckInStatus.WAITING, created_by_id=employee.id)
+        waiting = CheckIn(
+            plate="ABC1D23", status=CheckInStatus.WAITING, created_by_id=employee.id
+        )
         db_session.add(waiting)
         db_session.flush()
         db_session.refresh(waiting)
 
         response = authenticated_client.post(
             "/checkins",
-            data={"plate": "ABC1D23", "status": "admitted", "checkin_id": waiting.id, "schedule_id": schedule.id},
+            data={
+                "plate": "ABC1D23",
+                "status": "admitted",
+                "checkin_id": waiting.id,
+                "schedule_id": schedule.id,
+            },
         )
 
         assert response.status_code == 201
@@ -110,15 +141,16 @@ class TestCreateCheckin:
     def test_rejects_updating_a_waiting_checkin_to_admitted_without_a_schedule(
         self, authenticated_client, employee, db_session
     ):
-        from app.models import CheckIn, CheckInStatus
-
-        waiting = CheckIn(plate="ABC1D23", status=CheckInStatus.WAITING, created_by_id=employee.id)
+        waiting = CheckIn(
+            plate="ABC1D23", status=CheckInStatus.WAITING, created_by_id=employee.id
+        )
         db_session.add(waiting)
         db_session.flush()
         db_session.refresh(waiting)
 
         response = authenticated_client.post(
-            "/checkins", data={"plate": "ABC1D23", "status": "admitted", "checkin_id": waiting.id}
+            "/checkins",
+            data={"plate": "ABC1D23", "status": "admitted", "checkin_id": waiting.id},
         )
 
         assert response.status_code == 422
@@ -126,15 +158,16 @@ class TestCreateCheckin:
     def test_rejects_updating_a_waiting_checkin_to_cancelled_without_a_schedule(
         self, authenticated_client, employee, db_session
     ):
-        from app.models import CheckIn, CheckInStatus
-
-        waiting = CheckIn(plate="ABC1D23", status=CheckInStatus.WAITING, created_by_id=employee.id)
+        waiting = CheckIn(
+            plate="ABC1D23", status=CheckInStatus.WAITING, created_by_id=employee.id
+        )
         db_session.add(waiting)
         db_session.flush()
         db_session.refresh(waiting)
 
         response = authenticated_client.post(
-            "/checkins", data={"plate": "ABC1D23", "status": "cancelled", "checkin_id": waiting.id}
+            "/checkins",
+            data={"plate": "ABC1D23", "status": "cancelled", "checkin_id": waiting.id},
         )
 
         assert response.status_code == 422
@@ -142,17 +175,22 @@ class TestCreateCheckin:
     def test_falls_back_to_creating_when_the_checkin_id_belongs_to_a_different_plate(
         self, authenticated_client, employee, make_schedule, db_session
     ):
-        from app.models import CheckIn, CheckInStatus
-
         schedule = make_schedule(employee, plate="XYZ9A87")
-        waiting = CheckIn(plate="ABC1D23", status=CheckInStatus.WAITING, created_by_id=employee.id)
+        waiting = CheckIn(
+            plate="ABC1D23", status=CheckInStatus.WAITING, created_by_id=employee.id
+        )
         db_session.add(waiting)
         db_session.flush()
         db_session.refresh(waiting)
 
         response = authenticated_client.post(
             "/checkins",
-            data={"plate": "XYZ9A87", "status": "admitted", "checkin_id": waiting.id, "schedule_id": schedule.id},
+            data={
+                "plate": "XYZ9A87",
+                "status": "admitted",
+                "checkin_id": waiting.id,
+                "schedule_id": schedule.id,
+            },
         )
 
         assert response.status_code == 201
@@ -163,17 +201,22 @@ class TestCreateCheckin:
     def test_falls_back_to_creating_when_the_checkin_id_is_already_decided(
         self, authenticated_client, employee, make_schedule, db_session
     ):
-        from app.models import CheckIn, CheckInStatus
-
         schedule = make_schedule(employee, plate="ABC1D23")
-        decided = CheckIn(plate="ABC1D23", status=CheckInStatus.ADMITTED, created_by_id=employee.id)
+        decided = CheckIn(
+            plate="ABC1D23", status=CheckInStatus.ADMITTED, created_by_id=employee.id
+        )
         db_session.add(decided)
         db_session.flush()
         db_session.refresh(decided)
 
         response = authenticated_client.post(
             "/checkins",
-            data={"plate": "ABC1D23", "status": "cancelled", "checkin_id": decided.id, "schedule_id": schedule.id},
+            data={
+                "plate": "ABC1D23",
+                "status": "cancelled",
+                "checkin_id": decided.id,
+                "schedule_id": schedule.id,
+            },
         )
 
         assert response.status_code == 201
@@ -186,23 +229,43 @@ class TestCreateCheckin:
 
         response = authenticated_client.post(
             "/checkins",
-            data={"plate": "ABC1D23", "status": "admitted", "checkin_id": 999999, "schedule_id": schedule.id},
+            data={
+                "plate": "ABC1D23",
+                "status": "admitted",
+                "checkin_id": 999999,
+                "schedule_id": schedule.id,
+            },
         )
 
         assert response.status_code == 201
 
 
 class TestListCheckins:
-    def test_lists_recent_checkins_newest_first(self, authenticated_client, employee, make_schedule):
+    def test_lists_recent_checkins_newest_first(
+        self, authenticated_client, employee, make_schedule
+    ):
         schedule_abc = make_schedule(employee, plate="ABC1D23")
         schedule_xyz = make_schedule(
-            employee, plate="XYZ9A87", driver_document="52998224725", vehicle_chassis="1HGCM82633A004352"
+            employee,
+            plate="XYZ9A87",
+            driver_document="52998224725",
+            vehicle_chassis="1HGCM82633A004352",
         )
         authenticated_client.post(
-            "/checkins", data={"plate": "ABC1D23", "status": "admitted", "schedule_id": schedule_abc.id}
+            "/checkins",
+            data={
+                "plate": "ABC1D23",
+                "status": "admitted",
+                "schedule_id": schedule_abc.id,
+            },
         )
         authenticated_client.post(
-            "/checkins", data={"plate": "XYZ9A87", "status": "cancelled", "schedule_id": schedule_xyz.id}
+            "/checkins",
+            data={
+                "plate": "XYZ9A87",
+                "status": "cancelled",
+                "schedule_id": schedule_xyz.id,
+            },
         )
 
         response = authenticated_client.get("/checkins")
@@ -211,18 +274,22 @@ class TestListCheckins:
         plates = [row["plate"] for row in response.json()]
         assert plates == ["XYZ9A87", "ABC1D23"]
 
-    def test_breaks_a_tie_in_created_at_by_insertion_order(self, authenticated_client, employee, db_session):
-        from datetime import datetime, timezone
-
-        from app.models import CheckIn, CheckInStatus
-
-        same_instant = datetime.now(timezone.utc)
+    def test_breaks_a_tie_in_created_at_by_insertion_order(
+        self, authenticated_client, employee, db_session
+    ):
+        same_instant = datetime.now(UTC)
         first = CheckIn(
-            plate="ABC1D23", status=CheckInStatus.WAITING, created_by_id=employee.id, created_at=same_instant
+            plate="ABC1D23",
+            status=CheckInStatus.WAITING,
+            created_by_id=employee.id,
+            created_at=same_instant,
         )
         db_session.add(first)
         second = CheckIn(
-            plate="XYZ9A87", status=CheckInStatus.WAITING, created_by_id=employee.id, created_at=same_instant
+            plate="XYZ9A87",
+            status=CheckInStatus.WAITING,
+            created_by_id=employee.id,
+            created_at=same_instant,
         )
         db_session.add(second)
         db_session.flush()
@@ -237,10 +304,13 @@ class TestListCheckins:
 
         assert response.status_code == 401
 
-    def test_a_decided_checkin_shows_the_actual_wait_it_took(self, authenticated_client, employee, make_schedule):
+    def test_a_decided_checkin_shows_the_actual_wait_it_took(
+        self, authenticated_client, employee, make_schedule
+    ):
         schedule = make_schedule(employee, plate="ABC1D23")
         created = authenticated_client.post(
-            "/checkins", data={"plate": "ABC1D23", "status": "admitted", "schedule_id": schedule.id}
+            "/checkins",
+            data={"plate": "ABC1D23", "status": "admitted", "schedule_id": schedule.id},
         ).json()
 
         response = authenticated_client.get("/checkins")
@@ -252,9 +322,9 @@ class TestListCheckins:
     def test_a_waiting_checkin_at_the_front_of_the_queue_has_zero_estimated_wait(
         self, authenticated_client, employee, db_session
     ):
-        from app.models import CheckIn, CheckInStatus
-
-        waiting = CheckIn(plate="ABC1D23", status=CheckInStatus.WAITING, created_by_id=employee.id)
+        waiting = CheckIn(
+            plate="ABC1D23", status=CheckInStatus.WAITING, created_by_id=employee.id
+        )
         db_session.add(waiting)
         db_session.flush()
 
@@ -266,13 +336,12 @@ class TestListCheckins:
     def test_a_waiting_checkin_behind_others_has_a_positive_estimated_wait(
         self, authenticated_client, employee, db_session
     ):
-        from datetime import datetime, timedelta, timezone
-
-        from app.models import CheckIn, CheckInStatus
-
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         first = CheckIn(
-            plate="ABC1D23", status=CheckInStatus.WAITING, created_by_id=employee.id, created_at=now
+            plate="ABC1D23",
+            status=CheckInStatus.WAITING,
+            created_by_id=employee.id,
+            created_at=now,
         )
         db_session.add(first)
         second = CheckIn(

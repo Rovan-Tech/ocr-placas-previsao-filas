@@ -1,4 +1,3 @@
-
 from collections.abc import Iterator
 
 import cv2
@@ -14,15 +13,23 @@ GLARE_CAP = 200
 SCRATCH_MIN_LENGTH_FACTOR = 1.15
 SCRATCH_LINE_THICKNESS = 3
 BAND_EXCLUSION_FRACTION = 0.22
+GRAYSCALE_NDIM = 2
+RESIZE_TOLERANCE = 0.05
 
 
 def to_gray(image: np.ndarray) -> np.ndarray:
-    return image if image.ndim == 2 else cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    return (
+        image
+        if image.ndim == GRAYSCALE_NDIM
+        else cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    )
 
 
-def resize_to_height(image: np.ndarray, height: int = TARGET_PLATE_HEIGHT) -> np.ndarray:
+def resize_to_height(
+    image: np.ndarray, height: int = TARGET_PLATE_HEIGHT
+) -> np.ndarray:
     scale = height / image.shape[0]
-    if abs(scale - 1) < 0.05:
+    if abs(scale - 1) < RESIZE_TOLERANCE:
         return image
     interpolation = cv2.INTER_CUBIC if scale > 1 else cv2.INTER_AREA
     return cv2.resize(image, None, fx=scale, fy=scale, interpolation=interpolation)
@@ -41,7 +48,9 @@ def brighten(gray: np.ndarray) -> np.ndarray:
 
 
 def denoise(gray: np.ndarray) -> np.ndarray:
-    return cv2.fastNlMeansDenoising(gray, None, h=12, templateWindowSize=7, searchWindowSize=21)
+    return cv2.fastNlMeansDenoising(
+        gray, None, h=12, templateWindowSize=7, searchWindowSize=21
+    )
 
 
 def sharpen(gray: np.ndarray) -> np.ndarray:
@@ -71,7 +80,9 @@ def _scratch_lines(gray: np.ndarray) -> np.ndarray | None:
     edges = cv2.Canny(gray, 60, 160)
     edges[: int(height * BAND_EXCLUSION_FRACTION)] = 0
     min_length = int(height * SCRATCH_MIN_LENGTH_FACTOR)
-    return cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=30, minLineLength=min_length, maxLineGap=10)
+    return cv2.HoughLinesP(
+        edges, 1, np.pi / 180, threshold=30, minLineLength=min_length, maxLineGap=10
+    )
 
 
 def has_scratches(gray: np.ndarray) -> bool:
@@ -84,7 +95,9 @@ def remove_scratches(gray: np.ndarray) -> np.ndarray:
         return gray
     mask = np.zeros_like(gray)
     for x1, y1, x2, y2 in lines.reshape(-1, 4):
-        cv2.line(mask, (int(x1), int(y1)), (int(x2), int(y2)), 255, SCRATCH_LINE_THICKNESS)
+        cv2.line(
+            mask, (int(x1), int(y1)), (int(x2), int(y2)), 255, SCRATCH_LINE_THICKNESS
+        )
     return cv2.inpaint(gray, mask, 3, cv2.INPAINT_TELEA)
 
 
