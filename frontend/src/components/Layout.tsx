@@ -1,4 +1,4 @@
-import { Camera, ClipboardList, FileClock, NotebookPen, Users } from 'lucide-react'
+import { BarChart3, Camera, ClipboardList, FileClock, NotebookPen, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -24,6 +24,7 @@ const NAV_ITEMS = [
     shortLabel: 'Agenda',
     icon: NotebookPen,
   },
+  { to: '/relatorios', end: false, label: 'Relatórios', shortLabel: 'Relatórios', icon: BarChart3 },
 ]
 
 function useIsMobileNav(): boolean {
