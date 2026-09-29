@@ -2,7 +2,6 @@ import { BarChart3, Camera, ClipboardList, FileClock, NotebookPen, Users } from 
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useTheme } from '../context/ThemeContext'
 import ThemeToggle from './ThemeToggle'
 
 const MOBILE_NAV_QUERY = '(max-width: 640px)'
@@ -43,11 +42,6 @@ function useIsMobileNav(): boolean {
 export default function Layout() {
   const { employee, logout } = useAuth()
   const isMobileNav = useIsMobileNav()
-  const { preferDarkUnlessChosen } = useTheme()
-
-  useEffect(() => {
-    if (!isMobileNav) preferDarkUnlessChosen()
-  }, [isMobileNav, preferDarkUnlessChosen])
 
   const items = employee?.is_admin
     ? [

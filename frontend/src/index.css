@@ -466,7 +466,10 @@ button.primary:hover:not(:disabled) {
   z-index: 1;
 }
 .login-shell .form {
-  border-width: 2px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
   width: 100%;
 }
 .login-shell .form input:not([type='file']):not([type='checkbox']) {
@@ -656,8 +659,12 @@ button.primary:hover:not(:disabled) {
     color: #1c2b25;
   }
   .login-shell .login-brand-inline,
-  .login-shell .login-footer {
+  .login-shell .login-footer,
+  .login-shell .login-waves-inline {
     display: none;
+  }
+  .login-brand-panel {
+    background-image: radial-gradient(ellipse at 0% 0%, rgb(20 110 78 / 0.4) 0%, transparent 60%);
   }
 }
 .page-header {

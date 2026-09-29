@@ -19,7 +19,10 @@ function rememberThemeChoice() {
   } catch {}
 }
 
-function loadStoredTheme(): Theme | null {
+const DESKTOP_QUERY = '(min-width: 641px)'
+
+function loadChosenTheme(): Theme | null {
+  if (!hasChosenTheme()) return null
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     return stored === 'light' || stored === 'dark' ? stored : null
@@ -28,16 +31,19 @@ function loadStoredTheme(): Theme | null {
   }
 }
 
+function defaultThemeForViewport(): Theme {
+  return window.matchMedia(DESKTOP_QUERY).matches ? 'dark' : 'light'
+}
+
 interface ThemeContextValue {
   theme: Theme
   toggleTheme: () => void
-  preferDarkUnlessChosen: () => void
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => loadStoredTheme() ?? 'light')
+  const [theme, setTheme] = useState<Theme>(() => loadChosenTheme() ?? defaultThemeForViewport())
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -52,9 +58,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       toggleTheme: () => {
         rememberThemeChoice()
         setTheme((current) => (current === 'dark' ? 'light' : 'dark'))
-      },
-      preferDarkUnlessChosen: () => {
-        if (!hasChosenTheme()) setTheme('dark')
       },
     }),
     [theme],
