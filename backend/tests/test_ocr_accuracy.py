@@ -38,6 +38,16 @@ def test_reads_plate_correctly_across_camera_distances(sample):
     )
 
 
+def test_reads_a_two_line_motorcycle_plate_correctly():
+    sample = next(s for s in hard_cases() if s.name == "moto_mercosul")
+
+    reading = read_plate(sample.image_bytes)
+
+    assert reading.plate == sample.plate, (
+        f"{sample.description}: leu {reading.plate!r} (esperado {sample.plate!r})"
+    )
+
+
 def test_validation_set_accuracy_and_bounded_silent_errors():
     samples = random_cases()
     readings = [(sample, read_plate(sample.image_bytes)) for sample in samples]

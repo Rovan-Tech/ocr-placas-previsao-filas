@@ -7,7 +7,10 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+BUNDLED_FONT = Path(__file__).parent / "fonts" / "LiberationSansNarrow-Bold.ttf"
+
 FONT_CANDIDATES = [
+    str(BUNDLED_FONT),
     "/usr/share/fonts/truetype/liberation/LiberationSansNarrow-Bold.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Bold.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -15,6 +18,9 @@ FONT_CANDIDATES = [
 
 PLATE_WIDTH = 520
 PLATE_HEIGHT = 169
+
+MOTO_PLATE_WIDTH = 260
+MOTO_PLATE_HEIGHT = 210
 
 
 @lru_cache(maxsize=8)
@@ -52,6 +58,33 @@ def render_plate(plate: str, *, ink: int = 20, background: int = 245) -> np.ndar
 
     _draw_centered(draw, text_box, text, _font(118), (ink,) * 3)
     draw.rectangle([0, 0, PLATE_WIDTH - 1, PLATE_HEIGHT - 1], outline=(ink,) * 3, width=4)
+    return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+
+def render_moto_plate(plate: str, *, ink: int = 20, background: int = 245) -> np.ndarray:
+    mercosul = plate[4].isalpha()
+    image = Image.new("RGB", (MOTO_PLATE_WIDTH, MOTO_PLATE_HEIGHT), (background,) * 3)
+    draw = ImageDraw.Draw(image)
+    band_height = int(MOTO_PLATE_HEIGHT * 0.22)
+    if mercosul:
+        draw.rectangle([0, 0, MOTO_PLATE_WIDTH, band_height], fill=(40, 60, 160))
+        _draw_centered(draw, (0, 0, MOTO_PLATE_WIDTH, band_height), "BRASIL", _font(20), (255, 255, 255))
+    else:
+        _draw_centered(draw, (0, 2, MOTO_PLATE_WIDTH, band_height), "SP - SAO PAULO", _font(13), (ink,) * 3)
+
+    rows_top = band_height + 6
+    row_height = (MOTO_PLATE_HEIGHT - rows_top - 8) / 2
+    _draw_centered(
+        draw, (6, rows_top, MOTO_PLATE_WIDTH - 6, rows_top + row_height), plate[:3], _font(64), (ink,) * 3
+    )
+    _draw_centered(
+        draw,
+        (6, rows_top + row_height, MOTO_PLATE_WIDTH - 6, MOTO_PLATE_HEIGHT - 8),
+        plate[3:],
+        _font(64),
+        (ink,) * 3,
+    )
+    draw.rectangle([0, 0, MOTO_PLATE_WIDTH - 1, MOTO_PLATE_HEIGHT - 1], outline=(ink,) * 3, width=3)
     return cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
 
@@ -194,9 +227,10 @@ class PlateSample:
 
 def _build(name, plate, description, seed, *, plate_width=560, yaw=0.0, roll=0.0, dirt=0, worn=False,
            scratches=0, glare=None, backlight=None, rain=False, darken=None, blur=0,
-           quality=85) -> PlateSample:
+           quality=85, moto=False) -> PlateSample:
     rng = np.random.default_rng(seed)
-    plate_image = render_plate(plate, ink=105 if worn else 20, background=200 if worn else 245)
+    renderer = render_moto_plate if moto else render_plate
+    plate_image = renderer(plate, ink=105 if worn else 20, background=200 if worn else 245)
     if dirt:
         plate_image = _dirt(plate_image, rng, dirt)
     if scratches:
@@ -255,6 +289,10 @@ def hard_cases() -> list[PlateSample]:
                plate_width=350),
         _build("muito_longe", "YTC5P08", "câmera muito longe: placa pequena e comprimida", 27,
                plate_width=150, quality=45),
+        _build("moto_mercosul", "ABC1D23", "placa de moto: duas linhas, formato quase quadrado", 28,
+               plate_width=420, moto=True),
+        _build("moto_antiga", "EFG4567", "placa de moto antiga: duas linhas", 29,
+               plate_width=420, moto=True),
     ]
 
 

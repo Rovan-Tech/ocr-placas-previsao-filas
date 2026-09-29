@@ -40,6 +40,7 @@ def _sample_or_404(sample_id: str) -> PlateSample:
 
 class DemoSampleInfo(BaseModel):
     id: str
+    plate: str
     description: str
 
 
@@ -53,7 +54,10 @@ class DemoPlateReadResponse(BaseModel):
 
 @router.get("/demo-samples", response_model=list[DemoSampleInfo])
 def list_demo_samples() -> list[DemoSampleInfo]:
-    return [DemoSampleInfo(id=sample.name, description=sample.description) for sample in demo_samples()]
+    return [
+        DemoSampleInfo(id=sample.name, plate=sample.plate, description=sample.description)
+        for sample in demo_samples()
+    ]
 
 
 @router.get("/demo-samples/{sample_id}/image")

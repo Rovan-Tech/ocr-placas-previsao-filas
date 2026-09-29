@@ -5,6 +5,8 @@ from app.services.plate_format import PLATE_LENGTH
 
 MIN_PLATE_ASPECT_RATIO = 2.0
 MAX_PLATE_ASPECT_RATIO = 6.5
+MOTO_MIN_ASPECT_RATIO = 0.7
+MOTO_MAX_ASPECT_RATIO = 1.9
 MIN_PLATE_WIDTH_PX = 60
 MIN_AREA_FRACTION = 0.001
 MAX_AREA_FRACTION = 0.95
@@ -28,16 +30,11 @@ MAX_CHARACTER_GAP = 2.5
 
 def _order_corners(points: np.ndarray) -> np.ndarray:
     points = points.reshape(4, 2).astype(np.float32)
-    by_sum = points.sum(axis=1)
-    by_diff = np.diff(points, axis=1).ravel()
-    return np.float32(
-        [
-            points[np.argmin(by_sum)],
-            points[np.argmin(by_diff)],
-            points[np.argmax(by_sum)],
-            points[np.argmax(by_diff)],
-        ]
-    )
+    center = points.mean(axis=0)
+    angles = np.arctan2(points[:, 1] - center[1], points[:, 0] - center[0])
+    ordered = points[np.argsort(angles)]
+    start = np.argmin(ordered.sum(axis=1))
+    return np.roll(ordered, -start, axis=0)
 
 
 def _expand(corners: np.ndarray, margin_x: float, margin_y: float) -> np.ndarray:
@@ -129,28 +126,106 @@ def _group_by_baseline(
     return baseline_groups
 
 
+def _is_plausible_plate_ratio(ratio: float) -> bool:
+    return (
+        MIN_PLATE_ASPECT_RATIO <= ratio <= MAX_PLATE_ASPECT_RATIO
+        or MOTO_MIN_ASPECT_RATIO <= ratio <= MOTO_MAX_ASPECT_RATIO
+    )
+
+
+def _bounding_box(
+    boxes: list[tuple[float, float, float, float]],
+) -> tuple[float, float, float, float]:
+    x0 = min(b[0] for b in boxes)
+    y0 = min(b[1] for b in boxes)
+    x1 = max(b[0] + b[2] for b in boxes)
+    y1 = max(b[1] + b[3] for b in boxes)
+    return x0, y0, x1, y1
+
+
+def _box_ratio(box: tuple[float, float, float, float]) -> float | None:
+    x0, y0, x1, y1 = box
+    height = y1 - y0
+    return None if height == 0 else (x1 - x0) / height
+
+
+def _corners_from_box(box: tuple[float, float, float, float]) -> np.ndarray:
+    x0, y0, x1, y1 = box
+    return np.float32([[x0, y0], [x1, y0], [x1, y1], [x0, y1]])
+
+
+def _lines_overlap_horizontally(
+    first: list[tuple[float, float, float, float]], second: list[tuple[float, float, float, float]]
+) -> bool:
+    ax0, _, ax1, _ = _bounding_box(first)
+    bx0, _, bx1, _ = _bounding_box(second)
+    overlap = min(ax1, bx1) - max(ax0, bx0)
+    return overlap > 0.4 * min(ax1 - ax0, bx1 - bx0)
+
+
+def _line_clusters(
+    boxes: list[tuple[float, float, float, float]],
+) -> list[list[tuple[float, float, float, float]]]:
+    lines = []
+    for group in _group_by_baseline(boxes):
+        clusters = [cluster for cluster in _split_by_horizontal_gap(group) if len(cluster) >= 2]
+        if clusters:
+            lines.append(max(clusters, key=len))
+    return lines
+
+
+def _dark_component_count(patch: np.ndarray) -> int:
+    if patch.size == 0 or min(patch.shape[:2]) < 3:
+        return 0
+    denoised = cv2.medianBlur(patch, 3)
+    enhanced = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(denoised)
+    blackhat = cv2.morphologyEx(enhanced, cv2.MORPH_BLACKHAT, cv2.getStructuringElement(cv2.MORPH_RECT, (9, 15)))
+    _, mask = cv2.threshold(blackhat, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    return sum(1 for contour in contours if cv2.contourArea(contour) > 5)
+
+
+MIN_DARK_COMPONENTS_FOR_PLATE = 8
+
+
+def _looks_like_plate_text(gray: np.ndarray, corners: np.ndarray) -> bool:
+    x, y, w, h = cv2.boundingRect(corners.astype(np.float32))
+    x, y = max(x, 0), max(y, 0)
+    native_crop = gray[y : y + h, x : x + w]
+    return _dark_component_count(native_crop) >= MIN_DARK_COMPONENTS_FOR_PLATE
+
+
 def _cluster_characters_into_lines(boxes: list[tuple[float, float, float, float]]) -> list[np.ndarray]:
     corners = []
     for group in _group_by_baseline(boxes):
         for cluster in _split_by_horizontal_gap(group):
             if len(cluster) < MIN_CLUSTER_CHARACTERS:
                 continue
-            x0 = min(b[0] for b in cluster)
-            y0 = min(b[1] for b in cluster)
-            x1 = max(b[0] + b[2] for b in cluster)
-            y1 = max(b[1] + b[3] for b in cluster)
-            width, height = x1 - x0, y1 - y0
-            if height == 0 or not MIN_PLATE_ASPECT_RATIO <= width / height <= MAX_PLATE_ASPECT_RATIO:
-                continue
-            corners.append(np.float32([[x0, y0], [x1, y0], [x1, y1], [x0, y1]]))
+            ratio = _box_ratio(_bounding_box(cluster))
+            if ratio is not None and _is_plausible_plate_ratio(ratio):
+                corners.append(_corners_from_box(_bounding_box(cluster)))
+
+    lines = _line_clusters(boxes)
+    for first, second in zip(lines, lines[1:]):
+        if len(first) + len(second) < MIN_CLUSTER_CHARACTERS:
+            continue
+        if not _lines_overlap_horizontally(first, second):
+            continue
+        box = _bounding_box(first + second)
+        ratio = _box_ratio(box)
+        if ratio is not None and _is_plausible_plate_ratio(ratio):
+            corners.append(_corners_from_box(box))
+
     return corners
 
 
 def _best_character_run(boxes: list[tuple[float, float, float, float]]) -> int:
-    best = 0
-    for group in _group_by_baseline(boxes):
-        for cluster in _split_by_horizontal_gap(group):
-            best = max(best, len(cluster))
+    lines = _line_clusters(boxes)
+    best = max((len(line) for line in lines), default=0)
+    for first, second in zip(lines, lines[1:]):
+        if _lines_overlap_horizontally(first, second):
+            best = max(best, len(first) + len(second))
     return best
 
 
@@ -181,16 +256,29 @@ def _candidate_corners(gray: np.ndarray) -> list[tuple[np.ndarray, bool]]:
         long_side, short_side = max(w, h), min(w, h)
         if short_side == 0 or long_side < MIN_PLATE_WIDTH_PX / 2:
             continue
-        if not MIN_PLATE_ASPECT_RATIO <= long_side / short_side <= MAX_PLATE_ASPECT_RATIO:
-            continue
+        ratio = long_side / short_side
         corners = cv2.boxPoints(cv2.minAreaRect(contour))
-        if is_plate_outline:
-            approx = cv2.approxPolyDP(cv2.convexHull(contour), 0.04 * cv2.arcLength(contour, True), True)
-            if len(approx) == 4:
-                (_, _), (approx_w, approx_h), _ = cv2.minAreaRect(approx)
-                approx_long, approx_short = max(approx_w, approx_h), min(approx_w, approx_h)
-                if approx_short > 0 and MIN_PLATE_ASPECT_RATIO <= approx_long / approx_short <= MAX_PLATE_ASPECT_RATIO:
-                    corners = approx
+        approx = (
+            cv2.approxPolyDP(cv2.convexHull(contour), 0.04 * cv2.arcLength(contour, True), True)
+            if is_plate_outline
+            else None
+        )
+        approx_ratio = None
+        if approx is not None and len(approx) == 4:
+            (_, _), (approx_w, approx_h), _ = cv2.minAreaRect(approx)
+            if min(approx_w, approx_h) > 0:
+                approx_ratio = max(approx_w, approx_h) / min(approx_w, approx_h)
+        is_clean_quad = approx_ratio is not None and _is_plausible_plate_ratio(approx_ratio)
+        if MIN_PLATE_ASPECT_RATIO <= ratio <= MAX_PLATE_ASPECT_RATIO:
+            pass
+        elif MOTO_MIN_ASPECT_RATIO <= ratio <= MOTO_MAX_ASPECT_RATIO and _looks_like_plate_text(
+            gray, _order_corners(corners)
+        ):
+            pass
+        else:
+            continue
+        if is_clean_quad:
+            corners = approx
         candidates.append((_order_corners(corners), False))
 
     candidates.extend(

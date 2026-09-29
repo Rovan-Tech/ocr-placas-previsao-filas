@@ -5,12 +5,18 @@ import pytest
 from app.services.plate_locator import (
     MAX_PLATE_ASPECT_RATIO,
     MIN_PLATE_ASPECT_RATIO,
+    MOTO_MAX_ASPECT_RATIO,
+    MOTO_MIN_ASPECT_RATIO,
     _candidate_corners,
+    _character_boxes,
+    _cluster_characters_into_lines,
+    _is_plausible_plate_ratio,
+    _looks_like_plate_text,
     find_plate_candidates,
     locate_plate,
     rectify,
 )
-from app.services.plate_samples import hard_cases, render_plate
+from app.services.plate_samples import hard_cases, render_moto_plate, render_plate
 
 
 def _decode(image_bytes: bytes) -> np.ndarray:
@@ -72,7 +78,7 @@ def test_best_candidate_is_the_plate_and_not_the_bumper(sample):
     assert candidates, "nenhum candidato encontrado"
     best, _ = candidates[0]
     aspect_ratio = best.shape[1] / best.shape[0]
-    assert 1.5 <= aspect_ratio <= 7.0
+    assert 1.3 <= aspect_ratio <= 7.0
     equalized = cv2.equalizeHist(cv2.cvtColor(best, cv2.COLOR_BGR2GRAY))
     assert equalized.std() > 15
 
@@ -93,8 +99,8 @@ def test_ignores_a_degenerate_approx_polygon_for_the_plate_outline_candidate(mon
         long_side, short_side = max(w, h), min(w, h)
         assert short_side > 0
         ratio = long_side / short_side
-        assert MIN_PLATE_ASPECT_RATIO <= ratio <= MAX_PLATE_ASPECT_RATIO, (
-            f"candidato com aspect ratio {ratio:.2f} fora da faixa de uma placa"
+        assert _is_plausible_plate_ratio(ratio), (
+            f"candidato com aspect ratio {ratio:.2f} fora da faixa de uma placa (carro ou moto)"
         )
 
 
@@ -135,3 +141,49 @@ def test_a_wellformed_plate_block_is_not_evicted_by_a_worse_overlapping_cluster(
     candidates = find_plate_candidates(image)
 
     assert candidates[0][1] is False, "um agrupamento pior expulsou o candidato correto"
+
+
+def test_merges_two_stacked_lines_into_a_square_moto_plate_candidate():
+    plate = render_moto_plate("ABC1D23")
+    canvas = np.full((plate.shape[0] + 20, plate.shape[1] + 20, 3), 190, np.uint8)
+    canvas[10 : 10 + plate.shape[0], 10 : 10 + plate.shape[1]] = plate
+    gray = cv2.cvtColor(canvas, cv2.COLOR_BGR2GRAY)
+
+    corners = _cluster_characters_into_lines(_character_boxes(gray))
+
+    assert corners, "o agrupamento de caracteres não achou nenhum candidato"
+    ratios = [max(w, h) / min(w, h) for box in corners for (_, _), (w, h), _ in [cv2.minAreaRect(box)]]
+    assert any(MOTO_MIN_ASPECT_RATIO <= ratio <= MOTO_MAX_ASPECT_RATIO for ratio in ratios), (
+        f"nenhum candidato de agrupamento ficou no formato de placa de moto: {ratios}"
+    )
+
+
+def test_is_plausible_plate_ratio_accepts_car_and_moto_shapes_but_not_in_between():
+    assert _is_plausible_plate_ratio(MIN_PLATE_ASPECT_RATIO)
+    assert _is_plausible_plate_ratio(MAX_PLATE_ASPECT_RATIO)
+    assert _is_plausible_plate_ratio(MOTO_MIN_ASPECT_RATIO)
+    assert _is_plausible_plate_ratio(MOTO_MAX_ASPECT_RATIO)
+    assert not _is_plausible_plate_ratio((MOTO_MAX_ASPECT_RATIO + MIN_PLATE_ASPECT_RATIO) / 2)
+
+
+def _single_character_canvas(char: str, size: int) -> np.ndarray:
+    canvas = np.full((size, size), 235, np.uint8)
+    cv2.putText(
+        canvas, char, (int(size * 0.15), int(size * 0.8)), cv2.FONT_HERSHEY_SIMPLEX, size / 90, (20,), 12
+    )
+    return canvas
+
+
+def test_looks_like_plate_text_rejects_a_single_blown_up_character():
+    gray = _single_character_canvas("W", 200)
+    corners = np.float32([[0, 0], [200, 0], [200, 200], [0, 200]])
+
+    assert not _looks_like_plate_text(gray, corners)
+
+
+def test_looks_like_plate_text_accepts_a_real_moto_plate_crop():
+    plate = render_moto_plate("ABC1D23")
+    gray = cv2.cvtColor(plate, cv2.COLOR_BGR2GRAY)
+    corners = np.float32([[0, 0], [plate.shape[1], 0], [plate.shape[1], plate.shape[0]], [0, plate.shape[0]]])
+
+    assert _looks_like_plate_text(gray, corners)

@@ -20,7 +20,8 @@ Interface em React + TypeScript (Vite) usada pelo fiscal na guarita:
   com categoria de risco, e as quatro fotos — frente e verso do documento do motorista, documento
   do veículo e manifesto de carga — todas obrigatórias) — qualquer funcionário, não só admin
 - Cadastro e exclusão de funcionário (só para quem é admin master)
-- Tema claro/escuro à escolha (segue o sistema até o fiscal trocar manualmente)
+- Tema claro/escuro à escolha (o padrão é o claro, mesmo com o sistema em modo escuro, porque
+  o fiscal usa o celular ao ar livre e fundo escuro perde contraste sob sol forte)
 
 ## Rodando localmente
 
@@ -49,9 +50,22 @@ backend, não pelo frontend (ver `mustChangePassword` em `AuthContext.tsx`).
 
 O botão no canto (visível até antes do login) alterna entre claro e escuro; a escolha fica em
 `localStorage` e vale até o fiscal trocar de novo (`src/context/ThemeContext.tsx`, grava
-`data-theme` no `<html>`). A fonte (Space Grotesk, importada no `index.html`) é escolhida de
-propósito diferente da usada no site institucional da Rovan Tech — este é um projeto de
-portfólio fictício, sem identidade visual em comum com o site real da empresa.
+`data-theme` no `<html>`). Sem escolha salva, o tema é sempre o claro — não segue mais a
+preferência do sistema. As fontes (importadas no `index.html`) são: Space Grotesk nos títulos e na
+marca, IBM Plex Sans no corpo e JetBrains Mono nas placas e IDs, escolhidas de propósito
+diferentes das do site institucional da Rovan Tech — este é um projeto de portfólio fictício, sem
+identidade visual em comum com o site real da empresa.
+
+### Tela de login
+
+`LoginPage.tsx` usa um tema claro de alto contraste próprio (tokens sobrescritos só dentro de
+`.login-shell` em `index.css`, com o tema claro ativo): borda de 2px `#6b7d70` (4,0–4,4:1),
+texto `#0f1b15` (16–17:1), texto secundário `#3e4f45` (8:1) e botão `#0b6e4c` com texto branco
+(6,27:1), valores conferidos com `.claude/skills/engineering-team/a11y-audit/scripts/contrast_checker.py`.
+A cor de borda só vale como componente de UI (mínimo 3:1); nunca como cor de texto (não chega a
+4,5:1). A partir de 960px a tela vira split-screen: painel de marca de 560px à esquerda e o card à
+direita; abaixo disso, só o card. A tela de troca de senha reaproveita a classe `login-page`, mas
+não herda esse tema nem o painel.
 
 ### Testando no celular
 
