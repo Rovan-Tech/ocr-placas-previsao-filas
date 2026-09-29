@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   deploy-backend:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -26,17 +26,18 @@ jobs:
       backend_url: ${{ steps.deploy.outputs.url }}
       sha: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
-      - uses: actions/checkout@v4
+      # nosemgrep: yaml.github-actions.security.workflow-run-target-code-checkout.workflow-run-target-code-checkout
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - id: auth
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
 
       - name: Autentica o Docker no Artifact Registry
         run: gcloud auth configure-docker "${{ secrets.GCP_REGION }}-docker.pkg.dev" --quiet
@@ -68,7 +69,7 @@ jobs:
             "$IMAGE:$SHA" -m alembic upgrade head
 
       - id: deploy
-        uses: google-github-actions/deploy-cloudrun@v2
+        uses: google-github-actions/deploy-cloudrun@251330ba9a8a34bfbc1622895f42e1d53fd14522 # v2
         with:
           service: ocr-placas-backend
           region: ${{ secrets.GCP_REGION }}
@@ -83,11 +84,11 @@ jobs:
     needs: deploy-backend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ needs.deploy-backend.outputs.sha }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "20"
           cache: "npm"
@@ -111,7 +112,7 @@ jobs:
       # a migração oficial da Cloudflare é pro wrangler-action rodando
       # `wrangler pages deploy`.
       - name: Deploy no Cloudflare Pages
-        uses: cloudflare/wrangler-action@v4
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
