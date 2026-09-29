@@ -1,5 +1,9 @@
-import { roleLabel, type Role } from '../services/roles'
+import type { RoleSummary } from '../services/roles'
 
-export default function RoleBadge({ role }: { role: Role }) {
-  return <span className={`role-badge role-badge-${role}`}>{roleLabel(role)}</span>
+export function roleTone(role: RoleSummary): string {
+  return role.is_system ? role.key : 'custom'
+}
+
+export default function RoleBadge({ role }: { role: RoleSummary }) {
+  return <span className={`role-badge role-badge-${roleTone(role)}`}>{role.name}</span>
 }

@@ -1,4 +1,4 @@
-import { accessTo, hasAccess, type Permissions, type Screen } from './roles'
+import { canAny, type PermissionKey } from './roles'
 
 export interface NavEntry {
   id: string
@@ -6,7 +6,7 @@ export interface NavEntry {
   end: boolean
   label: string
   shortLabel: string
-  requires: Screen
+  requires: PermissionKey[]
   hiddenWhenLocked: boolean
   desktopOnly: boolean
 }
@@ -18,7 +18,7 @@ export const NAV_ENTRIES: NavEntry[] = [
     end: true,
     label: 'Capturar placa',
     shortLabel: 'Capturar',
-    requires: 'capture',
+    requires: ['capture.read_plate'],
     hiddenWhenLocked: false,
     desktopOnly: false,
   },
@@ -28,7 +28,7 @@ export const NAV_ENTRIES: NavEntry[] = [
     end: false,
     label: 'Check-ins recentes',
     shortLabel: 'Check-ins',
-    requires: 'checkins',
+    requires: ['checkins.view'],
     hiddenWhenLocked: false,
     desktopOnly: false,
   },
@@ -38,7 +38,7 @@ export const NAV_ENTRIES: NavEntry[] = [
     end: false,
     label: 'Agendamentos',
     shortLabel: 'Agenda',
-    requires: 'schedules',
+    requires: ['schedules.view', 'schedules.create'],
     hiddenWhenLocked: false,
     desktopOnly: false,
   },
@@ -48,7 +48,7 @@ export const NAV_ENTRIES: NavEntry[] = [
     end: false,
     label: 'Logs',
     shortLabel: 'Logs',
-    requires: 'logs',
+    requires: ['logs.view'],
     hiddenWhenLocked: false,
     desktopOnly: false,
   },
@@ -58,7 +58,7 @@ export const NAV_ENTRIES: NavEntry[] = [
     end: false,
     label: 'Relatórios',
     shortLabel: 'Relatórios',
-    requires: 'reports',
+    requires: ['reports.view'],
     hiddenWhenLocked: false,
     desktopOnly: false,
   },
@@ -68,7 +68,7 @@ export const NAV_ENTRIES: NavEntry[] = [
     end: false,
     label: 'Funcionários',
     shortLabel: 'Equipe',
-    requires: 'employees',
+    requires: ['employees.view'],
     hiddenWhenLocked: false,
     desktopOnly: false,
   },
@@ -78,7 +78,7 @@ export const NAV_ENTRIES: NavEntry[] = [
     end: false,
     label: 'Permissões',
     shortLabel: 'Permissões',
-    requires: 'employees',
+    requires: ['permissions.manage'],
     hiddenWhenLocked: true,
     desktopOnly: true,
   },
@@ -88,19 +88,35 @@ export interface NavItem extends NavEntry {
   enabled: boolean
 }
 
-export function desktopNavItems(permissions: Permissions | undefined): NavItem[] {
+export function desktopNavItems(permissions: readonly PermissionKey[] | undefined): NavItem[] {
   return NAV_ENTRIES.map((entry) => ({
     ...entry,
-    enabled: hasAccess(permissions, entry.requires),
+    enabled: canAny(permissions, entry.requires),
   })).filter((item) => item.enabled || !item.hiddenWhenLocked)
 }
 
-export function mobileNavItems(permissions: Permissions | undefined): NavItem[] {
+export function mobileNavItems(permissions: readonly PermissionKey[] | undefined): NavItem[] {
   return desktopNavItems(permissions).filter((item) => item.enabled && !item.desktopOnly)
 }
 
-export function homePathFor(permissions: Permissions | undefined): string {
-  const main = NAV_ENTRIES.find((entry) => accessTo(permissions, entry.requires) === 'full')
-  const fallback = NAV_ENTRIES.find((entry) => hasAccess(permissions, entry.requires))
-  return (main ?? fallback)?.to ?? '/'
+const HOME_ORDER = [
+  'capture',
+  'schedules',
+  'reports',
+  'checkins',
+  'logs',
+  'employees',
+  'permissions',
+]
+
+export function entryById(id: string): NavEntry | undefined {
+  return NAV_ENTRIES.find((entry) => entry.id === id)
+}
+
+export function homePathFor(permissions: readonly PermissionKey[] | undefined): string {
+  for (const id of HOME_ORDER) {
+    const entry = entryById(id)
+    if (entry && canAny(permissions, entry.requires)) return entry.to
+  }
+  return '/'
 }

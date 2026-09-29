@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.db import SessionLocal
-from app.models import Employee, Role
+from app.models import Employee, Role, SystemRole
 from app.services.auth import hash_password
 
 MIN_PASSWORD_LENGTH = 8
@@ -29,9 +29,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--role",
-        choices=[role.value for role in Role],
-        default=Role.FISCAL.value,
-        help="cargo do funcionário (padrão: fiscal)",
+        default=SystemRole.FISCAL.value,
+        help="chave do cargo, como fiscal ou admin (padrão: fiscal)",
     )
     parser.add_argument(
         "--admin",
@@ -53,18 +52,23 @@ def main() -> None:
         ):
             parser.error(f"já existe um funcionário com o usuário {args.username!r}.")
 
+        role_key = SystemRole.ADMIN.value if args.admin else args.role
+        role = session.query(Role).filter(Role.key == role_key).first()
+        if role is None:
+            parser.error(f"o cargo {role_key!r} não existe.")
+
         employee = Employee(
             username=args.username,
             full_name=args.full_name,
             password_hash=hash_password(password),
-            role=Role.ADMIN if args.admin else Role(args.role),
+            role=role,
             must_change_password=True,
         )
         session.add(employee)
         session.commit()
         session.refresh(employee)
         sys.stdout.write(
-            f"Funcionário criado ({employee.role.value}): id={employee.id} "
+            f"Funcionário criado ({employee.role.key}): id={employee.id} "
             f"username={employee.username!r}\n"
         )
         sys.stdout.write(

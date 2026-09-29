@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from app.config import settings
 from app.db import get_db
 from app.main import SECURITY_HEADERS, app
-from app.models import Employee, Role
+from app.models import Employee, SystemRole
 from app.routers.ocr import MAX_UPLOAD_BYTES
 from app.services import ocr_service
 from app.services.auth import create_access_token, hash_password
@@ -241,16 +241,23 @@ class TestAuthentication:
             "id": employee.id,
             "username": employee.username,
             "full_name": employee.full_name,
-            "role": "supervisor",
-            "permissions": {
-                "capture": "full",
-                "checkins": "full",
-                "schedules": "full",
-                "logs": "read",
-                "reports": "read",
-                "employees": "none",
+            "role": {
+                "id": employee.role.id,
+                "key": "supervisor",
+                "name": "Supervisor de Turno",
+                "is_system": True,
             },
-            "is_admin": False,
+            "permissions": [
+                "capture.authorize_entry",
+                "capture.read_plate",
+                "capture.refuse_entry",
+                "checkins.view",
+                "logs.view",
+                "reports.view",
+                "schedules.create",
+                "schedules.view",
+            ],
+            "overrides": {"granted": [], "denied": []},
             "active": True,
         }
 
@@ -286,12 +293,12 @@ def test_photo_path_traversal_is_rejected():
 
 class TestPasswordValidationDoesNotReflectTheInput:
     @pytest.fixture
-    def admin(self, db_session):
+    def admin(self, db_session, role_named):
         record = Employee(
             username="admin.seguranca.teste",
             full_name="Admin de Segurança",
             password_hash=hash_password("senhaAdminForte1"),
-            role=Role.ADMIN,
+            role=role_named(SystemRole.ADMIN),
             must_change_password=False,
         )
         db_session.add(record)

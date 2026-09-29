@@ -56,31 +56,56 @@ def test_role_migration_keeps_admins_and_turns_the_rest_into_fiscais(test_engine
     with test_engine.begin() as connection:
         roles = dict(
             connection.execute(
-                text("SELECT username, role FROM employees ORDER BY username")
+                text(
+                    "SELECT employees.username, roles.key FROM employees "
+                    "JOIN roles ON roles.id = employees.role_id ORDER BY username"
+                )
             ).all()
         )
         connection.execute(text("DELETE FROM employees"))
 
     assert roles == {"antigo.admin": "admin", "antigo.fiscal": "fiscal"}
 
-    with test_engine.begin() as connection:
-        for username, role in [("novo.admin", "admin"), ("novo.analista", "analista")]:
+
+def test_role_tables_migration_seeds_the_system_roles_and_round_trips(test_engine):
+    config = alembic_config(TEST_DATABASE_URL)
+
+    with test_engine.connect() as connection:
+        seeded = dict(
             connection.execute(
                 text(
-                    "INSERT INTO employees (username, password_hash, full_name, role) "
-                    "VALUES (:username, 'x', 'Nome', :role)"
-                ),
-                {"username": username, "role": role},
-            )
-
-    command.downgrade(config, "59c19e055908")
-    with test_engine.begin() as connection:
-        flags = dict(
-            connection.execute(
-                text("SELECT username, is_admin FROM employees ORDER BY username")
+                    "SELECT roles.key, count(role_permissions.permission) FROM roles "
+                    "LEFT JOIN role_permissions ON role_permissions.role_id = roles.id "
+                    "WHERE roles.is_system GROUP BY roles.key"
+                )
             ).all()
         )
+    assert seeded == {
+        "fiscal": 4,
+        "planejador": 3,
+        "analista": 3,
+        "supervisor": 8,
+        "admin": 13,
+    }
+
+    with test_engine.begin() as connection:
+        admin_id = connection.execute(
+            text("SELECT id FROM roles WHERE key = 'admin'")
+        ).scalar_one()
+        connection.execute(
+            text(
+                "INSERT INTO employees (username, password_hash, full_name, role_id) "
+                "VALUES ('volta.admin', 'x', 'Nome', :role_id)"
+            ),
+            {"role_id": admin_id},
+        )
+
+    command.downgrade(config, "a7c3e91d5b20")
+    with test_engine.begin() as connection:
+        downgraded = connection.execute(
+            text("SELECT role FROM employees WHERE username = 'volta.admin'")
+        ).scalar_one()
         connection.execute(text("DELETE FROM employees"))
     command.upgrade(config, "head")
 
-    assert flags == {"novo.admin": True, "novo.analista": False}
+    assert downgraded == "admin"

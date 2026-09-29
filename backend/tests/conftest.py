@@ -12,7 +12,14 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.main import app
-from app.models import CargoItem, DriverDocumentType, Employee, Role, Schedule
+from app.models import (
+    CargoItem,
+    DriverDocumentType,
+    Employee,
+    Role,
+    Schedule,
+    SystemRole,
+)
 from app.rate_limit import limiter
 from app.services.auth import get_current_employee, hash_password
 
@@ -66,12 +73,20 @@ def db_session(test_engine):
 
 
 @pytest.fixture
-def employee(db_session):
+def role_named(db_session):
+    def _get(key: str) -> Role:
+        return db_session.query(Role).filter(Role.key == str(key)).one()
+
+    return _get
+
+
+@pytest.fixture
+def employee(db_session, role_named):
     record = Employee(
         username="fiscal.teste",
         full_name="Fiscal de Teste",
         password_hash=hash_password("s3nhaSegura!"),
-        role=Role.SUPERVISOR,
+        role=role_named(SystemRole.SUPERVISOR),
         must_change_password=False,
     )
     db_session.add(record)
@@ -81,13 +96,13 @@ def employee(db_session):
 
 
 @pytest.fixture
-def make_employee(db_session):
-    def _make(role: Role, username: str | None = None) -> Employee:
+def make_employee(db_session, role_named):
+    def _make(role_key: str, username: str | None = None) -> Employee:
         record = Employee(
-            username=username or f"{role.value}.teste",
-            full_name=f"Funcionário {role.value}",
+            username=username or f"{role_key}.teste",
+            full_name=f"Funcionário {role_key}",
             password_hash=hash_password("s3nhaSegura!"),
-            role=role,
+            role=role_named(role_key),
             must_change_password=False,
         )
         db_session.add(record)

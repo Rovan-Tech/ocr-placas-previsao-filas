@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db import get_db
 from app.models import Employee
-from app.services.permissions import Access, Screen, can
+from app.services.permissions import Permission, can
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
 
@@ -119,9 +119,16 @@ def get_client_ip(request: Request) -> str | None:
     return request.client.host if request.client else None
 
 
-def require_access(*needs: tuple[Screen, Access]) -> Callable[..., Employee]:
+def ensure_permission(employee: Employee, permission: Permission) -> None:
+    if not can(employee, permission):
+        raise HTTPException(
+            status_code=403, detail="Seu cargo não tem acesso a esta função."
+        )
+
+
+def require_permission(*any_of: Permission) -> Callable[..., Employee]:
     def dependency(employee: Employee = Depends(get_current_employee)) -> Employee:
-        if not any(can(employee.role, screen, level) for screen, level in needs):
+        if not any(can(employee, permission) for permission in any_of):
             raise HTTPException(
                 status_code=403, detail="Seu cargo não tem acesso a esta função."
             )
@@ -130,9 +137,15 @@ def require_access(*needs: tuple[Screen, Access]) -> Callable[..., Employee]:
     return dependency
 
 
-require_capture = require_access((Screen.CAPTURE, Access.FULL))
-require_checkins_read = require_access((Screen.CHECKINS, Access.READ))
-require_logs_read = require_access((Screen.LOGS, Access.READ))
-require_schedules_read = require_access((Screen.SCHEDULES, Access.READ))
-require_schedules_write = require_access((Screen.SCHEDULES, Access.FULL))
-require_admin = require_access((Screen.EMPLOYEES, Access.FULL))
+require_read_plate = require_permission(Permission.CAPTURE_READ_PLATE)
+require_checkins_view = require_permission(
+    Permission.CHECKINS_VIEW, Permission.REPORTS_VIEW
+)
+require_logs_view = require_permission(Permission.LOGS_VIEW, Permission.REPORTS_VIEW)
+require_schedules_view = require_permission(Permission.SCHEDULES_VIEW)
+require_schedules_create = require_permission(Permission.SCHEDULES_CREATE)
+require_employees_view = require_permission(Permission.EMPLOYEES_VIEW)
+require_employees_create = require_permission(Permission.EMPLOYEES_CREATE)
+require_employees_deactivate = require_permission(Permission.EMPLOYEES_DEACTIVATE)
+require_employees_set_role = require_permission(Permission.EMPLOYEES_SET_ROLE)
+require_permissions_manage = require_permission(Permission.PERMISSIONS_MANAGE)

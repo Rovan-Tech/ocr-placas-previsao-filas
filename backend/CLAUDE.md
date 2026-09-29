@@ -99,14 +99,35 @@ Convenções:
   Role.ADMIN`, dependência `require_admin` em `app/services/auth.py`) — de propósito, para
   "quem enviou cada foto" continuar significando algo. O primeiro admin é criado por
   `scripts/create_employee.py`, direto no banco.
-- **Cargos e permissões.** Cada funcionário tem um `role` (`fiscal`, `planejador`, `analista`,
-  `supervisor`, `admin`). A matriz cargo × tela (`capture`, `checkins`, `schedules`, `logs`,
-  `reports`, `employees`, cada uma `full`, `read` ou `none`) é a fonte única de verdade em
-  `app/services/permissions.py`; cada rota declara o que exige com uma dependência de
-  `app/services/auth.py` (`require_capture`, `require_logs_read`...). Falta de permissão é 403
-  com mensagem em pt-BR. `POST /schedules` e todas as fotos de agendamento exigem a tela
-  `schedules`: o Fiscal não cadastra agendamento nem vê o documento do motorista. `PATCH /auth/employees/{id}/role` troca o cargo (400 para o próprio
-  admin, para ninguém se trancar fora) e `GET /auth/permissions` devolve a matriz inteira.
+- **Cargos e permissões por ação.** Cada funcionário tem um cargo (`Role`, tabela `roles`); cada
+  cargo tem um conjunto de permissões (`role_permissions`), e o funcionário pode ter exceções
+  (`employee_permission_overrides`): liberar ou bloquear uma ação só para ele. A permissão
+  efetiva é a do cargo, mais as liberadas e menos as bloqueadas
+  (`effective_permissions` em `app/services/permissions.py`). O catálogo de ações (`Permission`:
+  `capture.read_plate`, `capture.authorize_entry`, `capture.refuse_entry`, `checkins.view`,
+  `schedules.view`, `schedules.create`, `logs.view`, `reports.view`, `employees.view`,
+  `employees.create`, `employees.deactivate`, `employees.set_role`, `permissions.manage`) vive
+  em código, agrupado por tela (`CATALOG`); as regras de quem tem o quê vivem no banco. Os
+  cinco cargos originais (`fiscal`, `planejador`, `analista`, `supervisor`, `admin`) são
+  `is_system`: têm as permissões editáveis, mas não podem ser renomeados nem excluídos. O
+  Administrador cria cargos novos e edita tudo (`POST /auth/roles`, `PUT /auth/roles/{id}`,
+  `DELETE /auth/roles/{id}`, `PUT /auth/employees/{id}/permissions`,
+  `PATCH /auth/employees/{id}/role`).
+- **Cada rota exige uma ação** por dependência de `app/services/auth.py` (`require_read_plate`,
+  `require_logs_view`...). Falta de permissão é 403 em pt-BR. Autorizar e recusar entrada são
+  ações separadas, checadas dentro de `POST /checkins` conforme a decisão. `checkins.view` e
+  `logs.view` também valem para quem tem `reports.view`, porque o relatório lê esses dados.
+- **Toda mudança de permissão deixa rastro.** Criar, editar (permissões ou nome) ou excluir um
+  cargo, trocar o cargo de um funcionário e mudar as exceções dele gravam uma linha em
+  `permission_audit_logs` (`app/services/permission_audit.py`): quem fez (usuário e nome, com
+  cópia dos dois), o IP, o horário, um resumo em pt-BR e os detalhes estruturados. A linha é
+  gravada na mesma transação da mudança, então uma mudança recusada (ou salvar sem alterar
+  nada) não deixa registro, e nada muda sem registro. `GET /auth/permission-log` (só quem tem
+  `permissions.manage`) devolve o histórico, do mais novo para o mais antigo.
+- **Ninguém se tranca fora.** Toda mudança de permissão de cargo, cargo de funcionário ou
+  exceção passa por `_lockout_guard` (`app/routers/access.py`): se depois dela nenhum
+  funcionário ativo tivesse `permissions.manage`, a mudança é desfeita e a resposta é 400. O
+  admin também não pode trocar o próprio cargo nem excluir a própria conta.
 - **Exclusão de funcionário é lógica.** `DELETE /auth/employees/{id}` marca `active=False`,
   nunca apaga a linha — `UploadLog.employee_id` referencia o funcionário, e o histórico de
   quem enviou cada foto precisa sobreviver a alguém sair da empresa. Auto-exclusão é
@@ -243,11 +264,16 @@ então não há CORS configurado. Toda chamada abaixo, exceto `/auth/login`, exi
 | Endpoint                | Resposta                                                                      |
 | ------------------------ | ----------------------------------------------------------------------------- |
 | `POST /auth/login`      | `{ access_token, token_type, employee, must_change_password }` |
-| `GET /auth/me`          | `{ id, username, full_name, role, permissions, is_admin, active }` |
+| `GET /auth/me`          | `{ id, username, full_name, role: { id, key, name, is_system }, permissions: [ação], overrides: { granted, denied }, active }` |
 | `POST /auth/change-password` | Mesma forma de `/auth/me` |
-| `POST /auth/employees`  | Mesma forma de `/auth/me`, a partir de `{ username, full_name, temporary_password, role? }` (`role` padrão: `fiscal`) |
-| `PATCH /auth/employees/{id}/role` | Mesma forma de `/auth/me`, a partir de `{ role }` |
-| `GET /auth/permissions` | `{ roles: { <cargo>: { <tela>: full \| read \| none } } }` (só Administrador) |
+| `POST /auth/employees`  | Mesma forma de `/auth/me`, a partir de `{ username, full_name, temporary_password, role_id? }` (padrão: cargo `fiscal`) |
+| `PATCH /auth/employees/{id}/role` | Mesma forma de `/auth/me`, a partir de `{ role_id }` |
+| `PUT /auth/employees/{id}/permissions` | Mesma forma de `/auth/me`, a partir de `{ granted, denied }` (substitui as exceções) |
+| `GET /auth/roles` | Lista de `{ id, key, name, is_system }` |
+| `GET /auth/permission-log` | Histórico de mudanças de permissão: `{ id, created_at, actor_username, actor_name, client_ip, action, target_name, summary, details }` |
+| `GET /auth/permissions` | `{ catalog: [tela → ações com rótulo], roles: [cargo com permissions] }` |
+| `POST /auth/roles`, `PUT /auth/roles/{id}` | `{ id, key, name, is_system, permissions }`, a partir de `{ name, permissions }` |
+| `DELETE /auth/roles/{id}` | 204; só cargo criado e sem funcionários |
 | `GET /auth/employees`   | Lista de `EmployeeOut` (com `active`) |
 | `DELETE /auth/employees/{id}` | Mesma forma de `/auth/me`, com `active: false` |
 | `POST /ocr/upload`      | `{ filename, plate, plate_format, confidence, needs_review, verification, detections, checkin }` (ver `PlateReadResponse` em `app/routers/ocr.py` e o `README.md`) |

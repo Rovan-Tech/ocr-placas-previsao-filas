@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { loginAsTestUser } from './testAuth'
+import { employeeWithRole, loginAsTestUser } from './testAuth'
 
 test.beforeEach(async ({ page }) => {
   await loginAsTestUser(page)
@@ -283,4 +283,39 @@ test('no celular cada agendamento vira um cartão sem estourar a largura', async
     () => document.documentElement.scrollWidth > window.innerWidth,
   )
   expect(overflow).toBe(false)
+})
+
+test.describe('agendamentos: ver e cadastrar são permissões separadas', () => {
+  test('só ver: lista aparece e o formulário não', async ({ page }) => {
+    await page.unroute('**/api/auth/me')
+    const planejador = employeeWithRole('planejador')
+    await loginAsTestUser(page, {
+      ...planejador,
+      permissions: planejador.permissions.filter((key) => key !== 'schedules.create'),
+    })
+    await mockSchedules(page, { list: [] })
+    await page.goto('/agendamentos')
+
+    await expect(page.getByText('Nenhum agendamento cadastrado ainda.')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Cadastrar agendamento' })).toHaveCount(0)
+  })
+
+  test('só cadastrar: o formulário aparece e a lista não é carregada', async ({ page }) => {
+    await page.unroute('**/api/auth/me')
+    const planejador = employeeWithRole('planejador')
+    await loginAsTestUser(page, {
+      ...planejador,
+      permissions: planejador.permissions.filter((key) => key !== 'schedules.view'),
+    })
+    let listRequested = false
+    await page.route('**/api/schedules', (route) => {
+      listRequested = route.request().method() === 'GET'
+      return route.fulfill({ contentType: 'application/json', body: '[]' })
+    })
+    await page.goto('/agendamentos')
+
+    await expect(page.getByRole('heading', { name: 'Cadastrar agendamento' })).toBeVisible()
+    await expect(page.getByText('Nenhum agendamento cadastrado ainda.')).toHaveCount(0)
+    expect(listRequested).toBe(false)
+  })
 })

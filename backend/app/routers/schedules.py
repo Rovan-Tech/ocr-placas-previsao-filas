@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import CargoCategory, CargoItem, DriverDocumentType, Employee, Schedule
-from app.services.auth import require_schedules_read, require_schedules_write
+from app.services.auth import require_schedules_create, require_schedules_view
 from app.services.document_validation import is_valid_cpf, validate_document_photo
 from app.services.ocr_service import decode_image
 from app.services.photo_storage import resolve_photo_path, save_photo
@@ -327,7 +327,7 @@ async def create_schedule(  # noqa: PLR0913, PLR0917 - campos de formulário e d
     driver_document_photo_back: UploadFile = File(...),
     vehicle_document_photo: UploadFile = File(...),
     manifest_photo: UploadFile = File(...),
-    employee: Employee = Depends(require_schedules_write),
+    employee: Employee = Depends(require_schedules_create),
     db: Session = Depends(get_db),
 ) -> ScheduleOut:
     normalized_plate = normalize(plate)
@@ -445,7 +445,7 @@ async def create_schedule(  # noqa: PLR0913, PLR0917 - campos de formulário e d
 def list_schedules(
     plate: str | None = None,
     db: Session = Depends(get_db),
-    _employee: Employee = Depends(require_schedules_read),
+    _employee: Employee = Depends(require_schedules_view),
 ) -> list[ScheduleOut]:
     query = select(Schedule).order_by(Schedule.scheduled_date.desc())
     if plate:
@@ -472,7 +472,7 @@ def _get_schedule_or_404(schedule_id: int, db: Session) -> Schedule:
 def get_driver_document_photo_front(
     schedule_id: int,
     db: Session = Depends(get_db),
-    _employee: Employee = Depends(require_schedules_read),
+    _employee: Employee = Depends(require_schedules_view),
 ) -> FileResponse:
     schedule = _get_schedule_or_404(schedule_id, db)
     return _serve_schedule_photo(
@@ -486,7 +486,7 @@ def get_driver_document_photo_front(
 def get_driver_document_photo_back(
     schedule_id: int,
     db: Session = Depends(get_db),
-    _employee: Employee = Depends(require_schedules_read),
+    _employee: Employee = Depends(require_schedules_view),
 ) -> FileResponse:
     schedule = _get_schedule_or_404(schedule_id, db)
     return _serve_schedule_photo(
@@ -500,7 +500,7 @@ def get_driver_document_photo_back(
 def get_vehicle_document_photo(
     schedule_id: int,
     db: Session = Depends(get_db),
-    _employee: Employee = Depends(require_schedules_read),
+    _employee: Employee = Depends(require_schedules_view),
 ) -> FileResponse:
     schedule = _get_schedule_or_404(schedule_id, db)
     return _serve_schedule_photo(
@@ -513,7 +513,7 @@ def get_vehicle_document_photo(
 def get_manifest_photo(
     schedule_id: int,
     db: Session = Depends(get_db),
-    _employee: Employee = Depends(require_schedules_read),
+    _employee: Employee = Depends(require_schedules_view),
 ) -> FileResponse:
     schedule = _get_schedule_or_404(schedule_id, db)
     return _serve_schedule_photo(

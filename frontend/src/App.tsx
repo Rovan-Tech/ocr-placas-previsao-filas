@@ -1,8 +1,8 @@
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
 import { useAuth } from './context/AuthContext'
-import { homePathFor } from './services/navigation'
-import { hasAccess, type Screen } from './services/roles'
+import { entryById, homePathFor } from './services/navigation'
+import { canAny } from './services/roles'
 import CapturePage from './pages/CapturePage'
 import ChangePasswordPage from './pages/ChangePasswordPage'
 import CheckinsPage from './pages/CheckinsPage'
@@ -22,10 +22,11 @@ function RequireAuth() {
   return <Outlet />
 }
 
-function RequireScreen({ screen }: { screen: Screen }) {
+function RequireScreen({ screen }: { screen: string }) {
   const { employee } = useAuth()
+  const requires = entryById(screen)?.requires ?? []
 
-  if (!hasAccess(employee?.permissions, screen)) {
+  if (!canAny(employee?.permissions, requires)) {
     return <Navigate to={homePathFor(employee?.permissions)} replace />
   }
   return <Outlet />
@@ -59,6 +60,8 @@ export default function App() {
           </Route>
           <Route element={<RequireScreen screen="employees" />}>
             <Route path="funcionarios" element={<CreateEmployeePage />} />
+          </Route>
+          <Route element={<RequireScreen screen="permissions" />}>
             <Route path="permissoes" element={<PermissionsPage />} />
           </Route>
           <Route path="*" element={<HomeRedirect />} />

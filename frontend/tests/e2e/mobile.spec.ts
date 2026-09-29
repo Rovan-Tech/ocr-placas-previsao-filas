@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { FAKE_EMPLOYEE, loginAsTestUser, employeeWithRole } from './testAuth'
+import { FAKE_EMPLOYEE, employeeWithRole, loginAsTestUser, roleOf } from './testAuth'
 
 test.beforeEach(async ({ page }) => {
   await loginAsTestUser(page)
@@ -113,7 +113,9 @@ test('lista de funcionários não estoura a largura em viewport mobile (rola por
               id: 2,
               username: 'fiscal.maria',
               full_name: 'Maria Fiscal',
-              role: 'fiscal',
+              role: roleOf('fiscal'),
+              permissions: [],
+              overrides: { granted: [], denied: [] },
               active: true,
             },
           ]),
