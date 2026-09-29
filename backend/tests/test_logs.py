@@ -115,3 +115,29 @@ def test_returns_404_when_the_photo_file_is_missing_from_disk(authenticated_clie
     response = authenticated_client.get(f"/logs/{log.id}/photo")
 
     assert response.status_code == 404
+
+
+def test_rejects_a_path_traversal_photo_path_stored_in_the_database(
+    authenticated_client, db_session, employee, tmp_path, monkeypatch
+):
+    import app.services.photo_storage as photo_storage
+
+    monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
+    log = _add_log(db_session, employee, endpoint=UploadEndpoint.MANUAL, photo_path="../../../../etc/passwd")
+
+    response = authenticated_client.get(f"/logs/{log.id}/photo")
+
+    assert response.status_code == 404
+
+
+def test_rejects_an_absolute_photo_path_stored_in_the_database(
+    authenticated_client, db_session, employee, tmp_path, monkeypatch
+):
+    import app.services.photo_storage as photo_storage
+
+    monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
+    log = _add_log(db_session, employee, endpoint=UploadEndpoint.MANUAL, photo_path="/etc/passwd")
+
+    response = authenticated_client.get(f"/logs/{log.id}/photo")
+
+    assert response.status_code == 404

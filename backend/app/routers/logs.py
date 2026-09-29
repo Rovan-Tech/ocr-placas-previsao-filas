@@ -81,4 +81,4 @@ def get_log_photo(
     if photo_path is None:
         raise HTTPException(status_code=404, detail="Arquivo da foto não foi encontrado no servidor.")
 
-    return FileResponse(photo_path)
+    return FileResponse(photo_path)  # nosemgrep

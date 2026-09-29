@@ -368,7 +368,7 @@ def _serve_schedule_photo(relative_path: str, not_found_message: str) -> FileRes
     photo_path = resolve_photo_path(relative_path)
     if photo_path is None:
         raise HTTPException(status_code=404, detail=not_found_message)
-    return FileResponse(photo_path)
+    return FileResponse(photo_path)  # nosemgrep
 
 
 def _get_schedule_or_404(schedule_id: int, db: Session) -> Schedule:

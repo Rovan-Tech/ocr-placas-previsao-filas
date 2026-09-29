@@ -5,6 +5,7 @@ import numpy as np
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.models import Schedule
 
 client = TestClient(app)
 
@@ -417,3 +418,19 @@ class TestSchedulePhotos:
         assert client.get("/schedules/1/driver-document-photo-back").status_code == 401
         assert client.get("/schedules/1/vehicle-document-photo").status_code == 401
         assert client.get("/schedules/1/manifest-photo").status_code == 401
+
+    def test_rejects_a_path_traversal_photo_path_stored_in_the_database(
+        self, authenticated_client, db_session, tmp_path, monkeypatch
+    ):
+        import app.services.photo_storage as photo_storage
+
+        monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
+        created = _create(authenticated_client).json()
+
+        schedule = db_session.get(Schedule, created["id"])
+        schedule.driver_document_photo_front_path = "../../../../etc/passwd"
+        db_session.flush()
+
+        response = authenticated_client.get(f"/schedules/{created['id']}/driver-document-photo-front")
+
+        assert response.status_code == 404
