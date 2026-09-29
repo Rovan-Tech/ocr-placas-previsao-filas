@@ -83,6 +83,8 @@
   --chart-area: #0b6e4c;
   --chart-grid: #c7d2cb;
 
+  --uncertain-text: #8a5a00;
+
   --font-brand: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
@@ -150,6 +152,8 @@
   --chart-line: #2fd39a;
   --chart-area: #2fd39a;
   --chart-grid: #26312c;
+
+  --uncertain-text: #f2a93b;
 
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.35);
   --shadow-md: 0 4px 10px rgb(0 0 0 / 0.35), 0 2px 4px rgb(0 0 0 / 0.3);
@@ -1102,6 +1106,7 @@ button.link {
 
 .status-badge {
   display: inline-block;
+  white-space: nowrap;
   padding: var(--space-1) var(--space-3);
   border-radius: 999px;
   font-size: var(--text-sm);
@@ -1119,6 +1124,26 @@ button.link {
 .status-badge-danger {
   background: var(--status-danger-bg);
   color: var(--status-danger-text);
+}
+
+.checkins .mono {
+  font-family: var(--font-mono);
+  color: var(--muted);
+}
+.checkins .plate-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.uncertain-mark {
+  color: var(--uncertain-text);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+.photo-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 .refresh-button {
@@ -1207,6 +1232,52 @@ button.link {
   }
   .checkins td:empty::before {
     content: none;
+  }
+  .checkins.logs tr {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    column-gap: var(--space-2);
+  }
+  .checkins.logs td[data-label='Funcionário'],
+  .checkins.logs td[data-label='IP'],
+  .checkins.logs td[data-label='Foto'] {
+    font-size: var(--text-sm);
+  }
+  .checkins.logs td[data-label='IP'],
+  .checkins.logs td[data-label='Foto'] {
+    white-space: nowrap;
+  }
+  .checkins.logs td[data-label='Quando'] {
+    grid-column: 1 / 3;
+    grid-row: 1;
+  }
+  .checkins.logs td[data-label='Origem'] {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+  }
+  .checkins.logs td[data-label='Placa'] {
+    grid-column: 1 / 4;
+    grid-row: 2;
+  }
+  .checkins.logs .plate-line {
+    justify-content: space-between;
+  }
+  .checkins.logs td[data-label='Funcionário'] {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  .checkins.logs td[data-label='IP'] {
+    grid-column: 2;
+    grid-row: 3;
+  }
+  .checkins.logs td[data-label='IP']::before {
+    content: '· ';
+  }
+  .checkins.logs td[data-label='Foto'] {
+    grid-column: 3;
+    grid-row: 3;
+    justify-self: end;
+    text-align: right;
   }
 }
 

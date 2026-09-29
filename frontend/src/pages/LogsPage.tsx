@@ -1,11 +1,22 @@
+import { Image, RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { fetchLogPhoto, fetchLogs, type UploadLogEntry } from '../services/api'
-import { formatPlate, plateFormatLabel } from '../services/plate'
+import { formatPlate, logOriginInfo, plateFormatLabel } from '../services/plate'
 
-const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'medium' })
-const ENDPOINT_LABEL: Record<UploadLogEntry['endpoint'], string> = {
-  upload: 'Foto (OCR)',
-  manual: 'Digitação manual',
+const fullDateFormatter = new Intl.DateTimeFormat('pt-BR', {
+  dateStyle: 'short',
+  timeStyle: 'medium',
+})
+const shortDateFormatter = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+
+function OriginBadge({ endpoint }: { endpoint: UploadLogEntry['endpoint'] }) {
+  const { label, tone } = logOriginInfo(endpoint)
+  return <span className={`status-badge status-badge-${tone}`}>{label}</span>
 }
 
 function PhotoLink({ logId }: { logId: number }) {
@@ -23,13 +34,15 @@ function PhotoLink({ logId }: { logId: number }) {
 
   if (photoUrl) {
     return (
-      <a href={photoUrl} target="_blank" rel="noreferrer">
+      <a href={photoUrl} target="_blank" rel="noreferrer" className="photo-link">
+        <Image aria-hidden="true" size={16} />
         ver foto
       </a>
     )
   }
   return (
-    <button type="button" className="link" onClick={open}>
+    <button type="button" className="link photo-link" onClick={open}>
+      <Image aria-hidden="true" size={16} />
       {error ? 'falhou, tentar de novo' : 'abrir foto'}
     </button>
   )
@@ -69,7 +82,8 @@ export default function LogsPage() {
             Quem enviou cada foto ou placa, de onde, e o que a leitura deu.
           </p>
         </div>
-        <button type="button" onClick={handleRefresh} disabled={loading}>
+        <button type="button" className="refresh-button" onClick={handleRefresh} disabled={loading}>
+          <RefreshCw aria-hidden="true" size={18} />
           Atualizar
         </button>
       </div>
@@ -80,7 +94,7 @@ export default function LogsPage() {
 
       {!loading && !error && logs.length > 0 && (
         <div className="table-scroll">
-          <table className="checkins">
+          <table className="checkins logs">
             <thead>
               <tr>
                 <th>Quando</th>
@@ -94,17 +108,26 @@ export default function LogsPage() {
             <tbody>
               {logs.map((log) => (
                 <tr key={log.id}>
-                  <td data-label="Quando">{dateFormatter.format(new Date(log.created_at))}</td>
+                  <td data-label="Quando" className="mono">
+                    <time
+                      dateTime={log.created_at}
+                      title={fullDateFormatter.format(new Date(log.created_at))}
+                    >
+                      {shortDateFormatter.format(new Date(log.created_at))}
+                    </time>
+                  </td>
                   <td data-label="Funcionário">{log.employee_username}</td>
-                  <td data-label="Origem">{ENDPOINT_LABEL[log.endpoint]}</td>
+                  <td data-label="Origem">
+                    <OriginBadge endpoint={log.endpoint} />
+                  </td>
                   <td data-label="Placa">
                     {log.final_plate ? (
-                      <>
+                      <div className="plate-line">
                         <span className="plate">
                           {formatPlate(log.final_plate, log.final_plate_format)}
                         </span>
-                        {log.needs_review && ' · incerta'}
-                      </>
+                        {log.needs_review && <span className="uncertain-mark">incerta</span>}
+                      </div>
                     ) : (
                       '—'
                     )}
@@ -112,7 +135,9 @@ export default function LogsPage() {
                       <div className="hint">{plateFormatLabel(log.final_plate_format)}</div>
                     )}
                   </td>
-                  <td data-label="IP">{log.client_ip ?? '—'}</td>
+                  <td data-label="IP" className="mono">
+                    {log.client_ip ?? '—'}
+                  </td>
                   <td data-label="Foto">{log.has_photo ? <PhotoLink logId={log.id} /> : '—'}</td>
                 </tr>
               ))}

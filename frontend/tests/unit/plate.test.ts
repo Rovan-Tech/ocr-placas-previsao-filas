@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   cargoCategoryLabel,
   checkInStatusInfo,
+  logOriginInfo,
   driverDocumentHint,
   driverDocumentTypeLabel,
   formatConfidence,
@@ -112,6 +113,15 @@ describe('checkInStatusInfo', () => {
     ['cancelled', 'Recusado', 'danger'],
   ] as const)('%s -> %s (%s)', (status, label, tone) => {
     expect(checkInStatusInfo(status)).toEqual({ label, tone })
+  })
+})
+
+describe('logOriginInfo', () => {
+  it.each([
+    ['upload', 'Foto (OCR)', 'ok'],
+    ['manual', 'Digitação manual', 'warning'],
+  ] as const)('%s -> %s (%s)', (endpoint, label, tone) => {
+    expect(logOriginInfo(endpoint)).toEqual({ label, tone })
   })
 })
 

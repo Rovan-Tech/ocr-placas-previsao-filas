@@ -176,6 +176,20 @@ export function checkInStatusInfo(status: CheckInStatus): CheckInStatusInfo {
   return CHECKIN_STATUS_INFO[status]
 }
 
+export interface LogOriginInfo {
+  label: string
+  tone: Tone
+}
+
+const LOG_ORIGIN_INFO: Record<'upload' | 'manual', LogOriginInfo> = {
+  upload: { label: 'Foto (OCR)', tone: 'ok' },
+  manual: { label: 'Digitação manual', tone: 'warning' },
+}
+
+export function logOriginInfo(endpoint: 'upload' | 'manual'): LogOriginInfo {
+  return LOG_ORIGIN_INFO[endpoint]
+}
+
 export function todayIsoDate(): string {
   const now = new Date()
   const month = String(now.getMonth() + 1).padStart(2, '0')
