@@ -34,6 +34,7 @@ def is_destructive_rm(command: str) -> str | None:
         flags = "".join(t for t in tokens if t.startswith("-") and not t.startswith("--"))
         long_flags = [t for t in tokens if t.startswith("--")]
         has_recursive_force = (
+            # nosemgrep: skills.code-injection.skill-ldap-injection.skill-ldap-injection -- falso positivo: regex de flags do rm, sem LDAP
             re.search(r"r", flags) and re.search(r"f", flags)
         ) or ("--recursive" in long_flags and "--force" in long_flags)
         if not has_recursive_force:
