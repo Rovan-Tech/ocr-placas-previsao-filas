@@ -190,7 +190,12 @@ function EntryDecision({
       >
         Autorizar entrada
       </button>
-      <button type="button" onClick={() => decide('cancelled')} disabled={sending}>
+      <button
+        type="button"
+        className="danger-outline"
+        onClick={() => decide('cancelled')}
+        disabled={sending}
+      >
         Recusar entrada
       </button>
       {error && <StatusMessage tone="error">{error}</StatusMessage>}

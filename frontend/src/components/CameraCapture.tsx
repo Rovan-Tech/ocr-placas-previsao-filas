@@ -1,3 +1,4 @@
+import { Camera } from 'lucide-react'
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import StatusMessage from './StatusMessage'
 
@@ -124,7 +125,11 @@ export default function CameraCapture({ onCapture, disabled = false }: CameraCap
         {!cameraOn && (
           <p className="camera-placeholder">Aponte a câmera para a placa do caminhão</p>
         )}
-        {cameraOn && <div className="camera-guide" aria-hidden="true" />}
+        <div className={`camera-guide ${cameraOn ? 'is-on' : ''}`} aria-hidden="true" />
+        <span className="camera-corner camera-corner-tl" aria-hidden="true" />
+        <span className="camera-corner camera-corner-tr" aria-hidden="true" />
+        <span className="camera-corner camera-corner-bl" aria-hidden="true" />
+        <span className="camera-corner camera-corner-br" aria-hidden="true" />
       </div>
 
       {cameraError && <StatusMessage tone="error">{cameraError}</StatusMessage>}
@@ -132,6 +137,7 @@ export default function CameraCapture({ onCapture, disabled = false }: CameraCap
       <div className="camera-actions">
         {canUseLiveCamera && !cameraOn && (
           <button type="button" className="primary" onClick={startCamera} disabled={disabled}>
+            <Camera aria-hidden="true" size={20} />
             Abrir câmera
           </button>
         )}
