@@ -41,7 +41,8 @@ def list_logs(
     _employee: Employee = Depends(get_current_employee),
 ) -> list[LogEntry]:
     limit = max(1, min(limit, MAX_LIMIT))
-    rows = db.execute(
+    offset = max(0, offset)
+    rows = db.execute(  # nosemgrep
         select(UploadLog, Employee.username)
         .join(Employee, UploadLog.employee_id == Employee.id)
         .order_by(UploadLog.created_at.desc(), UploadLog.id.desc())

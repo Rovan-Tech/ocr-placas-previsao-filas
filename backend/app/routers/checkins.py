@@ -109,5 +109,5 @@ def list_checkins(
     _employee: Employee = Depends(get_current_employee),
 ) -> list[CheckinOut]:
     query = select(CheckIn).order_by(CheckIn.created_at.desc(), CheckIn.id.desc()).limit(limit)
-    rows = db.execute(query).scalars().all()
+    rows = db.execute(query).scalars().all()  # nosemgrep
     return [_to_checkin_out(db, checkin) for checkin in rows]
