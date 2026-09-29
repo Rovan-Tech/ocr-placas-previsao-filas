@@ -89,6 +89,23 @@
   --plate-ink: #10201a;
   --danger-outline: #c0392b;
 
+  --role-admin-bg: #0b6e4c;
+  --role-admin-text: #ffffff;
+  --role-supervisor-bg: #2d74b5;
+  --role-supervisor-text: #ffffff;
+  --role-planejador-bg: #f2a93b;
+  --role-planejador-text: #241900;
+  --role-analista-bg: #7c4fc9;
+  --role-analista-text: #ffffff;
+  --role-fiscal-bg: #5b6d62;
+  --role-fiscal-text: #ffffff;
+  --access-read: #2d74b5;
+  --role-admin-dot: #0b6e4c;
+  --role-supervisor-dot: #2d74b5;
+  --role-planejador-dot: #f2a93b;
+  --role-analista-dot: #7c4fc9;
+  --role-fiscal-dot: #5b6d62;
+
   --font-brand: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
@@ -162,6 +179,23 @@
   --plate-bg: #ffffff;
   --plate-ink: #10201a;
   --danger-outline: #f0736a;
+
+  --role-admin-bg: #16352a;
+  --role-admin-text: #3fd39a;
+  --role-supervisor-bg: #17304a;
+  --role-supervisor-text: #6ab0f0;
+  --role-planejador-bg: #3a2f14;
+  --role-planejador-text: #f2a93b;
+  --role-analista-bg: #2a2340;
+  --role-analista-text: #b58ae8;
+  --role-fiscal-bg: #26312c;
+  --role-fiscal-text: #a9b8b0;
+  --access-read: #6ab0f0;
+  --role-admin-dot: #3fd39a;
+  --role-supervisor-dot: #6ab0f0;
+  --role-planejador-dot: #f2a93b;
+  --role-analista-dot: #b58ae8;
+  --role-fiscal-dot: #a9b8b0;
 
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.35);
   --shadow-md: 0 4px 10px rgb(0 0 0 / 0.35), 0 2px 4px rgb(0 0 0 / 0.3);
@@ -275,6 +309,7 @@ button.primary:hover:not(:disabled) {
 }
 .session {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   font-size: var(--text-sm);
@@ -1387,6 +1422,143 @@ button.link {
   }
 }
 
+.role-badge,
+.role-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.role-chip {
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.role-chip i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentcolor;
+}
+.role-badge-admin,
+.role-chip-admin {
+  background: var(--role-admin-bg);
+  color: var(--role-admin-text);
+}
+.role-badge-supervisor,
+.role-chip-supervisor {
+  background: var(--role-supervisor-bg);
+  color: var(--role-supervisor-text);
+}
+.role-badge-planejador,
+.role-chip-planejador {
+  background: var(--role-planejador-bg);
+  color: var(--role-planejador-text);
+}
+.role-badge-analista,
+.role-chip-analista {
+  background: var(--role-analista-bg);
+  color: var(--role-analista-text);
+}
+.role-badge-fiscal,
+.role-chip-fiscal {
+  background: var(--role-fiscal-bg);
+  color: var(--role-fiscal-text);
+}
+
+.role-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--space-3);
+  border-radius: 50%;
+}
+
+.role-dot-admin {
+  background: var(--role-admin-dot);
+}
+.role-dot-supervisor {
+  background: var(--role-supervisor-dot);
+}
+.role-dot-planejador {
+  background: var(--role-planejador-dot);
+}
+.role-dot-analista {
+  background: var(--role-analista-dot);
+}
+.role-dot-fiscal {
+  background: var(--role-fiscal-dot);
+}
+
+.nav-locked {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  color: var(--muted);
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.nav-lock-icon {
+  margin-left: auto;
+}
+
+.permissions-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.permissions-table th,
+.permissions-table td {
+  padding: var(--space-4);
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+.permissions-table thead th {
+  color: var(--muted);
+}
+.permissions-table th:first-child {
+  text-align: left;
+  font-size: var(--text-base);
+  white-space: nowrap;
+}
+.permissions-table tbody tr:last-child th,
+.permissions-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.access-icon {
+  display: inline-flex;
+  vertical-align: middle;
+}
+.access-icon-full {
+  color: var(--success);
+}
+.access-icon-read {
+  color: var(--access-read);
+}
+.access-icon-none {
+  color: var(--muted);
+}
+.access-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: var(--text-sm);
+}
+.access-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .refresh-button {
   display: inline-flex;
   align-items: center;
@@ -1541,6 +1713,38 @@ button.link {
     font-weight: 700;
     font-size: var(--text-sm);
     white-space: nowrap;
+  }
+  .checkins.employees tr {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .checkins.employees td[data-label='Nome'] {
+    grid-column: 1;
+    grid-row: 1;
+    font-weight: 700;
+  }
+  .checkins.employees td[data-label='Usuário'] {
+    grid-column: 1;
+    grid-row: 2;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--muted);
+  }
+  .checkins.employees td[data-label='Cargo'] {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+  .checkins.employees td[data-label='Situação'] {
+    grid-column: 1;
+    grid-row: 3;
+    font-size: var(--text-sm);
+    color: var(--muted);
+  }
+  .checkins.employees td[data-label=''] {
+    grid-column: 2;
+    grid-row: 2 / span 2;
+    align-self: end;
+    justify-self: end;
   }
   .checkins.logs tr {
     grid-template-columns: minmax(0, 1fr) auto auto;

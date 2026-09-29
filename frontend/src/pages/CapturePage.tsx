@@ -3,6 +3,7 @@ import CameraCapture from '../components/CameraCapture'
 import ManualPlateEntry from '../components/ManualPlateEntry'
 import OcrResult from '../components/OcrResult'
 import ScheduleForm from '../components/ScheduleForm'
+import { useAuth } from '../context/AuthContext'
 import StatusMessage from '../components/StatusMessage'
 import {
   uploadPlateImage,
@@ -11,6 +12,7 @@ import {
   type ScheduleOut,
 } from '../services/api'
 import { todayIsoDate } from '../services/plate'
+import { hasAccess } from '../services/roles'
 
 type Status = 'idle' | 'reviewing_photo' | 'sending' | 'needs_decision' | 'confirmed' | 'error'
 
@@ -48,6 +50,8 @@ function UnscheduledArrivalRegistration({
 }
 
 export default function CapturePage() {
+  const { employee } = useAuth()
+  const canManageSchedules = hasAccess(employee?.permissions, 'schedules')
   const [photo, setPhoto] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [status, setStatus] = useState<Status>('idle')
@@ -218,7 +222,7 @@ export default function CapturePage() {
 
           {status === 'needs_decision' && result && (
             <>
-              <OcrResult result={result} />
+              <OcrResult result={result} canManageSchedules={canManageSchedules} />
               <StatusMessage tone="warning">
                 Não foi possível confirmar a placa por essa foto. Tire outra foto ou digite a placa
                 manualmente — a leitura incerta não é registrada sozinha.
@@ -231,7 +235,7 @@ export default function CapturePage() {
                   Digitar manualmente
                 </button>
               </div>
-              {result.plate && result.checkin && !result.checkin.schedule && (
+              {canManageSchedules && result.plate && result.checkin && !result.checkin.schedule && (
                 <UnscheduledArrivalRegistration
                   plate={result.plate}
                   onRegistered={handleScheduleRegistered}
@@ -242,7 +246,7 @@ export default function CapturePage() {
 
           {status === 'confirmed' && result && (
             <>
-              <OcrResult result={result} />
+              <OcrResult result={result} canManageSchedules={canManageSchedules} />
               {result.audit_saved === false && (
                 <StatusMessage tone="warning">
                   A placa foi confirmada, mas não foi possível guardar a foto de resguardo desta
@@ -260,7 +264,7 @@ export default function CapturePage() {
                   Nova foto
                 </button>
               </div>
-              {result.plate && result.checkin && !result.checkin.schedule && (
+              {canManageSchedules && result.plate && result.checkin && !result.checkin.schedule && (
                 <UnscheduledArrivalRegistration
                   plate={result.plate}
                   onRegistered={handleScheduleRegistered}

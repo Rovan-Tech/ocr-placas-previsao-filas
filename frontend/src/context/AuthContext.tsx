@@ -60,7 +60,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!session) return
-    fetchCurrentEmployee(session.token).catch(() => clearSession(setSession))
+    fetchCurrentEmployee(session.token)
+      .then((employee) => setSession((current) => (current ? { ...current, employee } : current)))
+      .catch(() => clearSession(setSession))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

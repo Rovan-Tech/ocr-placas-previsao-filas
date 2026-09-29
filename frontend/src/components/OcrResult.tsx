@@ -21,6 +21,7 @@ import StatusMessage from './StatusMessage'
 
 interface OcrResultProps {
   result: OcrUploadResponse
+  canManageSchedules?: boolean
 }
 
 function VehicleDataSummary({ data, label }: { data: VehicleData; label: string }) {
@@ -66,7 +67,13 @@ function EarlyArrivalNotice({ scheduledDate }: { scheduledDate: string }) {
   )
 }
 
-function CheckinSection({ checkin }: { checkin: CheckinContext }) {
+function CheckinSection({
+  checkin,
+  canManageSchedules,
+}: {
+  checkin: CheckinContext
+  canManageSchedules: boolean
+}) {
   if (checkin.schedule) {
     const status = scheduleStatusInfo(checkin.schedule.status)
     return (
@@ -83,20 +90,24 @@ function CheckinSection({ checkin }: { checkin: CheckinContext }) {
             {checkin.schedule.driver_document_validated ? '✅' : '⚠️'}{' '}
             {checkin.schedule.driver_document_validation_detail}
           </span>
-          <button
-            type="button"
-            className="link"
-            onClick={() => openDriverDocumentPhoto(checkin.schedule!.id, 'front')}
-          >
-            Ver frente do documento
-          </button>{' '}
-          <button
-            type="button"
-            className="link"
-            onClick={() => openDriverDocumentPhoto(checkin.schedule!.id, 'back')}
-          >
-            Ver verso do documento
-          </button>
+          {canManageSchedules && (
+            <>
+              <button
+                type="button"
+                className="link"
+                onClick={() => openDriverDocumentPhoto(checkin.schedule!.id, 'front')}
+              >
+                Ver frente do documento
+              </button>{' '}
+              <button
+                type="button"
+                className="link"
+                onClick={() => openDriverDocumentPhoto(checkin.schedule!.id, 'back')}
+              >
+                Ver verso do documento
+              </button>
+            </>
+          )}
           <span>
             Carga:{' '}
             {checkin.schedule.cargo_items
@@ -139,11 +150,13 @@ function EntryDecision({
   scheduleId,
   checkinId,
   canDecide,
+  canManageSchedules,
 }: {
   plate: string
   scheduleId: number | null
   checkinId: number | null
   canDecide: boolean
+  canManageSchedules: boolean
 }) {
   const [decision, setDecision] = useState<'admitted' | 'cancelled' | null>(null)
   const [sending, setSending] = useState(false)
@@ -174,7 +187,9 @@ function EntryDecision({
     return (
       <div className="camera-actions">
         <StatusMessage tone="review">
-          Cadastre motorista, carga e caminhão abaixo para poder autorizar ou recusar a entrada.
+          {canManageSchedules
+            ? 'Cadastre motorista, carga e caminhão abaixo para poder autorizar ou recusar a entrada.'
+            : 'Chegada sem agendamento. Peça ao Planejador ou ao Supervisor para cadastrar o motorista, a carga e o caminhão antes de liberar a entrada.'}
         </StatusMessage>
       </div>
     )
@@ -219,7 +234,7 @@ function RawDetections({ result }: OcrResultProps) {
   )
 }
 
-export default function OcrResult({ result }: OcrResultProps) {
+export default function OcrResult({ result, canManageSchedules = true }: OcrResultProps) {
   if (result.plate === null) {
     return (
       <div className="ocr-result">
@@ -265,7 +280,9 @@ export default function OcrResult({ result }: OcrResultProps) {
         </div>
       )}
 
-      {result.checkin && <CheckinSection checkin={result.checkin} />}
+      {result.checkin && (
+        <CheckinSection checkin={result.checkin} canManageSchedules={canManageSchedules} />
+      )}
 
       {result.checkin && (
         <EntryDecision
@@ -273,6 +290,7 @@ export default function OcrResult({ result }: OcrResultProps) {
           scheduleId={result.checkin.schedule?.id ?? null}
           checkinId={result.checkin.checkin_id}
           canDecide={result.checkin.schedule !== null}
+          canManageSchedules={canManageSchedules}
         />
       )}
 

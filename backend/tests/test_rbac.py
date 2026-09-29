@@ -156,12 +156,6 @@ class TestCreateEmployeeWithRole:
 
         assert response.json()["role"] == "fiscal"
 
-    def test_legacy_is_admin_flag_creates_an_admin(self, make_employee, db_client):
-        response = self._create(db_client, make_employee(Role.ADMIN), is_admin=True)
-
-        assert response.json()["role"] == "admin"
-        assert response.json()["is_admin"] is True
-
 
 def test_permissions_endpoint_returns_the_whole_matrix(make_employee, db_client):
     admin = make_employee(Role.ADMIN)

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { FAKE_EMPLOYEE, loginAsTestUser } from './testAuth'
+import { FAKE_EMPLOYEE, loginAsTestUser, employeeWithRole } from './testAuth'
 
 test.beforeEach(async ({ page }) => {
   await loginAsTestUser(page)
@@ -102,7 +102,7 @@ test('digitação manual da placa não estoura a largura em viewport mobile', as
 test('lista de funcionários não estoura a largura em viewport mobile (rola por dentro)', async ({
   page,
 }) => {
-  await loginAsTestUser(page, { ...FAKE_EMPLOYEE, is_admin: true })
+  await loginAsTestUser(page, employeeWithRole('admin'))
   await page.route('**/api/auth/employees', (route) =>
     route.request().method() === 'GET'
       ? route.fulfill({
@@ -113,7 +113,7 @@ test('lista de funcionários não estoura a largura em viewport mobile (rola por
               id: 2,
               username: 'fiscal.maria',
               full_name: 'Maria Fiscal',
-              is_admin: false,
+              role: 'fiscal',
               active: true,
             },
           ]),

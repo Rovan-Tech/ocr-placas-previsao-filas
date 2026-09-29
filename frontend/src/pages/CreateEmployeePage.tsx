@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import RoleBadge from '../components/RoleBadge'
 import StatusMessage from '../components/StatusMessage'
 import { useAuth } from '../context/AuthContext'
 import { createEmployee, deactivateEmployee, listEmployees, type Employee } from '../services/auth'
+import { ROLES, roleLabel, type Role } from '../services/roles'
+import { Link } from 'react-router-dom'
 
 const MIN_LENGTH = 8
 
@@ -41,7 +44,7 @@ function DeactivateConfirmation({
       <span>
         Usuário: <strong>{employee.username}</strong>
       </span>
-      <span>Papel: {employee.is_admin ? 'Admin master' : 'Fiscal'}</span>
+      <span>Cargo: {roleLabel(employee.role)}</span>
       <span>
         Ele perde o acesso imediatamente. O histórico de fotos e placas que ele já enviou continua
         registrado nos logs.
@@ -78,12 +81,12 @@ function EmployeesTable({
 
   return (
     <div className="table-scroll">
-      <table className="checkins">
+      <table className="checkins employees">
         <thead>
           <tr>
             <th>Nome</th>
             <th>Usuário</th>
-            <th>Papel</th>
+            <th>Cargo</th>
             <th>Situação</th>
             <th></th>
           </tr>
@@ -93,7 +96,9 @@ function EmployeesTable({
             <tr key={employee.id}>
               <td data-label="Nome">{employee.full_name}</td>
               <td data-label="Usuário">{employee.username}</td>
-              <td data-label="Papel">{employee.is_admin ? 'Admin master' : 'Fiscal'}</td>
+              <td data-label="Cargo">
+                <RoleBadge role={employee.role} />
+              </td>
               <td data-label="Situação">{employee.active ? 'Ativo' : 'Excluído'}</td>
               <td data-label="">
                 {employee.active && employee.id !== currentEmployeeId && (
@@ -124,7 +129,7 @@ export default function CreateEmployeePage() {
   const [username, setUsername] = useState('')
   const [fullName, setFullName] = useState('')
   const [temporaryPassword, setTemporaryPassword] = useState('')
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [role, setRole] = useState<Role>('fiscal')
   const [sending, setSending] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [created, setCreated] = useState<string | null>(null)
@@ -162,7 +167,7 @@ export default function CreateEmployeePage() {
         username,
         full_name: fullName,
         temporary_password: temporaryPassword,
-        is_admin: isAdmin,
+        role,
       })
       setEmployees((current) => [...current, newEmployee])
       setCreated(
@@ -172,7 +177,7 @@ export default function CreateEmployeePage() {
       setUsername('')
       setFullName('')
       setTemporaryPassword('')
-      setIsAdmin(false)
+      setRole('fiscal')
     } catch (err) {
       setFormError(
         err instanceof Error ? err.message : 'Erro inesperado ao cadastrar o funcionário.',
@@ -183,9 +188,11 @@ export default function CreateEmployeePage() {
   }
 
   return (
-    <section className="page">
+    <section className="page page-wide">
       <h1>Funcionários</h1>
-      <p className="subtitle">Cadastre novos funcionários e exclua quem saiu da empresa.</p>
+      <p className="subtitle">
+        Cadastre novos funcionários, defina o cargo de cada um e exclua quem saiu da empresa.
+      </p>
 
       <EmployeesTable
         employees={employees}
@@ -238,15 +245,23 @@ export default function CreateEmployeePage() {
           Pelo menos {MIN_LENGTH} caracteres. Repasse ao funcionário fora do sistema.
         </p>
 
-        <label>
-          <input
-            type="checkbox"
-            checked={isAdmin}
-            onChange={(event) => setIsAdmin(event.target.checked)}
-            disabled={sending}
-          />{' '}
-          Também é admin master (pode cadastrar e excluir outros funcionários)
-        </label>
+        <label htmlFor="new-role">Cargo</label>
+        <select
+          id="new-role"
+          value={role}
+          onChange={(event) => setRole(event.target.value as Role)}
+          disabled={sending}
+        >
+          {ROLES.map((option) => (
+            <option key={option} value={option}>
+              {roleLabel(option)}
+            </option>
+          ))}
+        </select>
+        <p className="hint">
+          Cada cargo abre só as telas que precisa. Veja o detalhe em{' '}
+          <Link to="/permissoes">Permissões por cargo</Link>.
+        </p>
 
         {formError && <StatusMessage tone="error">{formError}</StatusMessage>}
         {created && <StatusMessage tone="success">{created}</StatusMessage>}

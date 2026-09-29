@@ -71,8 +71,7 @@ class CreateEmployeeRequest(BaseModel):
     username: str
     full_name: str
     temporary_password: str
-    role: Role | None = None
-    is_admin: bool = False
+    role: Role = Role.FISCAL
 
 
 class ChangeRoleRequest(BaseModel):
@@ -152,7 +151,7 @@ def create_employee(
         username=payload.username,
         full_name=payload.full_name,
         password_hash=hash_password(payload.temporary_password),
-        role=payload.role or (Role.ADMIN if payload.is_admin else Role.FISCAL),
+        role=payload.role,
         must_change_password=True,
     )
     db.add(employee)
