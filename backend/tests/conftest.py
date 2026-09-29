@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.main import app
-from app.models import CargoItem, DriverDocumentType, Employee, Schedule
+from app.models import CargoItem, DriverDocumentType, Employee, Role, Schedule
 from app.rate_limit import limiter
 from app.services.auth import get_current_employee, hash_password
 
@@ -71,12 +71,31 @@ def employee(db_session):
         username="fiscal.teste",
         full_name="Fiscal de Teste",
         password_hash=hash_password("s3nhaSegura!"),
+        role=Role.SUPERVISOR,
         must_change_password=False,
     )
     db_session.add(record)
     db_session.flush()
     db_session.refresh(record)
     return record
+
+
+@pytest.fixture
+def make_employee(db_session):
+    def _make(role: Role, username: str | None = None) -> Employee:
+        record = Employee(
+            username=username or f"{role.value}.teste",
+            full_name=f"Funcionário {role.value}",
+            password_hash=hash_password("s3nhaSegura!"),
+            role=role,
+            must_change_password=False,
+        )
+        db_session.add(record)
+        db_session.flush()
+        db_session.refresh(record)
+        return record
+
+    return _make
 
 
 @pytest.fixture

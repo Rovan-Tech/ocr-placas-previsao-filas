@@ -42,7 +42,7 @@ veículo fictícios (sinalizados como exemplo na tela) em vez de consultar a API
 
 A API sobe em `http://localhost:8002` (`/docs` para a documentação interativa do Swagger).
 
-### Criando o primeiro login (admin master)
+### Criando o primeiro login (Administrador)
 
 Não existe cadastro aberto — veja por quê em "Login e cadastro de funcionário" mais abaixo. O
 primeiro admin é criado direto no banco, por quem administra o servidor:
@@ -88,11 +88,14 @@ Revise sempre o arquivo gerado em `migrations/versions/` antes de commitar. O te
 - `GET /auth/me` — quem está logado com o token enviado.
 - `POST /auth/change-password` — troca a senha; obrigatório no primeiro login (senha temporária)
   e a cada 30 dias (ver "Login e cadastro de funcionário" abaixo).
-- `POST /auth/employees` — cadastra um funcionário com uma senha temporária. Só quem já é admin
-  master pode chamar (403 pra quem não é).
-- `GET /auth/employees` — lista todos os funcionários (ativos e excluídos). Só admin master.
+- `POST /auth/employees` — cadastra um funcionário com uma senha temporária e um cargo (`role`,
+  padrão `fiscal`). Só quem já é Administrador pode chamar (403 pra quem não é).
+- `GET /auth/employees` — lista todos os funcionários (ativos e excluídos). Só Administrador.
+- `PATCH /auth/employees/{id}/role` — troca o cargo do funcionário. Só Administrador; 400 se for
+  o próprio cargo.
+- `GET /auth/permissions` — matriz cargo × tela (`full`, `read` ou `none`). Só Administrador.
 - `DELETE /auth/employees/{id}` — exclusão lógica (marca `active=False`, não apaga a linha:
-  o histórico em `UploadLog` continua íntegro). Só admin master; 400 se tentar excluir a
+  o histórico em `UploadLog` continua íntegro). Só Administrador; 400 se tentar excluir a
   própria conta (evita o admin se travar fora do sistema sem querer).
 - `POST /ocr/upload` — recebe uma imagem (`multipart/form-data`, campo `file`) e devolve a placa
   lida, já validada no formato Mercosul ou antigo (ver "Leitura da placa" abaixo), mais o
@@ -150,7 +153,7 @@ check-in. Nunca bloqueia o cadastro: se não bater, só fica sinalizado pra conf
 
 Não existe cadastro aberto (`POST /auth/register` não existe de propósito): qualquer um poder
 criar o próprio login tornaria inútil saber "quem enviou cada foto" (ver `UploadLog` abaixo). O
-cadastro é sempre feito por alguém já logado como admin master, em `POST /auth/employees` — com
+cadastro é sempre feito por alguém já logado como Administrador, em `POST /auth/employees` — com
 usuário, nome completo e uma senha temporária, que o admin repassa ao funcionário fora do sistema
 (verbalmente, por escrito etc.).
 
@@ -160,7 +163,7 @@ dias —, o servidor bloqueia qualquer outro endpoint com 403 até o funcionári
 o sistema garante que toda senha em uso foi escolhida pelo próprio dono da conta, e não fica
 velha demais.
 
-O primeiro admin master (que cadastra todos os outros) é criado pelo `scripts/create_employee.py`
+O primeiro Administrador (que cadastra todos os outros) é criado pelo `scripts/create_employee.py`
 — ver "Criando o primeiro login" acima.
 
 ### Fotos de resguardo

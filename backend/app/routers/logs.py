@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import Employee, UploadEndpoint, UploadLog
-from app.services.auth import get_current_employee
+from app.services.auth import require_logs_read
 from app.services.photo_storage import resolve_photo_path
 from app.services.plate_format import PlateFormat
 
@@ -38,7 +38,7 @@ def list_logs(
     limit: int = 50,
     offset: int = 0,
     db: Session = Depends(get_db),
-    _employee: Employee = Depends(get_current_employee),
+    _employee: Employee = Depends(require_logs_read),
 ) -> list[LogEntry]:
     limit = max(1, min(limit, MAX_LIMIT))
     offset = max(0, offset)
@@ -74,7 +74,7 @@ def list_logs(
 def get_log_photo(
     log_id: int,
     db: Session = Depends(get_db),
-    _employee: Employee = Depends(get_current_employee),
+    _employee: Employee = Depends(require_logs_read),
 ) -> FileResponse:
     log = db.get(UploadLog, log_id)
     if log is None or log.photo_path is None:

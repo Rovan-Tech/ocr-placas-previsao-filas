@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import CheckIn, CheckInStatus, Employee, Schedule
-from app.services.auth import get_current_employee
+from app.services.auth import require_capture, require_checkins_read
 from app.services.plate_format import normalize, plate_format
 from app.services.queue_prediction import estimate_wait_minutes
 
@@ -79,7 +79,7 @@ def create_checkin(  # noqa: PLR0913, PLR0917 - campos de formulário e dependê
     status: CheckInStatus = Form(...),
     schedule_id: int | None = Form(None),
     checkin_id: int | None = Form(None),
-    employee: Employee = Depends(get_current_employee),
+    employee: Employee = Depends(require_capture),
     db: Session = Depends(get_db),
 ) -> CheckinOut:
     normalized_plate = normalize(plate)
@@ -130,7 +130,7 @@ def create_checkin(  # noqa: PLR0913, PLR0917 - campos de formulário e dependê
 def list_checkins(
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    _employee: Employee = Depends(get_current_employee),
+    _employee: Employee = Depends(require_checkins_read),
 ) -> list[CheckinOut]:
     query = (
         select(CheckIn)

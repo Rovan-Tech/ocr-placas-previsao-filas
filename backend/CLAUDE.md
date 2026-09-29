@@ -95,10 +95,18 @@ Convenções:
 ## Login e auditoria
 
 - **Sem cadastro aberto.** `POST /auth/employees`, `GET /auth/employees` e
-  `DELETE /auth/employees/{id}` só funcionam logado como admin master (`Employee.is_admin`,
-  dependência `_require_admin` em `app/routers/auth.py`) — de propósito, para "quem enviou
-  cada foto" continuar significando algo. O primeiro admin é criado por
+  `DELETE /auth/employees/{id}` só funcionam logado como Administrador (`Employee.role ==
+  Role.ADMIN`, dependência `require_admin` em `app/services/auth.py`) — de propósito, para
+  "quem enviou cada foto" continuar significando algo. O primeiro admin é criado por
   `scripts/create_employee.py`, direto no banco.
+- **Cargos e permissões.** Cada funcionário tem um `role` (`fiscal`, `planejador`, `analista`,
+  `supervisor`, `admin`). A matriz cargo × tela (`capture`, `checkins`, `schedules`, `logs`,
+  `reports`, `employees`, cada uma `full`, `read` ou `none`) é a fonte única de verdade em
+  `app/services/permissions.py`; cada rota declara o que exige com uma dependência de
+  `app/services/auth.py` (`require_capture`, `require_logs_read`...). Falta de permissão é 403
+  com mensagem em pt-BR. `POST /schedules` e todas as fotos de agendamento exigem a tela
+  `schedules`: o Fiscal não cadastra agendamento nem vê o documento do motorista. `PATCH /auth/employees/{id}/role` troca o cargo (400 para o próprio
+  admin, para ninguém se trancar fora) e `GET /auth/permissions` devolve a matriz inteira.
 - **Exclusão de funcionário é lógica.** `DELETE /auth/employees/{id}` marca `active=False`,
   nunca apaga a linha — `UploadLog.employee_id` referencia o funcionário, e o histórico de
   quem enviou cada foto precisa sobreviver a alguém sair da empresa. Auto-exclusão é
@@ -235,9 +243,11 @@ então não há CORS configurado. Toda chamada abaixo, exceto `/auth/login`, exi
 | Endpoint                | Resposta                                                                      |
 | ------------------------ | ----------------------------------------------------------------------------- |
 | `POST /auth/login`      | `{ access_token, token_type, employee, must_change_password }` |
-| `GET /auth/me`          | `{ id, username, full_name, is_admin, active }` |
+| `GET /auth/me`          | `{ id, username, full_name, role, permissions, is_admin, active }` |
 | `POST /auth/change-password` | Mesma forma de `/auth/me` |
-| `POST /auth/employees`  | Mesma forma de `/auth/me`, a partir de `{ username, full_name, temporary_password, is_admin? }` |
+| `POST /auth/employees`  | Mesma forma de `/auth/me`, a partir de `{ username, full_name, temporary_password, role? }` (`is_admin` ainda é aceito e vira `role: admin`) |
+| `PATCH /auth/employees/{id}/role` | Mesma forma de `/auth/me`, a partir de `{ role }` |
+| `GET /auth/permissions` | `{ roles: { <cargo>: { <tela>: full \| read \| none } } }` (só Administrador) |
 | `GET /auth/employees`   | Lista de `EmployeeOut` (com `active`) |
 | `DELETE /auth/employees/{id}` | Mesma forma de `/auth/me`, com `active: false` |
 | `POST /ocr/upload`      | `{ filename, plate, plate_format, confidence, needs_review, verification, detections, checkin }` (ver `PlateReadResponse` em `app/routers/ocr.py` e o `README.md`) |
