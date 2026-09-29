@@ -190,6 +190,17 @@ export function logOriginInfo(endpoint: 'upload' | 'manual'): LogOriginInfo {
   return LOG_ORIGIN_INFO[endpoint]
 }
 
+export interface DocumentStatusInfo {
+  label: string
+  tone: Tone
+}
+
+export function documentStatusInfo(isValidated: boolean): DocumentStatusInfo {
+  return isValidated
+    ? { label: 'Confere com a foto', tone: 'ok' }
+    : { label: 'Confira manualmente', tone: 'warning' }
+}
+
 export function todayIsoDate(): string {
   const now = new Date()
   const month = String(now.getMonth() + 1).padStart(2, '0')

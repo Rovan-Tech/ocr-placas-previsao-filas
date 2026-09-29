@@ -219,3 +219,68 @@ test('link de Agendamentos está acessível pelo menu', async ({ page }) => {
 
   await expect(page.getByRole('heading', { name: 'Agendamentos' })).toBeVisible()
 })
+
+test('mostra o selo de status do documento e o formulário ao lado da lista', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await mockSchedules(page, {
+    list: [
+      {
+        id: 1,
+        plate: 'ABC1D23',
+        driver_name: 'João da Silva',
+        driver_document: '12345678900',
+        driver_document_validated: true,
+        origin_location: 'São Paulo - SP',
+        destination_location: 'Recife - PE',
+        cargo_items: [{ id: 1, product_name: 'Grãos', category: 'nao_perecivel' }],
+        scheduled_date: '2026-09-24',
+        created_at: '2026-09-20T10:00:00Z',
+      },
+      {
+        id: 2,
+        plate: 'XYZ9A87',
+        driver_name: 'Maria Souza',
+        driver_document: '98765432100',
+        driver_document_validated: false,
+        origin_location: 'Curitiba - PR',
+        destination_location: 'Santos - SP',
+        cargo_items: [{ id: 2, product_name: 'Máquinas', category: 'nao_perecivel' }],
+        scheduled_date: '2026-09-25',
+        created_at: '2026-09-20T11:00:00Z',
+      },
+    ],
+  })
+  await page.goto('/agendamentos')
+
+  await expect(page.getByRole('row', { name: /ABC1D23/ })).toContainText('Confere com a foto')
+  await expect(page.getByRole('row', { name: /XYZ9A87/ })).toContainText('Confira manualmente')
+  await expect(page.getByRole('heading', { name: 'Cadastrar agendamento' })).toBeInViewport()
+  await expect(page.getByLabel('Placa')).toBeInViewport()
+})
+
+test('no celular cada agendamento vira um cartão sem estourar a largura', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 })
+  await mockSchedules(page, {
+    list: [
+      {
+        id: 1,
+        plate: 'ABC1D23',
+        driver_name: 'João da Silva',
+        driver_document: '12345678900',
+        driver_document_validated: false,
+        origin_location: 'Rondonópolis - MT',
+        destination_location: 'Terminal 1',
+        cargo_items: [{ id: 1, product_name: 'Grãos a granel', category: 'nao_perecivel' }],
+        scheduled_date: '2026-09-24',
+        created_at: '2026-09-20T10:00:00Z',
+      },
+    ],
+  })
+  await page.goto('/agendamentos')
+
+  await expect(page.getByRole('row', { name: /ABC1D23/ })).toContainText('Confira manualmente')
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth,
+  )
+  expect(overflow).toBe(false)
+})

@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import ScheduleForm from '../components/ScheduleForm'
 import { listSchedules, type ScheduleOut } from '../services/api'
-import { cargoCategoryLabel, formatScheduledDate } from '../services/plate'
+import { cargoCategoryLabel, documentStatusInfo, formatScheduledDate } from '../services/plate'
 
 function cargoSummary(schedule: ScheduleOut): string {
   return schedule.cargo_items
     .map((item) => `${item.product_name} (${cargoCategoryLabel(item.category)})`)
     .join(', ')
+}
+
+function DocumentBadge({ isValidated }: { isValidated: boolean }) {
+  const { label, tone } = documentStatusInfo(isValidated)
+  return <span className={`status-badge status-badge-${tone}`}>{label}</span>
 }
 
 function SchedulesTable({
@@ -24,7 +29,7 @@ function SchedulesTable({
 
   return (
     <div className="table-scroll">
-      <table className="checkins">
+      <table className="checkins schedules">
         <thead>
           <tr>
             <th>Placa</th>
@@ -48,7 +53,7 @@ function SchedulesTable({
               </td>
               <td data-label="Data prevista">{formatScheduledDate(schedule.scheduled_date)}</td>
               <td data-label="Documento">
-                {schedule.driver_document_validated ? 'Confere com a foto' : 'Confira manualmente'}
+                <DocumentBadge isValidated={schedule.driver_document_validated} />
               </td>
             </tr>
           ))}
@@ -78,16 +83,22 @@ export default function CreateSchedulePage() {
   useEffect(() => loadSchedules(), [loadSchedules])
 
   return (
-    <section className="page">
+    <section className="page page-wide">
       <h1>Agendamentos</h1>
       <p className="subtitle">
         Cadastre a chegada prevista de um caminhão para cruzar com a placa lida no check-in.
       </p>
 
-      <SchedulesTable schedules={schedules} loading={loadingList} error={listError} />
+      <div className="schedules-layout">
+        <SchedulesTable schedules={schedules} loading={loadingList} error={listError} />
 
-      <h2>Cadastrar agendamento</h2>
-      <ScheduleForm onCreated={(schedule) => setSchedules((current) => [schedule, ...current])} />
+        <aside className="schedules-form-panel">
+          <h2>Cadastrar agendamento</h2>
+          <ScheduleForm
+            onCreated={(schedule) => setSchedules((current) => [schedule, ...current])}
+          />
+        </aside>
+      </div>
     </section>
   )
 }

@@ -1171,6 +1171,40 @@ button.link {
   color: var(--muted);
 }
 
+.schedules-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+.schedules-form-panel h2 {
+  margin-top: 0;
+}
+
+@media (min-width: 1200px) {
+  .schedules-layout {
+    grid-template-columns: minmax(0, 1fr) 400px;
+  }
+  .checkins.schedules th,
+  .checkins.schedules td {
+    padding: var(--space-3) var(--space-2);
+    font-size: var(--text-sm);
+  }
+  .checkins.schedules {
+    min-width: 0;
+  }
+  .checkins.schedules .status-badge {
+    padding: 2px var(--space-2);
+    font-size: var(--text-xs);
+  }
+  .schedules-form-panel {
+    position: sticky;
+    top: var(--space-5);
+    max-height: calc(100vh - 2 * var(--space-5));
+    overflow-y: auto;
+  }
+}
+
 @media (max-width: 640px) {
   .table-scroll {
     overflow-x: visible;
@@ -1232,6 +1266,40 @@ button.link {
   }
   .checkins td:empty::before {
     content: none;
+  }
+  .checkins.schedules td[data-label='Placa'] {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: var(--text-lg);
+  }
+  .checkins.schedules td[data-label='Documento'] {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+  .checkins.schedules td[data-label='Motorista'] {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    font-weight: 700;
+  }
+  .checkins.schedules td[data-label='Carga'] {
+    grid-column: 1 / 3;
+    grid-row: 3;
+    color: var(--muted);
+  }
+  .checkins.schedules td[data-label='Origem → Destino'] {
+    grid-column: 1;
+    grid-row: 4;
+    color: var(--muted);
+    font-size: var(--text-sm);
+  }
+  .checkins.schedules td[data-label='Data prevista'] {
+    grid-column: 2;
+    grid-row: 4;
+    justify-self: end;
+    font-weight: 700;
+    font-size: var(--text-sm);
+    white-space: nowrap;
   }
   .checkins.logs tr {
     grid-template-columns: minmax(0, 1fr) auto auto;
