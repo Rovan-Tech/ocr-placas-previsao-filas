@@ -1,28 +1,55 @@
 import enum
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, Date, DateTime, Enum, Float, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 
+if TYPE_CHECKING:
+    from app.models.cargo_item import CargoItem
 
-class DriverDocumentType(str, enum.Enum):
+
+class DriverDocumentType(enum.StrEnum):
     CPF = "cpf"
     RG = "rg"
     CNH = "cnh"
 
 
 class Schedule(Base):
-
     __tablename__ = "schedules"
     __table_args__ = (
         CheckConstraint("plate ~ '^[A-Z0-9]{7}$'", name="plate_format"),
-        CheckConstraint("vehicle_chassis ~ '^[A-Z0-9]{17}$'", name="vehicle_chassis_format"),
-        CheckConstraint("driver_birth_state ~ '^[A-Z]{2}$'", name="driver_birth_state_format"),
-        UniqueConstraint("plate", "scheduled_date", name="uq_schedules_plate_scheduled_date"),
-        UniqueConstraint("driver_document", "scheduled_date", name="uq_schedules_driver_document_scheduled_date"),
-        UniqueConstraint("vehicle_chassis", "scheduled_date", name="uq_schedules_vehicle_chassis_scheduled_date"),
+        CheckConstraint(
+            "vehicle_chassis ~ '^[A-Z0-9]{17}$'", name="vehicle_chassis_format"
+        ),
+        CheckConstraint(
+            "driver_birth_state ~ '^[A-Z]{2}$'", name="driver_birth_state_format"
+        ),
+        UniqueConstraint(
+            "plate", "scheduled_date", name="uq_schedules_plate_scheduled_date"
+        ),
+        UniqueConstraint(
+            "driver_document",
+            "scheduled_date",
+            name="uq_schedules_driver_document_scheduled_date",
+        ),
+        UniqueConstraint(
+            "vehicle_chassis",
+            "scheduled_date",
+            name="uq_schedules_vehicle_chassis_scheduled_date",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -69,7 +96,12 @@ class Schedule(Base):
 
     scheduled_date: Mapped[date] = mapped_column(Date, index=True)
     created_by_id: Mapped[int] = mapped_column(ForeignKey("employees.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
     def __repr__(self) -> str:
-        return f"Schedule(id={self.id!r}, plate={self.plate!r}, scheduled_date={self.scheduled_date!r})"
+        return (
+            f"Schedule(id={self.id!r}, plate={self.plate!r}, "
+            f"scheduled_date={self.scheduled_date!r})"
+        )

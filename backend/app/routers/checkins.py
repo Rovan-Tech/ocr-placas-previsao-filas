@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query
 from pydantic import BaseModel
@@ -17,16 +17,26 @@ DECIDABLE_STATUSES = {CheckInStatus.ADMITTED, CheckInStatus.CANCELLED}
 
 INVALID_PLATE = HTTPException(
     status_code=400,
-    detail="Formato de placa inválido. Use o padrão Mercosul (ex.: ABC1D23) ou o padrão antigo (ex.: ABC1234).",
+    detail=(
+        "Formato de placa inválido. Use o padrão Mercosul (ex.: ABC1D23) ou o "
+        "padrão antigo (ex.: ABC1234)."
+    ),
 )
 INVALID_STATUS = HTTPException(
-    status_code=422, detail="Decisão inválida. Use 'admitted' para autorizar ou 'cancelled' para recusar."
+    status_code=422,
+    detail=(
+        "Decisão inválida. Use 'admitted' para autorizar ou 'cancelled' para recusar."
+    ),
 )
-SCHEDULE_NOT_FOUND = HTTPException(status_code=404, detail="Agendamento não encontrado.")
+SCHEDULE_NOT_FOUND = HTTPException(
+    status_code=404, detail="Agendamento não encontrado."
+)
 MISSING_SCHEDULE_FOR_DECISION = HTTPException(
     status_code=422,
-    detail="Não é possível autorizar ou recusar a entrada sem agendamento — cadastre motorista, carga e "
-    "caminhão antes.",
+    detail=(
+        "Não é possível autorizar ou recusar a entrada sem agendamento — cadastre "
+        "motorista, carga e caminhão antes."
+    ),
 )
 
 
@@ -50,15 +60,21 @@ def _to_checkin_out(db: Session, checkin: CheckIn) -> CheckinOut:
     )
 
 
-def _existing_waiting_checkin(db: Session, checkin_id: int, plate: str) -> CheckIn | None:
+def _existing_waiting_checkin(
+    db: Session, checkin_id: int, plate: str
+) -> CheckIn | None:
     checkin = db.get(CheckIn, checkin_id)
-    if checkin is None or checkin.plate != plate or checkin.status != CheckInStatus.WAITING:
+    if (
+        checkin is None
+        or checkin.plate != plate
+        or checkin.status != CheckInStatus.WAITING
+    ):
         return None
     return checkin
 
 
 @router.post("", response_model=CheckinOut, status_code=201)
-def create_checkin(
+def create_checkin(  # noqa: PLR0913, PLR0917 - campos de formulário e dependências do FastAPI
     plate: str = Form(...),
     status: CheckInStatus = Form(...),
     schedule_id: int | None = Form(None),
@@ -74,15 +90,23 @@ def create_checkin(
     if schedule_id is not None and db.get(Schedule, schedule_id) is None:
         raise SCHEDULE_NOT_FOUND
 
-    existing = _existing_waiting_checkin(db, checkin_id, normalized_plate) if checkin_id is not None else None
+    existing = (
+        _existing_waiting_checkin(db, checkin_id, normalized_plate)
+        if checkin_id is not None
+        else None
+    )
 
-    effective_schedule_id = schedule_id if schedule_id is not None else (existing.schedule_id if existing else None)
+    effective_schedule_id = (
+        schedule_id
+        if schedule_id is not None
+        else (existing.schedule_id if existing else None)
+    )
     if effective_schedule_id is None:
         raise MISSING_SCHEDULE_FOR_DECISION
 
     if existing is not None:
         existing.status = status
-        existing.decided_at = datetime.now(timezone.utc)
+        existing.decided_at = datetime.now(UTC)
         if schedule_id is not None:
             existing.schedule_id = schedule_id
         db.commit()
@@ -94,7 +118,7 @@ def create_checkin(
         status=status,
         schedule_id=schedule_id,
         created_by_id=employee.id,
-        decided_at=datetime.now(timezone.utc),
+        decided_at=datetime.now(UTC),
     )
     db.add(checkin)
     db.commit()
@@ -108,6 +132,10 @@ def list_checkins(
     db: Session = Depends(get_db),
     _employee: Employee = Depends(get_current_employee),
 ) -> list[CheckinOut]:
-    query = select(CheckIn).order_by(CheckIn.created_at.desc(), CheckIn.id.desc()).limit(limit)
+    query = (
+        select(CheckIn)
+        .order_by(CheckIn.created_at.desc(), CheckIn.id.desc())
+        .limit(limit)
+    )
     rows = db.execute(query).scalars().all()  # nosemgrep
     return [_to_checkin_out(db, checkin) for checkin in rows]

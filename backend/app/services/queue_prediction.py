@@ -17,7 +17,11 @@ def _average_recent_service_minutes(db: Session) -> float:
     rows = db.execute(query).all()
     if not rows:
         return DEFAULT_SERVICE_MINUTES
-    durations = [(decided_at - created_at).total_seconds() / 60 for created_at, decided_at in rows]
+    durations = [
+        (decided_at - created_at).total_seconds() / 60
+        for created_at, decided_at in rows
+        if decided_at is not None
+    ]
     return sum(durations) / len(durations)
 
 
@@ -25,7 +29,10 @@ def _trucks_ahead_in_queue(db: Session, checkin: CheckIn) -> int:
     query = (
         select(func.count())
         .select_from(CheckIn)
-        .where(CheckIn.status == CheckInStatus.WAITING, CheckIn.created_at < checkin.created_at)
+        .where(
+            CheckIn.status == CheckInStatus.WAITING,
+            CheckIn.created_at < checkin.created_at,
+        )
     )
     return db.execute(query).scalar_one()
 

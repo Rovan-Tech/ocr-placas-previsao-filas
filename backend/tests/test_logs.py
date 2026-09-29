@@ -1,5 +1,7 @@
+from datetime import UTC, datetime
 
 from app.models import UploadEndpoint, UploadLog
+from app.services import photo_storage
 from app.services.photo_storage import save_photo
 
 
@@ -17,7 +19,9 @@ def _add_log(db_session, employee, **overrides):
     return log
 
 
-def test_lists_logs_newest_first_with_who_sent_and_from_where(authenticated_client, db_session, employee):
+def test_lists_logs_newest_first_with_who_sent_and_from_where(
+    authenticated_client, db_session, employee
+):
     _add_log(db_session, employee, final_plate="AAA1111")
     _add_log(db_session, employee, final_plate="BBB2222")
 
@@ -31,10 +35,10 @@ def test_lists_logs_newest_first_with_who_sent_and_from_where(authenticated_clie
     assert body[0]["client_ip"] == "127.0.0.1"
 
 
-def test_breaks_a_tie_in_created_at_by_insertion_order(authenticated_client, db_session, employee):
-    from datetime import datetime, timezone
-
-    same_instant = datetime.now(timezone.utc)
+def test_breaks_a_tie_in_created_at_by_insertion_order(
+    authenticated_client, db_session, employee
+):
+    same_instant = datetime.now(UTC)
     _add_log(db_session, employee, final_plate="AAA1111", created_at=same_instant)
     _add_log(db_session, employee, final_plate="BBB2222", created_at=same_instant)
 
@@ -44,19 +48,30 @@ def test_breaks_a_tie_in_created_at_by_insertion_order(authenticated_client, db_
     assert plates == ["BBB2222", "AAA1111"]
 
 
-def test_has_photo_reflects_whether_a_safeguard_photo_was_saved(authenticated_client, db_session, employee):
+def test_has_photo_reflects_whether_a_safeguard_photo_was_saved(
+    authenticated_client, db_session, employee
+):
     _add_log(db_session, employee, endpoint=UploadEndpoint.UPLOAD, photo_path=None)
-    _add_log(db_session, employee, endpoint=UploadEndpoint.MANUAL, photo_path="manual_reviews/algumacoisa.jpg")
+    _add_log(
+        db_session,
+        employee,
+        endpoint=UploadEndpoint.MANUAL,
+        photo_path="manual_reviews/algumacoisa.jpg",
+    )
 
     body = authenticated_client.get("/logs").json()
 
     by_endpoint = {entry["endpoint"]: entry["has_photo"] for entry in body}
     assert by_endpoint["upload"] is False
     assert by_endpoint["manual"] is True
-    assert not any("photo_path" in entry or "manual_reviews" in str(entry) for entry in body)
+    assert not any(
+        "photo_path" in entry or "manual_reviews" in str(entry) for entry in body
+    )
 
 
-def test_limit_and_offset_paginate_the_listing(authenticated_client, db_session, employee):
+def test_limit_and_offset_paginate_the_listing(
+    authenticated_client, db_session, employee
+):
     for i in range(5):
         _add_log(db_session, employee, final_plate=f"AAA{i:04d}")
 
@@ -65,10 +80,14 @@ def test_limit_and_offset_paginate_the_listing(authenticated_client, db_session,
 
     assert len(first_page) == 2
     assert len(second_page) == 2
-    assert {entry["id"] for entry in first_page}.isdisjoint({entry["id"] for entry in second_page})
+    assert {entry["id"] for entry in first_page}.isdisjoint(
+        {entry["id"] for entry in second_page}
+    )
 
 
-def test_negative_limit_and_offset_are_clamped_instead_of_erroring(authenticated_client, db_session, employee):
+def test_negative_limit_and_offset_are_clamped_instead_of_erroring(
+    authenticated_client, db_session, employee
+):
     _add_log(db_session, employee, final_plate="AAA1111")
 
     response = authenticated_client.get("/logs?limit=-5&offset=-5")
@@ -77,7 +96,9 @@ def test_negative_limit_and_offset_are_clamped_instead_of_erroring(authenticated
     assert len(response.json()) == 1
 
 
-def test_limit_is_capped_even_if_a_larger_value_is_requested(authenticated_client, db_session, employee):
+def test_limit_is_capped_even_if_a_larger_value_is_requested(
+    authenticated_client, db_session, employee
+):
     for i in range(3):
         _add_log(db_session, employee, final_plate=f"AAA{i:04d}")
 
@@ -87,12 +108,14 @@ def test_limit_is_capped_even_if_a_larger_value_is_requested(authenticated_clien
     assert len(response.json()) == 3
 
 
-def test_downloads_the_saved_photo(authenticated_client, db_session, employee, tmp_path, monkeypatch):
-    import app.services.photo_storage as photo_storage
-
+def test_downloads_the_saved_photo(
+    authenticated_client, db_session, employee, tmp_path, monkeypatch
+):
     monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
     relative_path = save_photo(b"conteudo-da-foto", "image/jpeg")
-    log = _add_log(db_session, employee, endpoint=UploadEndpoint.MANUAL, photo_path=relative_path)
+    log = _add_log(
+        db_session, employee, endpoint=UploadEndpoint.MANUAL, photo_path=relative_path
+    )
 
     response = authenticated_client.get(f"/logs/{log.id}/photo")
 
@@ -101,7 +124,9 @@ def test_downloads_the_saved_photo(authenticated_client, db_session, employee, t
     assert response.headers["content-type"] == "image/jpeg"
 
 
-def test_returns_404_when_the_log_has_no_photo(authenticated_client, db_session, employee):
+def test_returns_404_when_the_log_has_no_photo(
+    authenticated_client, db_session, employee
+):
     log = _add_log(db_session, employee, photo_path=None)
 
     response = authenticated_client.get(f"/logs/{log.id}/photo")
@@ -115,11 +140,16 @@ def test_returns_404_for_a_nonexistent_log(authenticated_client):
     assert response.status_code == 404
 
 
-def test_returns_404_when_the_photo_file_is_missing_from_disk(authenticated_client, db_session, employee, tmp_path, monkeypatch):
-    import app.services.photo_storage as photo_storage
-
+def test_returns_404_when_the_photo_file_is_missing_from_disk(
+    authenticated_client, db_session, employee, tmp_path, monkeypatch
+):
     monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
-    log = _add_log(db_session, employee, endpoint=UploadEndpoint.MANUAL, photo_path="manual_reviews/nao-existe.jpg")
+    log = _add_log(
+        db_session,
+        employee,
+        endpoint=UploadEndpoint.MANUAL,
+        photo_path="manual_reviews/nao-existe.jpg",
+    )
 
     response = authenticated_client.get(f"/logs/{log.id}/photo")
 
@@ -129,10 +159,13 @@ def test_returns_404_when_the_photo_file_is_missing_from_disk(authenticated_clie
 def test_rejects_a_path_traversal_photo_path_stored_in_the_database(
     authenticated_client, db_session, employee, tmp_path, monkeypatch
 ):
-    import app.services.photo_storage as photo_storage
-
     monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
-    log = _add_log(db_session, employee, endpoint=UploadEndpoint.MANUAL, photo_path="../../../../etc/passwd")
+    log = _add_log(
+        db_session,
+        employee,
+        endpoint=UploadEndpoint.MANUAL,
+        photo_path="../../../../etc/passwd",
+    )
 
     response = authenticated_client.get(f"/logs/{log.id}/photo")
 
@@ -142,10 +175,10 @@ def test_rejects_a_path_traversal_photo_path_stored_in_the_database(
 def test_rejects_an_absolute_photo_path_stored_in_the_database(
     authenticated_client, db_session, employee, tmp_path, monkeypatch
 ):
-    import app.services.photo_storage as photo_storage
-
     monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
-    log = _add_log(db_session, employee, endpoint=UploadEndpoint.MANUAL, photo_path="/etc/passwd")
+    log = _add_log(
+        db_session, employee, endpoint=UploadEndpoint.MANUAL, photo_path="/etc/passwd"
+    )
 
     response = authenticated_client.get(f"/logs/{log.id}/photo")
 

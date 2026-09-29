@@ -3,6 +3,7 @@ import threading
 import time
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
+from typing import Any, cast
 
 MAX_IMAGE_PIXELS = 25_000_000
 
@@ -13,7 +14,12 @@ import easyocr  # noqa: E402
 import numpy as np  # noqa: E402
 
 from app.services.image_preprocessing import ocr_variants  # noqa: E402
-from app.services.plate_format import PLATE_LENGTH, PlateFormat, find_plate, normalize  # noqa: E402
+from app.services.plate_format import (  # noqa: E402
+    PLATE_LENGTH,
+    PlateFormat,
+    find_plate,
+    normalize,
+)
 from app.services.plate_locator import find_plate_candidates  # noqa: E402
 
 PLATE_ALLOWLIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"
@@ -33,6 +39,13 @@ FULL_IMAGE_MAX_VARIANTS = 2
 REVIEW_CONFIDENCE = 0.65
 AMBIGUITY_RATIO = 0.5
 
+EMPTY_IMAGE_MESSAGE = "Nenhuma imagem foi enviada."
+UNDECODABLE_IMAGE_MESSAGE = "Não foi possível decodificar a imagem enviada."
+IMAGE_TOO_LARGE_MESSAGE = "Resolução da imagem acima do limite permitido."
+
+OcrResult = tuple[Any, str, float]
+_TextBox = tuple[float, float, float, str, float]
+
 
 _reader: easyocr.Reader | None = None
 _reader_lock = threading.Lock()
@@ -40,7 +53,7 @@ _inference_lock = threading.Lock()
 
 
 def get_reader() -> easyocr.Reader:
-    global _reader
+    global _reader  # noqa: PLW0603 - singleton preguiçoso protegido por lock
     with _reader_lock:
         if _reader is None:
             _reader = easyocr.Reader(["pt", "en"], gpu=False)
@@ -63,19 +76,24 @@ class _Vote:
         return max(self.confidences)
 
 
+@dataclass
+class _ReadState:
+    votes: dict[str, _Vote] = field(default_factory=dict)
+    detections: list[dict[str, Any]] = field(default_factory=list)
+
+
 @dataclass(frozen=True)
 class PlateReading:
-
     plate: str | None
     format: PlateFormat | None
     confidence: float | None
     needs_review: bool
-    detections: list[dict]
+    detections: list[dict[str, Any]]
 
 
 def decode_image(image_bytes: bytes) -> np.ndarray:
     if not image_bytes:
-        raise ValueError("Nenhuma imagem foi enviada.")
+        raise ValueError(EMPTY_IMAGE_MESSAGE)
 
     array = np.frombuffer(image_bytes, dtype=np.uint8)
     try:
@@ -83,34 +101,46 @@ def decode_image(image_bytes: bytes) -> np.ndarray:
     except cv2.error:
         image = None
     if image is None:
-        raise ValueError("Não foi possível decodificar a imagem enviada.")
+        raise ValueError(UNDECODABLE_IMAGE_MESSAGE)
 
     height, width = image.shape[:2]
     if height * width > MAX_IMAGE_PIXELS:
-        raise ValueError("Resolução da imagem acima do limite permitido.")
+        raise ValueError(IMAGE_TOO_LARGE_MESSAGE)
     return image
 
 
-def _group_into_rows(boxes: list[tuple]) -> list[list[tuple]]:
+def _group_into_rows(boxes: list[_TextBox]) -> list[list[_TextBox]]:
     order = sorted(range(len(boxes)), key=lambda i: boxes[i][1])
     assigned = [False] * len(boxes)
-    rows: list[list[tuple]] = []
+    rows: list[list[_TextBox]] = []
     for i in order:
         if assigned[i]:
             continue
         _, y, height, _, _ = boxes[i]
-        row_indices = [j for j in order if not assigned[j] and abs(boxes[j][1] - y) < max(height, 1) / 2]
+        row_indices = [
+            j
+            for j in order
+            if not assigned[j] and abs(boxes[j][1] - y) < max(height, 1) / 2
+        ]
         for j in row_indices:
             assigned[j] = True
         rows.append(sorted((boxes[j] for j in row_indices), key=lambda b: b[0]))
     return rows
 
 
-def _text_lines(results: list) -> Iterator[tuple[str, float]]:
-    boxes = []
+def _text_lines(results: list[OcrResult]) -> Iterator[tuple[str, float]]:
+    boxes: list[_TextBox] = []
     for box, text, confidence in results:
         points = np.asarray(box, dtype=np.float32)
-        boxes.append((points[:, 0].min(), points[:, 1].mean(), np.ptp(points[:, 1]), text, float(confidence)))
+        boxes.append(
+            (
+                float(points[:, 0].min()),
+                float(points[:, 1].mean()),
+                float(np.ptp(points[:, 1])),
+                text,
+                float(confidence),
+            )
+        )
 
     for _, _, _, text, confidence in boxes:
         yield text, confidence
@@ -136,11 +166,13 @@ def _is_confident(vote: _Vote) -> bool:
     return len(agreeing) >= CONFIDENT_AGREEING_READS
 
 
-def _looks_truncated(results: list) -> bool:
+def _looks_truncated(results: list[OcrResult]) -> bool:
     for _, text, _ in results:
         chars = normalize(text)
-        if PLATE_LENGTH - 2 <= len(chars) < PLATE_LENGTH and any(c.isdigit() for c in chars) and any(
-            c.isalpha() for c in chars
+        if (
+            PLATE_LENGTH - 2 <= len(chars) < PLATE_LENGTH
+            and any(c.isdigit() for c in chars)
+            and any(c.isalpha() for c in chars)
         ):
             return True
     return False
@@ -154,7 +186,9 @@ def _full_image(image: np.ndarray) -> np.ndarray:
     return cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
 
 
-def _vote(votes: dict[str, _Vote], results: list, is_weak_evidence: bool) -> None:
+def _vote(
+    votes: dict[str, _Vote], results: list[OcrResult], is_weak_evidence: bool
+) -> None:
     for text, confidence in _text_lines(results):
         match = find_plate(text)
         if match is None:
@@ -165,11 +199,22 @@ def _vote(votes: dict[str, _Vote], results: list, is_weak_evidence: bool) -> Non
         vote.has_strong_evidence = vote.has_strong_evidence or not is_weak_evidence
 
 
-def _read_images(reader: easyocr.Reader, images: Iterable[tuple[np.ndarray, bool]], votes: dict[str, _Vote],
-                 detections: list[dict], started: float, max_variants: int | None = None) -> bool:
-    prepared = [(is_weak_evidence, list(ocr_variants(region))) for region, is_weak_evidence in images]
+def _read_images(
+    reader: easyocr.Reader,
+    images: Iterable[tuple[np.ndarray, bool]],
+    state: _ReadState,
+    started: float,
+    max_variants: int | None = None,
+) -> bool:
+    prepared = [
+        (is_weak_evidence, list(ocr_variants(region)))
+        for region, is_weak_evidence in images
+    ]
     if max_variants is not None:
-        prepared = [(is_weak_evidence, variants[:max_variants]) for is_weak_evidence, variants in prepared]
+        prepared = [
+            (is_weak_evidence, variants[:max_variants])
+            for is_weak_evidence, variants in prepared
+        ]
 
     exhausted = [False] * len(prepared)
     round_index = 0
@@ -183,17 +228,22 @@ def _read_images(reader: easyocr.Reader, images: Iterable[tuple[np.ndarray, bool
                 continue
             progressed = True
             elapsed = time.monotonic() - started
-            if elapsed > HARD_TIME_BUDGET_S or (votes and elapsed > SOFT_TIME_BUDGET_S):
+            if elapsed > HARD_TIME_BUDGET_S or (
+                state.votes and elapsed > SOFT_TIME_BUDGET_S
+            ):
                 return False
             _, variant = variants[round_index]
             results = reader.readtext(variant, allowlist=PLATE_ALLOWLIST)
-            detections.extend(
-                {"text": text, "confidence": round(float(confidence), 4)} for _, text, confidence in results
+            state.detections.extend(
+                {"text": text, "confidence": round(float(confidence), 4)}
+                for _, text, confidence in results
             )
-            _vote(votes, results, is_weak_evidence)
-            if votes and _is_confident(max(votes.values(), key=lambda v: v.score)):
+            _vote(state.votes, results, is_weak_evidence)
+            if state.votes and _is_confident(
+                max(state.votes.values(), key=lambda v: v.score)
+            ):
                 return True
-            if not votes and _looks_truncated(results):
+            if not state.votes and _looks_truncated(results):
                 exhausted[i] = True
         round_index += 1
         if not progressed:
@@ -201,28 +251,35 @@ def _read_images(reader: easyocr.Reader, images: Iterable[tuple[np.ndarray, bool
     return False
 
 
-def read_raw_text(image: np.ndarray) -> list:
+def read_raw_text(image: np.ndarray) -> list[OcrResult]:
     with _inference_lock:
         reader = get_reader()
-        return reader.readtext(image)
+        return cast("list[OcrResult]", reader.readtext(image))
 
 
 def read_plate(image_bytes: bytes) -> PlateReading:
     image = decode_image(image_bytes)
-    votes: dict[str, _Vote] = {}
-    detections: list[dict] = []
+    state = _ReadState()
 
     with _inference_lock:
         reader = get_reader()
         started = time.monotonic()
         candidates = find_plate_candidates(image, max_candidates=6)
-        if not _read_images(reader, candidates, votes, detections, started) and not votes:
-            _read_images(reader, [(_full_image(image), True)], votes, detections, started, FULL_IMAGE_MAX_VARIANTS)
+        if not _read_images(reader, candidates, state, started) and not state.votes:
+            _read_images(
+                reader,
+                [(_full_image(image), True)],
+                state,
+                started,
+                FULL_IMAGE_MAX_VARIANTS,
+            )
 
-    if not votes:
-        return PlateReading(None, None, None, needs_review=True, detections=detections)
+    if not state.votes:
+        return PlateReading(
+            None, None, None, needs_review=True, detections=state.detections
+        )
 
-    ranked = sorted(votes.items(), key=lambda item: item[1].score, reverse=True)
+    ranked = sorted(state.votes.items(), key=lambda item: item[1].score, reverse=True)
     plate, best = ranked[0]
     ambiguous = len(ranked) > 1 and ranked[1][1].score >= AMBIGUITY_RATIO * best.score
     confidence = round(best.confidence, 4)
@@ -230,6 +287,8 @@ def read_plate(image_bytes: bytes) -> PlateReading:
         plate=plate,
         format=best.format,
         confidence=confidence,
-        needs_review=confidence < REVIEW_CONFIDENCE or ambiguous or not best.has_strong_evidence,
-        detections=detections,
+        needs_review=confidence < REVIEW_CONFIDENCE
+        or ambiguous
+        or not best.has_strong_evidence,
+        detections=state.detections,
     )

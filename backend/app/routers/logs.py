@@ -42,8 +42,7 @@ def list_logs(
 ) -> list[LogEntry]:
     limit = max(1, min(limit, MAX_LIMIT))
     offset = max(0, offset)
-    rows = db.execute(
-        # nosemgrep: generic-sql-fastapi -- falso positivo: select() do ORM, limit/offset são int e limit é limitado a MAX_LIMIT (parâmetros ligados)
+    rows = db.execute(  # nosemgrep
         select(UploadLog, Employee.username)
         .join(Employee, UploadLog.employee_id == Employee.id)
         .order_by(UploadLog.created_at.desc(), UploadLog.id.desc())
@@ -73,14 +72,20 @@ def list_logs(
 
 @router.get("/{log_id}/photo")
 def get_log_photo(
-    log_id: int, db: Session = Depends(get_db), _employee: Employee = Depends(get_current_employee)
+    log_id: int,
+    db: Session = Depends(get_db),
+    _employee: Employee = Depends(get_current_employee),
 ) -> FileResponse:
     log = db.get(UploadLog, log_id)
     if log is None or log.photo_path is None:
-        raise HTTPException(status_code=404, detail="Essa linha não tem foto de resguardo salva.")
+        raise HTTPException(
+            status_code=404, detail="Essa linha não tem foto de resguardo salva."
+        )
 
     photo_path = resolve_photo_path(log.photo_path)
     if photo_path is None:
-        raise HTTPException(status_code=404, detail="Arquivo da foto não foi encontrado no servidor.")
+        raise HTTPException(
+            status_code=404, detail="Arquivo da foto não foi encontrado no servidor."
+        )
 
     return FileResponse(photo_path)  # nosemgrep

@@ -89,7 +89,14 @@ def _plain_plate_background(height: int = 149, width: int = 500) -> np.ndarray:
 def _with_a_straight_scratch(gray: np.ndarray) -> np.ndarray:
     scratched = gray.copy()
     height, width = scratched.shape[:2]
-    cv2.line(scratched, (10, int(height * 0.35)), (width - 10, int(height * 0.7)), 30, 2, cv2.LINE_AA)
+    cv2.line(
+        scratched,
+        (10, int(height * 0.35)),
+        (width - 10, int(height * 0.7)),
+        30,
+        2,
+        cv2.LINE_AA,
+    )
     return scratched
 
 

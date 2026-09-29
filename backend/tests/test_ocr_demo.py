@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from app.config import settings
 from app.db import get_db
 from app.main import app
+from app.models import Employee, UploadLog
 from app.routers.ocr_demo import DEMO_SAMPLE_NAMES
 from app.services.ocr_service import PlateReading
 from app.services.plate_format import PlateFormat
@@ -48,7 +49,9 @@ def test_returns_404_for_an_unknown_sample_image():
 
 def test_demo_upload_with_a_sample_id_reads_the_plate():
     with patch("app.routers.ocr_demo.read_plate", return_value=FAKE_READING):
-        response = client.post("/ocr/demo-upload", data={"sample_id": DEMO_SAMPLE_NAMES[0]})
+        response = client.post(
+            "/ocr/demo-upload", data={"sample_id": DEMO_SAMPLE_NAMES[0]}
+        )
 
     assert response.status_code == 200
     body = response.json()
@@ -60,7 +63,8 @@ def test_demo_upload_with_a_sample_id_reads_the_plate():
 def test_demo_upload_with_an_own_photo_reads_the_plate():
     with patch("app.routers.ocr_demo.read_plate", return_value=FAKE_READING):
         response = client.post(
-            "/ocr/demo-upload", files={"file": ("placa.jpg", b"fake-image-bytes", "image/jpeg")}
+            "/ocr/demo-upload",
+            files={"file": ("placa.jpg", b"fake-image-bytes", "image/jpeg")},
         )
 
     assert response.status_code == 200
@@ -91,7 +95,8 @@ def test_demo_upload_rejects_an_unknown_sample_id():
 
 def test_demo_upload_rejects_a_non_image_file():
     response = client.post(
-        "/ocr/demo-upload", files={"file": ("doc.pdf", b"%PDF-1.4 fake", "application/pdf")}
+        "/ocr/demo-upload",
+        files={"file": ("doc.pdf", b"%PDF-1.4 fake", "application/pdf")},
     )
 
     assert response.status_code == 400
@@ -100,20 +105,21 @@ def test_demo_upload_rejects_a_non_image_file():
 def test_demo_upload_rejects_a_file_larger_than_the_limit():
     oversized = b"\xff" * (5 * 1024 * 1024 + 1)
 
-    response = client.post("/ocr/demo-upload", files={"file": ("grande.jpg", oversized, "image/jpeg")})
+    response = client.post(
+        "/ocr/demo-upload", files={"file": ("grande.jpg", oversized, "image/jpeg")}
+    )
 
     assert response.status_code == 413
 
 
 def test_demo_upload_never_writes_to_the_production_upload_log(db_session):
-    from app.models import Employee, UploadLog
-
     app.dependency_overrides[get_db] = lambda: db_session
     try:
         with patch("app.routers.ocr_demo.read_plate", return_value=FAKE_READING):
             client.post("/ocr/demo-upload", data={"sample_id": DEMO_SAMPLE_NAMES[0]})
             client.post(
-                "/ocr/demo-upload", files={"file": ("placa.jpg", b"fake-image-bytes", "image/jpeg")}
+                "/ocr/demo-upload",
+                files={"file": ("placa.jpg", b"fake-image-bytes", "image/jpeg")},
             )
 
         assert db_session.query(UploadLog).count() == 0
@@ -127,7 +133,8 @@ def test_rate_limits_demo_upload_per_ip(monkeypatch):
 
     with patch("app.routers.ocr_demo.read_plate", return_value=FAKE_READING):
         responses = [
-            client.post("/ocr/demo-upload", data={"sample_id": DEMO_SAMPLE_NAMES[0]}) for _ in range(3)
+            client.post("/ocr/demo-upload", data={"sample_id": DEMO_SAMPLE_NAMES[0]})
+            for _ in range(3)
         ]
 
     assert [r.status_code for r in responses[:2]] == [200, 200]
