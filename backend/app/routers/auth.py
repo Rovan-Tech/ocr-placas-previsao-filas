@@ -6,15 +6,17 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Employee
+from app.models import Employee, Role
 from app.services.auth import (
     authenticate_employee,
     create_access_token,
     get_current_employee,
     hash_password,
     password_is_expired,
+    require_admin,
     verify_password,
 )
+from app.services.permissions import ROLE_ACCESS, Access, Screen
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -25,6 +27,8 @@ class EmployeeOut(BaseModel):
     id: int
     username: str
     full_name: str
+    role: Role = Role.FISCAL
+    permissions: dict[Screen, Access] = {}
     is_admin: bool = False
     active: bool = True
 
@@ -34,6 +38,8 @@ def _to_employee_out(employee: Employee) -> EmployeeOut:
         id=employee.id,
         username=employee.username,
         full_name=employee.full_name,
+        role=employee.role,
+        permissions=ROLE_ACCESS[employee.role],
         is_admin=employee.is_admin,
         active=employee.active,
     )
@@ -44,14 +50,6 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"  # noqa: S105 - tipo do token OAuth2, não é senha
     employee: EmployeeOut
     must_change_password: bool
-
-
-def _require_admin(employee: Employee = Depends(get_current_employee)) -> Employee:
-    if not employee.is_admin:
-        raise HTTPException(
-            status_code=403, detail="Só o admin master pode gerenciar funcionários."
-        )
-    return employee
 
 
 def _require_min_password_length(password: str) -> None:
@@ -73,7 +71,16 @@ class CreateEmployeeRequest(BaseModel):
     username: str
     full_name: str
     temporary_password: str
+    role: Role | None = None
     is_admin: bool = False
+
+
+class ChangeRoleRequest(BaseModel):
+    role: Role
+
+
+class PermissionsOut(BaseModel):
+    roles: dict[Role, dict[Screen, Access]]
 
 
 class ChangePasswordRequest(BaseModel):
@@ -120,7 +127,7 @@ def change_password(
 
 @router.get("/employees", response_model=list[EmployeeOut])
 def list_employees(
-    db: Session = Depends(get_db), _admin: Employee = Depends(_require_admin)
+    db: Session = Depends(get_db), _admin: Employee = Depends(require_admin)
 ) -> list[EmployeeOut]:
     employees = db.query(Employee).order_by(Employee.full_name).all()
     return [_to_employee_out(employee) for employee in employees]
@@ -130,7 +137,7 @@ def list_employees(
 def create_employee(
     payload: CreateEmployeeRequest,
     db: Session = Depends(get_db),
-    _admin: Employee = Depends(_require_admin),
+    _admin: Employee = Depends(require_admin),
 ) -> EmployeeOut:
     if (
         db.query(Employee).filter(Employee.username == payload.username).first()
@@ -145,7 +152,7 @@ def create_employee(
         username=payload.username,
         full_name=payload.full_name,
         password_hash=hash_password(payload.temporary_password),
-        is_admin=payload.is_admin,
+        role=payload.role or (Role.ADMIN if payload.is_admin else Role.FISCAL),
         must_change_password=True,
     )
     db.add(employee)
@@ -158,7 +165,7 @@ def create_employee(
 def deactivate_employee(
     employee_id: int,
     db: Session = Depends(get_db),
-    admin: Employee = Depends(_require_admin),
+    admin: Employee = Depends(require_admin),
 ) -> EmployeeOut:
     target = _get_employee_or_404(db, employee_id)
 
@@ -170,3 +177,27 @@ def deactivate_employee(
     target.active = False
     db.commit()
     return _to_employee_out(target)
+
+
+@router.patch("/employees/{employee_id}/role", response_model=EmployeeOut)
+def change_employee_role(
+    employee_id: int,
+    payload: ChangeRoleRequest,
+    db: Session = Depends(get_db),
+    admin: Employee = Depends(require_admin),
+) -> EmployeeOut:
+    target = _get_employee_or_404(db, employee_id)
+
+    if target.id == admin.id:
+        raise HTTPException(
+            status_code=400, detail="Você não pode mudar o próprio cargo."
+        )
+
+    target.role = payload.role
+    db.commit()
+    return _to_employee_out(target)
+
+
+@router.get("/permissions", response_model=PermissionsOut)
+def read_permissions(_admin: Employee = Depends(require_admin)) -> PermissionsOut:
+    return PermissionsOut(roles=ROLE_ACCESS)

@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.db import get_db
 from app.main import app
-from app.models import Employee, UploadEndpoint, UploadLog
+from app.models import Employee, Role, UploadEndpoint, UploadLog
 from app.services.auth import PASSWORD_MAX_AGE, create_access_token, hash_password
 
 
@@ -15,7 +15,7 @@ def admin(db_session):
         username="admin.teste",
         full_name="Admin de Teste",
         password_hash=hash_password("senhaAdminForte1"),
-        is_admin=True,
+        role=Role.ADMIN,
         must_change_password=False,
     )
     db_session.add(record)
@@ -326,7 +326,7 @@ class TestDeactivateEmployee:
     def test_an_admin_can_deactivate_another_admin(
         self, admin, employee, db_session, db_client
     ):
-        employee.is_admin = True
+        employee.role = Role.ADMIN
         db_session.flush()
 
         response = db_client.delete(

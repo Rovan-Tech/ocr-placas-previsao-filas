@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 import bcrypt
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db import get_db
 from app.models import Employee
+from app.services.permissions import Access, Screen, can
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
 
@@ -115,3 +117,22 @@ def get_current_employee(
 
 def get_client_ip(request: Request) -> str | None:
     return request.client.host if request.client else None
+
+
+def require_access(*needs: tuple[Screen, Access]) -> Callable[..., Employee]:
+    def dependency(employee: Employee = Depends(get_current_employee)) -> Employee:
+        if not any(can(employee.role, screen, level) for screen, level in needs):
+            raise HTTPException(
+                status_code=403, detail="Seu cargo não tem acesso a esta função."
+            )
+        return employee
+
+    return dependency
+
+
+require_capture = require_access((Screen.CAPTURE, Access.FULL))
+require_checkins_read = require_access((Screen.CHECKINS, Access.READ))
+require_logs_read = require_access((Screen.LOGS, Access.READ))
+require_schedules_read = require_access((Screen.SCHEDULES, Access.READ))
+require_schedules_write = require_access((Screen.SCHEDULES, Access.FULL))
+require_admin = require_access((Screen.EMPLOYEES, Access.FULL))

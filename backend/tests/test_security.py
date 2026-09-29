@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from app.config import settings
 from app.db import get_db
 from app.main import SECURITY_HEADERS, app
-from app.models import Employee
+from app.models import Employee, Role
 from app.routers.ocr import MAX_UPLOAD_BYTES
 from app.services import ocr_service
 from app.services.auth import create_access_token, hash_password
@@ -241,6 +241,15 @@ class TestAuthentication:
             "id": employee.id,
             "username": employee.username,
             "full_name": employee.full_name,
+            "role": "supervisor",
+            "permissions": {
+                "capture": "full",
+                "checkins": "full",
+                "schedules": "full",
+                "logs": "read",
+                "reports": "read",
+                "employees": "none",
+            },
             "is_admin": False,
             "active": True,
         }
@@ -282,7 +291,7 @@ class TestPasswordValidationDoesNotReflectTheInput:
             username="admin.seguranca.teste",
             full_name="Admin de Segurança",
             password_hash=hash_password("senhaAdminForte1"),
-            is_admin=True,
+            role=Role.ADMIN,
             must_change_password=False,
         )
         db_session.add(record)

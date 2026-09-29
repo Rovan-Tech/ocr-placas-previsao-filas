@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.db import SessionLocal
-from app.models import Employee
+from app.models import Employee, Role
 from app.services.auth import hash_password
 
 MIN_PASSWORD_LENGTH = 8
@@ -28,9 +28,15 @@ def main() -> None:
         "--password", help="senha temporária; se não passar, pede de forma interativa"
     )
     parser.add_argument(
+        "--role",
+        choices=[role.value for role in Role],
+        default=Role.FISCAL.value,
+        help="cargo do funcionário (padrão: fiscal)",
+    )
+    parser.add_argument(
         "--admin",
         action="store_true",
-        help="cadastra como admin master (pode cadastrar outros)",
+        help="atalho para --role admin (pode cadastrar outros)",
     )
     args = parser.parse_args()
 
@@ -51,15 +57,14 @@ def main() -> None:
             username=args.username,
             full_name=args.full_name,
             password_hash=hash_password(password),
-            is_admin=args.admin,
+            role=Role.ADMIN if args.admin else Role(args.role),
             must_change_password=True,
         )
         session.add(employee)
         session.commit()
         session.refresh(employee)
-        role = "admin master" if employee.is_admin else "funcionário"
         sys.stdout.write(
-            f"{role.capitalize()} criado: id={employee.id} "
+            f"Funcionário criado ({employee.role.value}): id={employee.id} "
             f"username={employee.username!r}\n"
         )
         sys.stdout.write(

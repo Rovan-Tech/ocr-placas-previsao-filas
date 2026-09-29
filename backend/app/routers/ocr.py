@@ -18,7 +18,7 @@ from app.models import (
     UploadLog,
 )
 from app.rate_limit import limiter
-from app.services.auth import get_client_ip, get_current_employee
+from app.services.auth import get_client_ip, require_capture
 from app.services.ocr_service import read_plate
 from app.services.photo_storage import save_photo
 from app.services.plate_format import PlateFormat, normalize, plate_format
@@ -244,7 +244,7 @@ async def upload_plate_image(  # noqa: PLR0913, PLR0917 - dependências e campos
     file: UploadFile,
     verifier: PlateVerifier = Depends(get_plate_verifier),
     vehicle_provider: VehicleDataProvider = Depends(get_vehicle_data_provider),
-    employee: Employee = Depends(get_current_employee),
+    employee: Employee = Depends(require_capture),
     db: Session = Depends(get_db),
 ) -> PlateReadResponse:
     if file.content_type not in ALLOWED_CONTENT_TYPES:
@@ -304,7 +304,7 @@ async def submit_plate_manually(  # noqa: PLR0913, PLR0917 - campos de formulár
     ocr_confidence: float | None = Form(None),
     verifier: PlateVerifier = Depends(get_plate_verifier),
     vehicle_provider: VehicleDataProvider = Depends(get_vehicle_data_provider),
-    employee: Employee = Depends(get_current_employee),
+    employee: Employee = Depends(require_capture),
     db: Session = Depends(get_db),
 ) -> ManualPlateReadResponse:
     invalid_format = HTTPException(
