@@ -1,0 +1,91 @@
+name: PR Feedback ClickUp
+# Quando um check de PR reprova: avisa o autor na tarefa do ClickUp (link no corpo
+# do PR), comenta no PR e fecha o PR. So fecha depois de o aviso no ClickUp ter sido
+# enviado com sucesso. Sem link do ClickUp no PR: so comenta no PR e NAO fecha.
+on:
+  workflow_run:
+    workflows: ["CI", "Semgrep"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: pr-feedback-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  feedback:
+    name: pr-feedback
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'pull_request'
+    steps:
+      - name: Avisar no ClickUp e fechar PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          set -euo pipefail
+
+          # PR aberto associado ao commit (funciona tambem para forks)
+          PR=$(gh api "repos/$REPO/commits/$HEAD_SHA/pulls" \
+            --jq '[.[] | select(.state == "open")][0].number // empty')
+          if [ -z "$PR" ]; then echo "Nenhum PR aberto para $HEAD_SHA; nada a fazer."; exit 0; fi
+
+          AUTHOR=$(gh api "repos/$REPO/pulls/$PR" --jq '.user.login')
+          AUTHOR_TYPE=$(gh api "repos/$REPO/pulls/$PR" --jq '.user.type')
+          TITLE=$(gh api "repos/$REPO/pulls/$PR" --jq '.title')
+          BODY=$(gh api "repos/$REPO/pulls/$PR" --jq '.body // ""')
+          PR_URL="https://github.com/$REPO/pull/$PR"
+
+          if [ "$AUTHOR_TYPE" = "Bot" ]; then
+            echo "PR de bot ($AUTHOR); nao fecha automaticamente."; exit 0
+          fi
+
+          FAILED=$(gh run view "$RUN_ID" --repo "$REPO" --json jobs \
+            --jq '[.jobs[] | select(.conclusion == "failure") | .name] | join(", ")')
+
+          # ID da tarefa a partir do link app.clickup.com/t/<id> no corpo do PR
+          TASK_ID=$(printf '%s' "$BODY" \
+            | grep -oE 'app\.clickup\.com/t/[A-Za-z0-9_-]+' | head -1 | sed 's|.*/t/||' || true)
+
+          if [ -z "$TASK_ID" ]; then
+            gh pr comment "$PR" --repo "$REPO" --body "O check **$WORKFLOW_NAME** reprovou (jobs: ${FAILED:-n/d}): $RUN_URL
+
+          Nao encontrei o link da tarefa do ClickUp no corpo deste PR, entao nao consegui avisar la e **nao fechei o PR**. Adicione o link da tarefa na descricao e corrija o erro."
+            exit 0
+          fi
+
+          MSG="PR reprovado: $TITLE
+          Repositorio: $REPO | PR #$PR ($PR_URL) | Autor: $AUTHOR
+          Check que falhou: $WORKFLOW_NAME (jobs: ${FAILED:-n/d})
+          Detalhes: $RUN_URL
+
+          O PR foi fechado. Corrija o problema e abra um novo PR."
+
+          HTTP=$(curl -sS -o /tmp/clickup.json -w '%{http_code}' \
+            -X POST "https://api.clickup.com/api/v2/task/$TASK_ID/comment" \
+            -H "Authorization: $CLICKUP_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg t "$MSG" '{comment_text: $t, notify_all: true}')")
+
+          if [ "$HTTP" != "200" ]; then
+            echo "Falha ao comentar no ClickUp (HTTP $HTTP). PR NAO sera fechado."
+            gh pr comment "$PR" --repo "$REPO" --body "O check **$WORKFLOW_NAME** reprovou: $RUN_URL
+
+          Nao consegui avisar a tarefa do ClickUp (HTTP $HTTP), entao **nao fechei o PR**. Corrija o erro."
+            exit 1
+          fi
+
+          gh pr close "$PR" --repo "$REPO" --comment "O check **$WORKFLOW_NAME** reprovou (jobs: ${FAILED:-n/d}): $RUN_URL
+
+          A tarefa do ClickUp foi avisada. Corrija o problema e abra um novo PR."
