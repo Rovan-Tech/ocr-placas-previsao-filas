@@ -42,7 +42,8 @@ def list_logs(
 ) -> list[LogEntry]:
     limit = max(1, min(limit, MAX_LIMIT))
     offset = max(0, offset)
-    rows = db.execute(  # nosemgrep
+    rows = db.execute(
+        # nosemgrep: generic-sql-fastapi -- falso positivo: select() do ORM, limit/offset são int e limit é limitado a MAX_LIMIT (parâmetros ligados)
         select(UploadLog, Employee.username)
         .join(Employee, UploadLog.employee_id == Employee.id)
         .order_by(UploadLog.created_at.desc(), UploadLog.id.desc())
