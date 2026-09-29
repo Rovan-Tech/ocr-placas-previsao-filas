@@ -238,7 +238,7 @@ class TestManualPlateEntry:
     def test_attaches_a_photo_as_a_safeguard_and_saves_it_to_disk(
         self, authenticated_client, tmp_path, monkeypatch
     ):
-        import app.services.photo_storage as photo_storage
+        from app.services import photo_storage
 
         monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
 
@@ -258,7 +258,7 @@ class TestManualPlateEntry:
     def test_invalid_ocr_plate_context_is_dropped_instead_of_failing(
         self, authenticated_client, tmp_path, monkeypatch
     ):
-        import app.services.photo_storage as photo_storage
+        from app.services import photo_storage
 
         monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
 

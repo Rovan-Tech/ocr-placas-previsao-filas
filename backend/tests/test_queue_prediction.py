@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from app.models import CheckIn, CheckInStatus
 from app.services.queue_prediction import DEFAULT_SERVICE_MINUTES, estimate_wait_minutes
@@ -9,7 +9,7 @@ def _make_checkin(db_session, employee, **overrides):
         plate=overrides.get("plate", "ABC1D23"),
         status=overrides.get("status", CheckInStatus.WAITING),
         created_by_id=employee.id,
-        created_at=overrides.get("created_at", datetime.now(timezone.utc)),
+        created_at=overrides.get("created_at", datetime.now(UTC)),
         decided_at=overrides.get("decided_at"),
     )
     db_session.add(checkin)
@@ -19,7 +19,7 @@ def _make_checkin(db_session, employee, **overrides):
 
 
 def test_a_decided_checkin_shows_the_actual_minutes_it_took(db_session, employee):
-    created_at = datetime.now(timezone.utc)
+    created_at = datetime.now(UTC)
     checkin = _make_checkin(
         db_session,
         employee,
@@ -48,7 +48,7 @@ def test_a_waiting_checkin_with_nobody_ahead_has_zero_wait(db_session, employee)
 def test_a_waiting_checkin_behind_others_multiplies_by_the_average_recent_service_time(
     db_session, employee
 ):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     _make_checkin(
         db_session,
         employee,
@@ -79,7 +79,7 @@ def test_a_waiting_checkin_behind_others_multiplies_by_the_average_recent_servic
 def test_falls_back_to_the_default_service_time_without_recent_history(
     db_session, employee
 ):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     _make_checkin(
         db_session,
         employee,
@@ -99,7 +99,7 @@ def test_falls_back_to_the_default_service_time_without_recent_history(
 
 
 def test_averages_only_the_most_recent_decided_checkins(db_session, employee):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for index in range(8):
         _make_checkin(
             db_session,

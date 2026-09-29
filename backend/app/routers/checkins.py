@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query
 from pydantic import BaseModel
@@ -99,7 +99,7 @@ def create_checkin(
 
     if existing is not None:
         existing.status = status
-        existing.decided_at = datetime.now(timezone.utc)
+        existing.decided_at = datetime.now(UTC)
         if schedule_id is not None:
             existing.schedule_id = schedule_id
         db.commit()
@@ -111,7 +111,7 @@ def create_checkin(
         status=status,
         schedule_id=schedule_id,
         created_by_id=employee.id,
-        decided_at=datetime.now(timezone.utc),
+        decided_at=datetime.now(UTC),
     )
     db.add(checkin)
     db.commit()

@@ -299,8 +299,8 @@ class TestDeactivateEmployee:
         assert response.status_code == 401
 
     def test_non_admin_cannot_deactivate_anyone(self, employee, db_session, db_client):
-        from app.services.auth import hash_password
         from app.models import Employee
+        from app.services.auth import hash_password
 
         other = Employee(
             username="fiscal.outro",

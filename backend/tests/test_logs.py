@@ -1,3 +1,5 @@
+from datetime import UTC
+
 from app.models import UploadEndpoint, UploadLog
 from app.services.photo_storage import save_photo
 
@@ -35,9 +37,9 @@ def test_lists_logs_newest_first_with_who_sent_and_from_where(
 def test_breaks_a_tie_in_created_at_by_insertion_order(
     authenticated_client, db_session, employee
 ):
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    same_instant = datetime.now(timezone.utc)
+    same_instant = datetime.now(UTC)
     _add_log(db_session, employee, final_plate="AAA1111", created_at=same_instant)
     _add_log(db_session, employee, final_plate="BBB2222", created_at=same_instant)
 
@@ -110,7 +112,7 @@ def test_limit_is_capped_even_if_a_larger_value_is_requested(
 def test_downloads_the_saved_photo(
     authenticated_client, db_session, employee, tmp_path, monkeypatch
 ):
-    import app.services.photo_storage as photo_storage
+    from app.services import photo_storage
 
     monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
     relative_path = save_photo(b"conteudo-da-foto", "image/jpeg")
@@ -144,7 +146,7 @@ def test_returns_404_for_a_nonexistent_log(authenticated_client):
 def test_returns_404_when_the_photo_file_is_missing_from_disk(
     authenticated_client, db_session, employee, tmp_path, monkeypatch
 ):
-    import app.services.photo_storage as photo_storage
+    from app.services import photo_storage
 
     monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
     log = _add_log(
@@ -162,7 +164,7 @@ def test_returns_404_when_the_photo_file_is_missing_from_disk(
 def test_rejects_a_path_traversal_photo_path_stored_in_the_database(
     authenticated_client, db_session, employee, tmp_path, monkeypatch
 ):
-    import app.services.photo_storage as photo_storage
+    from app.services import photo_storage
 
     monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
     log = _add_log(
@@ -180,7 +182,7 @@ def test_rejects_a_path_traversal_photo_path_stored_in_the_database(
 def test_rejects_an_absolute_photo_path_stored_in_the_database(
     authenticated_client, db_session, employee, tmp_path, monkeypatch
 ):
-    import app.services.photo_storage as photo_storage
+    from app.services import photo_storage
 
     monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
     log = _add_log(

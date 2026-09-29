@@ -13,7 +13,12 @@ import easyocr  # noqa: E402
 import numpy as np  # noqa: E402
 
 from app.services.image_preprocessing import ocr_variants  # noqa: E402
-from app.services.plate_format import PLATE_LENGTH, PlateFormat, find_plate, normalize  # noqa: E402
+from app.services.plate_format import (  # noqa: E402
+    PLATE_LENGTH,
+    PlateFormat,
+    find_plate,
+    normalize,
+)
 from app.services.plate_locator import find_plate_candidates  # noqa: E402
 
 PLATE_ALLOWLIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"

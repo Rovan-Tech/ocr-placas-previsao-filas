@@ -226,8 +226,8 @@ def _parse_cargo_items(raw: str) -> list[CargoItemIn]:
         raise INVALID_CARGO_ITEMS
     try:
         payload = json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
-        raise INVALID_CARGO_ITEMS
+    except (json.JSONDecodeError, TypeError) as error:
+        raise INVALID_CARGO_ITEMS from error
     if (
         not isinstance(payload, list)
         or not MIN_CARGO_ITEMS <= len(payload) <= MAX_CARGO_ITEMS
@@ -235,8 +235,8 @@ def _parse_cargo_items(raw: str) -> list[CargoItemIn]:
         raise INVALID_CARGO_ITEMS
     try:
         items = [CargoItemIn.model_validate(entry) for entry in payload]
-    except ValidationError:
-        raise INVALID_CARGO_ITEMS
+    except ValidationError as error:
+        raise INVALID_CARGO_ITEMS from error
     for item in items:
         if not item.product_name.strip() or len(item.product_name) > MAX_TEXT_LENGTH:
             raise INVALID_CARGO_ITEMS
@@ -426,9 +426,9 @@ async def create_schedule(
     db.add(schedule)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as error:
         db.rollback()
-        raise DUPLICATE_SCHEDULE
+        raise DUPLICATE_SCHEDULE from error
     db.refresh(schedule)
     return _to_schedule_out(schedule)
 

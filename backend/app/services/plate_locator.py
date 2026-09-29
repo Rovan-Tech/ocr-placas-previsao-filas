@@ -39,7 +39,6 @@ def _order_corners(points: np.ndarray) -> np.ndarray:
 
 def _expand(corners: np.ndarray, margin_x: float, margin_y: float) -> np.ndarray:
     top_left, top_right, bottom_right, bottom_left = corners
-    center = corners.mean(axis=0)
     along_width = ((top_right - top_left) + (bottom_right - bottom_left)) / 2
     along_height = ((bottom_left - top_left) + (bottom_right - top_right)) / 2
     grow = along_width * margin_x / 2 + along_height * margin_y / 2
@@ -309,9 +308,7 @@ def _candidate_corners(gray: np.ndarray) -> list[tuple[np.ndarray, bool]]:
         is_clean_quad = approx_ratio is not None and _is_plausible_plate_ratio(
             approx_ratio
         )
-        if MIN_PLATE_ASPECT_RATIO <= ratio <= MAX_PLATE_ASPECT_RATIO:
-            pass
-        elif (
+        if MIN_PLATE_ASPECT_RATIO <= ratio <= MAX_PLATE_ASPECT_RATIO or (
             MOTO_MIN_ASPECT_RATIO <= ratio <= MOTO_MAX_ASPECT_RATIO
             and _looks_like_plate_text(gray, _order_corners(corners))
         ):

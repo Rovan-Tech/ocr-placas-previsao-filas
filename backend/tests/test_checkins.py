@@ -1,3 +1,5 @@
+from datetime import UTC
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -286,11 +288,11 @@ class TestListCheckins:
     def test_breaks_a_tie_in_created_at_by_insertion_order(
         self, authenticated_client, employee, db_session
     ):
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from app.models import CheckIn, CheckInStatus
 
-        same_instant = datetime.now(timezone.utc)
+        same_instant = datetime.now(UTC)
         first = CheckIn(
             plate="ABC1D23",
             status=CheckInStatus.WAITING,
@@ -351,11 +353,11 @@ class TestListCheckins:
     def test_a_waiting_checkin_behind_others_has_a_positive_estimated_wait(
         self, authenticated_client, employee, db_session
     ):
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         from app.models import CheckIn, CheckInStatus
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         first = CheckIn(
             plate="ABC1D23",
             status=CheckInStatus.WAITING,

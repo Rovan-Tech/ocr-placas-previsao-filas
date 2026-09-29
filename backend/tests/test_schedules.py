@@ -73,7 +73,7 @@ class TestCreateSchedule:
     def test_creates_a_schedule_with_all_fields_and_saves_the_four_photos(
         self, authenticated_client, tmp_path, monkeypatch
     ):
-        import app.services.photo_storage as photo_storage
+        from app.services import photo_storage
 
         monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
 
@@ -373,7 +373,7 @@ class TestCreateSchedule:
     def test_validates_the_driver_document_against_the_photo(
         self, authenticated_client, tmp_path, monkeypatch
     ):
-        import app.services.photo_storage as photo_storage
+        from app.services import photo_storage
 
         monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
 
@@ -510,7 +510,7 @@ class TestSchedulePhotos:
     def test_serves_the_four_photos_separately(
         self, authenticated_client, tmp_path, monkeypatch
     ):
-        import app.services.photo_storage as photo_storage
+        from app.services import photo_storage
 
         monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
         driver_front_bytes = _photo_bytes(10)
@@ -567,7 +567,7 @@ class TestSchedulePhotos:
     def test_rejects_a_path_traversal_photo_path_stored_in_the_database(
         self, authenticated_client, db_session, tmp_path, monkeypatch
     ):
-        import app.services.photo_storage as photo_storage
+        from app.services import photo_storage
 
         monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
         created = _create(authenticated_client).json()

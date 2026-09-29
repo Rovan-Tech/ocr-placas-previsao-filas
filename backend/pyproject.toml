@@ -36,6 +36,9 @@ select = [
     "ANN", "S", "PT", "RET", "ARG", "PTH", "ERA", "T20", "TRY",
 ]
 
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Form", "fastapi.Query", "fastapi.Header"]
+
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 

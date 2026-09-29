@@ -7,9 +7,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.db import SessionLocal  # noqa: E402
-from app.models import Employee  # noqa: E402
-from app.services.auth import hash_password  # noqa: E402
+from app.db import SessionLocal
+from app.models import Employee
+from app.services.auth import hash_password
 
 MIN_PASSWORD_LENGTH = 8
 
