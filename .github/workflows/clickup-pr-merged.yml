@@ -1,0 +1,53 @@
+name: ClickUp PR Merged
+# Quando o PR e mergeado (aprovado): move a tarefa do ClickUp para concluida e comenta nela.
+# O status e configuravel pela variavel de repositorio CLICKUP_DONE_STATUS.
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  concluir:
+    name: clickup-concluir
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true && github.event.pull_request.user.type != 'Bot'
+    steps:
+      - name: Concluir tarefa no ClickUp
+        env:
+          CLICKUP_API_TOKEN: ${{ secrets.CLICKUP_API_TOKEN }}
+          CLICKUP_DONE_STATUS: ${{ vars.CLICKUP_DONE_STATUS || 'Concluído' }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          TASK_ID=$(printf '%s\n%s' "$PR_TITLE" "$PR_BODY" \
+            | grep -oE 'app\.clickup\.com/t/[A-Za-z0-9_-]+|CU-[A-Za-z0-9]+' | head -1 \
+            | sed -E 's|.*/t/||; s|^CU-||' || true)
+          if [ -z "$TASK_ID" ]; then echo "PR sem tarefa do ClickUp; nada a fazer."; exit 0; fi
+
+          STATUS_HTTP=$(curl -sS -o /tmp/clickup-status.json -w '%{http_code}' \
+            -X PUT "https://api.clickup.com/api/v2/task/$TASK_ID" \
+            -H "Authorization: $CLICKUP_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg s "$CLICKUP_DONE_STATUS" '{status: $s}')" || true)
+          if [ "$STATUS_HTTP" = "200" ]; then
+            STATUS_NOTE="Status alterado para \"$CLICKUP_DONE_STATUS\"."
+          else
+            STATUS_NOTE="Nao consegui mudar o status para \"$CLICKUP_DONE_STATUS\" (HTTP ${STATUS_HTTP:-n/d}); confira se esse status existe na lista da tarefa."
+          fi
+
+          MSG="PR aprovado e mergeado: $PR_TITLE
+          Repositorio: $REPO | PR #$PR_NUMBER ($PR_URL) | Autor: $PR_AUTHOR
+          $STATUS_NOTE"
+          curl -sS -o /dev/null -w 'comentario HTTP %{http_code}\n' \
+            -X POST "https://api.clickup.com/api/v2/task/$TASK_ID/comment" \
+            -H "Authorization: $CLICKUP_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg t "$MSG" '{comment_text: $t}')"
+          [ "$STATUS_HTTP" = "200" ]

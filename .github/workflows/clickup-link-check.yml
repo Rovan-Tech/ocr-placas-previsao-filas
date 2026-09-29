@@ -1,0 +1,28 @@
+name: ClickUp Link Check
+# Exige o link (app.clickup.com/t/<id>) ou o ID (CU-<id>) da tarefa no titulo ou no corpo do PR.
+# O pr-feedback-clickup.yml usa esse ID para avisar a tarefa quando um check reprova.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  clickup-link:
+    name: clickup-link
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.type != 'Bot'
+    steps:
+      - name: Verificar tarefa do ClickUp no PR
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          if printf '%s\n%s' "$PR_TITLE" "$PR_BODY" | grep -qE 'app\.clickup\.com/t/[A-Za-z0-9_-]+|CU-[A-Za-z0-9]+'; then
+            echo "Tarefa do ClickUp encontrada."
+            exit 0
+          fi
+          echo "::error::PR sem tarefa do ClickUp. Coloque na descricao (ou no titulo) o link https://app.clickup.com/t/<id> ou o ID CU-<id> da demanda."
+          exit 1

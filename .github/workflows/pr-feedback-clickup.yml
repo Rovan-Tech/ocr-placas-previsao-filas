@@ -1,6 +1,6 @@
 name: PR Feedback ClickUp
-# Quando um check de PR reprova: avisa o autor na tarefa do ClickUp (link no corpo
-# do PR), comenta no PR e fecha o PR. So fecha depois de o aviso no ClickUp ter sido
+# Quando um check de PR reprova: muda a tarefa do ClickUp para "PR reprovado", comenta
+# nela o que falhou (link/ID no PR), comenta no PR e fecha o PR. So fecha depois de o aviso no ClickUp ter sido
 # enviado com sucesso. Sem link do ClickUp no PR: so comenta no PR e NAO fecha.
 on:
   workflow_run:
@@ -33,6 +33,7 @@ jobs:
           RUN_URL: ${{ github.event.workflow_run.html_url }}
           RUN_ID: ${{ github.event.workflow_run.id }}
           WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          CLICKUP_FAILED_STATUS: ${{ vars.CLICKUP_FAILED_STATUS || 'PR reprovado' }}
         run: |
           set -euo pipefail
 
@@ -53,10 +54,14 @@ jobs:
 
           FAILED=$(gh run view "$RUN_ID" --repo "$REPO" --json jobs \
             --jq '[.jobs[] | select(.conclusion == "failure") | .name] | join(", ")')
+          DETAILS=$(gh run view "$RUN_ID" --repo "$REPO" --json jobs \
+            --jq '[.jobs[] | select(.conclusion == "failure") | "- " + .name + ": " + ([.steps[] | select(.conclusion == "failure") | .name] | join(", "))] | join("\n")' || true)
+          LOG_TAIL=$(gh run view "$RUN_ID" --repo "$REPO" --log-failed 2>/dev/null | tail -n 25 | cut -c1-300 | tail -c 1800 || true)
 
           # ID da tarefa a partir do link app.clickup.com/t/<id> no corpo do PR
-          TASK_ID=$(printf '%s' "$BODY" \
-            | grep -oE 'app\.clickup\.com/t/[A-Za-z0-9_-]+' | head -1 | sed 's|.*/t/||' || true)
+          TASK_ID=$(printf '%s\n%s' "$TITLE" "$BODY" \
+            | grep -oE 'app\.clickup\.com/t/[A-Za-z0-9_-]+|CU-[A-Za-z0-9]+' | head -1 \
+            | sed -E 's|.*/t/||; s|^CU-||' || true)
 
           if [ -z "$TASK_ID" ]; then
             gh pr comment "$PR" --repo "$REPO" --body "O check **$WORKFLOW_NAME** reprovou (jobs: ${FAILED:-n/d}): $RUN_URL
@@ -65,10 +70,28 @@ jobs:
             exit 0
           fi
 
+          STATUS_HTTP=$(curl -sS -o /tmp/clickup-status.json -w '%{http_code}' \
+            -X PUT "https://api.clickup.com/api/v2/task/$TASK_ID" \
+            -H "Authorization: $CLICKUP_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg s "$CLICKUP_FAILED_STATUS" '{status: $s}')" || true)
+          if [ "$STATUS_HTTP" = "200" ]; then
+            STATUS_NOTE="Status da tarefa alterado para \"$CLICKUP_FAILED_STATUS\"."
+          else
+            STATUS_NOTE="Nao consegui mudar o status para \"$CLICKUP_FAILED_STATUS\" (HTTP ${STATUS_HTTP:-n/d}); confira se esse status existe na lista da tarefa."
+          fi
+
           MSG="PR reprovado: $TITLE
           Repositorio: $REPO | PR #$PR ($PR_URL) | Autor: $AUTHOR
-          Check que falhou: $WORKFLOW_NAME (jobs: ${FAILED:-n/d})
+          Check que falhou: $WORKFLOW_NAME
+          Jobs e etapas com falha:
+          ${DETAILS:-n/d}
+
+          Ultimas linhas do log:
+          ${LOG_TAIL:-n/d}
+
           Detalhes: $RUN_URL
+          $STATUS_NOTE
 
           O PR foi fechado. Corrija o problema e abra um novo PR."
 
