@@ -9,6 +9,7 @@ import CreateSchedulePage from './pages/CreateSchedulePage'
 import DemoPage from './pages/DemoPage'
 import LoginPage from './pages/LoginPage'
 import LogsPage from './pages/LogsPage'
+import ReportsPage from './pages/ReportsPage'
 
 function RequireAuth() {
   const { employee, mustChangePassword } = useAuth()
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="checkins" element={<CheckinsPage />} />
           <Route path="logs" element={<LogsPage />} />
           <Route path="agendamentos" element={<CreateSchedulePage />} />
+          <Route path="relatorios" element={<ReportsPage />} />
           {employee?.is_admin && <Route path="funcionarios" element={<CreateEmployeePage />} />}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
