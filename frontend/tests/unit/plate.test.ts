@@ -59,9 +59,12 @@ describe('verificationInfo', () => {
     expect(verificationInfo('not_found').label).toMatch(/possível placa falsa/)
   })
 
-  it.each(['regular', 'unavailable', 'not_checked'] as const)('%s não barra a entrada', (status) => {
-    expect(verificationInfo(status).blocksEntry).toBe(false)
-  })
+  it.each(['regular', 'unavailable', 'not_checked'] as const)(
+    '%s não barra a entrada',
+    (status) => {
+      expect(verificationInfo(status).blocksEntry).toBe(false)
+    },
+  )
 })
 
 describe('formatConfidence', () => {

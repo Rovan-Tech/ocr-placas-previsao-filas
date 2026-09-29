@@ -16,8 +16,19 @@ export async function loginAsTestUser(page: Page, employee = FAKE_EMPLOYEE): Pro
     route.fulfill({ contentType: 'application/json', body: JSON.stringify(employee) }),
   )
   await page.addInitScript(
-    ({ token, employee, storageKey }: { token: string; employee: typeof FAKE_EMPLOYEE; storageKey: string }) => {
-      window.localStorage.setItem(storageKey, JSON.stringify({ token, employee, mustChangePassword: false }))
+    ({
+      token,
+      employee,
+      storageKey,
+    }: {
+      token: string
+      employee: typeof FAKE_EMPLOYEE
+      storageKey: string
+    }) => {
+      window.localStorage.setItem(
+        storageKey,
+        JSON.stringify({ token, employee, mustChangePassword: false }),
+      )
     },
     { token: FAKE_TOKEN, employee, storageKey: STORAGE_KEY },
   )

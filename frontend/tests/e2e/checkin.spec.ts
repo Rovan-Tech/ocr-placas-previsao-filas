@@ -11,11 +11,13 @@ const PNG_1PX = Buffer.from(
 )
 
 function mockIbgeCities(page: Page, uf: string, cities: string[]) {
-  return page.route(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios**`, (route) =>
-    route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify(cities.map((nome, id) => ({ id, nome }))),
-    }),
+  return page.route(
+    `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios**`,
+    (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(cities.map((nome, id) => ({ id, nome }))),
+      }),
   )
 }
 
@@ -39,7 +41,9 @@ async function mockAndSend(page: Page, checkin: unknown) {
   await page.goto('/')
   const fileChooserPromise = page.waitForEvent('filechooser')
   await page.getByRole('button', { name: /Enviar foto do aparelho|Fotografar placa/ }).click()
-  await (await fileChooserPromise).setFiles({ name: 'placa.png', mimeType: 'image/png', buffer: PNG_1PX })
+  await (
+    await fileChooserPromise
+  ).setFiles({ name: 'placa.png', mimeType: 'image/png', buffer: PNG_1PX })
   await page.getByRole('button', { name: 'Sim, continuar' }).click()
 }
 
@@ -57,7 +61,9 @@ function scheduleInfo(overrides: Record<string, unknown> = {}) {
   }
 }
 
-test('agendado para hoje: mostra motorista, carga e o veículo como confirmação', async ({ page }) => {
+test('agendado para hoje: mostra motorista, carga e o veículo como confirmação', async ({
+  page,
+}) => {
   await mockAndSend(page, {
     found: true,
     schedule: scheduleInfo(),
@@ -73,20 +79,27 @@ test('agendado para hoje: mostra motorista, carga e o veículo como confirmaçã
   await expect(page.getByRole('button', { name: 'Ver verso do documento' })).toBeVisible()
 })
 
-test('documento do motorista não confere com a foto: avisa para conferir manualmente', async ({ page }) => {
+test('documento do motorista não confere com a foto: avisa para conferir manualmente', async ({
+  page,
+}) => {
   await mockAndSend(page, {
     found: true,
     schedule: scheduleInfo({
       driver_document_validated: false,
-      driver_document_validation_detail: 'Número do documento não foi encontrado na foto — confira manualmente.',
+      driver_document_validation_detail:
+        'Número do documento não foi encontrado na foto — confira manualmente.',
     }),
     vehicle_data: null,
   })
 
-  await expect(page.getByText('Número do documento não foi encontrado na foto — confira manualmente.')).toBeVisible()
+  await expect(
+    page.getByText('Número do documento não foi encontrado na foto — confira manualmente.'),
+  ).toBeVisible()
 })
 
-test('agendado para outra data no futuro: avisa explicitamente que chegou adiantado', async ({ page }) => {
+test('agendado para outra data no futuro: avisa explicitamente que chegou adiantado', async ({
+  page,
+}) => {
   await mockAndSend(page, {
     found: true,
     schedule: scheduleInfo({ scheduled_date: '2026-10-05', status: 'early' }),
@@ -95,10 +108,14 @@ test('agendado para outra data no futuro: avisa explicitamente que chegou adiant
 
   await expect(page.getByText('Adiantado', { exact: true })).toBeVisible()
   await expect(page.getByText('05/10/2026').first()).toBeVisible()
-  await expect(page.getByText(/Motorista chegou adiantado! O agendamento era para 05\/10\/2026\./)).toBeVisible()
+  await expect(
+    page.getByText(/Motorista chegou adiantado! O agendamento era para 05\/10\/2026\./),
+  ).toBeVisible()
 })
 
-test('agendado para outra data no passado: mostra "Atrasado" e a data agendada', async ({ page }) => {
+test('agendado para outra data no passado: mostra "Atrasado" e a data agendada', async ({
+  page,
+}) => {
   await mockAndSend(page, {
     found: true,
     schedule: scheduleInfo({ scheduled_date: '2026-09-10', status: 'late' }),
@@ -123,16 +140,29 @@ test('sem agendamento, mas achado na API Brasil: mostra os dados do veículo e a
   await expect(page.getByText(/Dados de exemplo/)).toHaveCount(0)
 })
 
-test('dados do veículo mockados (sem API Brasil configurada): avisa que são dados de exemplo', async ({ page }) => {
+test('dados do veículo mockados (sem API Brasil configurada): avisa que são dados de exemplo', async ({
+  page,
+}) => {
   await mockAndSend(page, {
     found: true,
     schedule: null,
-    vehicle_data: { brand: 'VOLVO', model: 'FH 540', year: '2019', uf: 'SP', color: 'Branco', is_mock: true },
+    vehicle_data: {
+      brand: 'VOLVO',
+      model: 'FH 540',
+      year: '2019',
+      uf: 'SP',
+      color: 'Branco',
+      is_mock: true,
+    },
   })
 
   const notice = page.getByRole('note')
   await expect(notice.getByText(/VOLVO.*FH 540/)).toBeVisible()
-  await expect(notice.getByText(/Dados de exemplo — em produção, a busca seria feita na API oficial do governo/)).toBeVisible()
+  await expect(
+    notice.getByText(
+      /Dados de exemplo — em produção, a busca seria feita na API oficial do governo/,
+    ),
+  ).toBeVisible()
 })
 
 test('não encontrada em nenhuma fonte: avisa que a placa não foi reconhecida', async ({ page }) => {
@@ -144,10 +174,14 @@ test('não encontrada em nenhuma fonte: avisa que a placa não foi reconhecida',
 test('sem agendamento: oferece cadastrar motorista, carga e caminhão na hora', async ({ page }) => {
   await mockAndSend(page, { found: false, schedule: null, vehicle_data: null })
 
-  await expect(page.getByRole('button', { name: 'Cadastrar motorista, carga e caminhão' })).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Cadastrar motorista, carga e caminhão' }),
+  ).toBeVisible()
 })
 
-test('sem agendamento: não oferece autorizar nem recusar entrada antes do cadastro', async ({ page }) => {
+test('sem agendamento: não oferece autorizar nem recusar entrada antes do cadastro', async ({
+  page,
+}) => {
   await mockAndSend(page, {
     found: true,
     schedule: null,
@@ -157,14 +191,18 @@ test('sem agendamento: não oferece autorizar nem recusar entrada antes do cadas
   await expect(page.getByRole('button', { name: 'Autorizar entrada' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Recusar entrada' })).toHaveCount(0)
   await expect(
-    page.getByText('Cadastre motorista, carga e caminhão abaixo para poder autorizar ou recusar a entrada.'),
+    page.getByText(
+      'Cadastre motorista, carga e caminhão abaixo para poder autorizar ou recusar a entrada.',
+    ),
   ).toBeVisible()
 })
 
 test('agendado: não oferece cadastro avulso, já tem os dados', async ({ page }) => {
   await mockAndSend(page, { found: true, schedule: scheduleInfo(), vehicle_data: null })
 
-  await expect(page.getByRole('button', { name: 'Cadastrar motorista, carga e caminhão' })).toHaveCount(0)
+  await expect(
+    page.getByRole('button', { name: 'Cadastrar motorista, carga e caminhão' }),
+  ).toHaveCount(0)
 })
 
 test('qualquer resultado de check-in oferece autorizar ou recusar a entrada', async ({ page }) => {
@@ -252,7 +290,10 @@ test('sem agendamento: cadastra motorista/carga na hora e a tela passa a mostrar
     'Foto do documento do veículo',
     'Foto do manifesto de carga',
   ]) {
-    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByLabel(label).click()])
+    const [chooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      page.getByLabel(label).click(),
+    ])
     await chooser.setFiles({ name: 'foto.jpg', mimeType: 'image/jpeg', buffer: PNG_1PX })
   }
 

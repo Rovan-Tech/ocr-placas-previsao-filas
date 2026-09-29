@@ -45,7 +45,9 @@ function mockManual(page: Page, { status = 200, body }: { status?: number; body:
 async function sendPhoto(page: Page) {
   const fileChooserPromise = page.waitForEvent('filechooser')
   await page.getByRole('button', { name: 'Enviar foto do aparelho' }).click()
-  await (await fileChooserPromise).setFiles({ name: 'placa.png', mimeType: 'image/png', buffer: PNG_1PX })
+  await (
+    await fileChooserPromise
+  ).setFiles({ name: 'placa.png', mimeType: 'image/png', buffer: PNG_1PX })
   await page.getByRole('button', { name: 'Sim, continuar' }).click()
 }
 
@@ -60,7 +62,9 @@ test.describe('conferência da foto antes de enviar', () => {
 
     const fileChooserPromise = page.waitForEvent('filechooser')
     await page.getByRole('button', { name: 'Enviar foto do aparelho' }).click()
-    await (await fileChooserPromise).setFiles({ name: 'placa.png', mimeType: 'image/png', buffer: PNG_1PX })
+    await (
+      await fileChooserPromise
+    ).setFiles({ name: 'placa.png', mimeType: 'image/png', buffer: PNG_1PX })
 
     await expect(page.getByText('A foto ficou nítida e a placa está legível?')).toBeVisible()
     expect(called).toBe(false)
@@ -75,7 +79,9 @@ test.describe('conferência da foto antes de enviar', () => {
 
     const fileChooserPromise = page.waitForEvent('filechooser')
     await page.getByRole('button', { name: 'Enviar foto do aparelho' }).click()
-    await (await fileChooserPromise).setFiles({ name: 'placa.png', mimeType: 'image/png', buffer: PNG_1PX })
+    await (
+      await fileChooserPromise
+    ).setFiles({ name: 'placa.png', mimeType: 'image/png', buffer: PNG_1PX })
     await page.getByRole('button', { name: 'Não, tirar outra' }).click()
 
     await expect(page.getByRole('button', { name: 'Enviar foto do aparelho' })).toBeVisible()
@@ -87,7 +93,9 @@ test.describe('conferência da foto antes de enviar', () => {
 
     const fileChooserPromise = page.waitForEvent('filechooser')
     await page.getByRole('button', { name: 'Enviar foto do aparelho' }).click()
-    await (await fileChooserPromise).setFiles({ name: 'placa.png', mimeType: 'image/png', buffer: PNG_1PX })
+    await (
+      await fileChooserPromise
+    ).setFiles({ name: 'placa.png', mimeType: 'image/png', buffer: PNG_1PX })
     await page.getByRole('button', { name: 'Prefiro digitar a placa' }).click()
 
     await expect(page.getByLabel('Digite a placa do veículo')).toBeVisible()
@@ -100,7 +108,9 @@ test('tira foto pela câmera e envia para o OCR', async ({ page }) => {
     uploadedContentType = route.request().headers()['content-type']
     return route.fulfill({
       contentType: 'application/json',
-      body: JSON.stringify(ocrResponse({ plate: 'XYZ9A87', detections: [{ text: 'XYZ9A87', confidence: 0.91 }] })),
+      body: JSON.stringify(
+        ocrResponse({ plate: 'XYZ9A87', detections: [{ text: 'XYZ9A87', confidence: 0.91 }] }),
+      ),
     })
   })
   await page.goto('/')
@@ -113,7 +123,9 @@ test('tira foto pela câmera e envia para o OCR', async ({ page }) => {
   expect(uploadedContentType).toContain('multipart/form-data')
 })
 
-test('erro ao abrir a câmera aparece como alerta acessível para leitor de tela', async ({ page }) => {
+test('erro ao abrir a câmera aparece como alerta acessível para leitor de tela', async ({
+  page,
+}) => {
   await page.addInitScript(() => {
     navigator.mediaDevices.getUserMedia = () =>
       Promise.reject(new DOMException('Permissão negada pelo usuário.', 'NotAllowedError'))
@@ -125,7 +137,9 @@ test('erro ao abrir a câmera aparece como alerta acessível para leitor de tela
   await expect(page.getByRole('alert')).toContainText('Permissão da câmera negada')
 })
 
-test('mostra o erro do backend e permite tentar de novo, ou digitar manualmente', async ({ page }) => {
+test('mostra o erro do backend e permite tentar de novo, ou digitar manualmente', async ({
+  page,
+}) => {
   let calls = 0
   await page.route('**/api/ocr/upload', (route) => {
     calls += 1
@@ -150,7 +164,9 @@ test('mostra o erro do backend e permite tentar de novo, ou digitar manualmente'
   await expect(page.getByText('ABC1D23', { exact: true })).toBeVisible()
 })
 
-test('placa não lida: não aceita em silêncio, exige tirar outra foto ou digitar', async ({ page }) => {
+test('placa não lida: não aceita em silêncio, exige tirar outra foto ou digitar', async ({
+  page,
+}) => {
   await mockOcr(page, {
     body: ocrResponse({
       plate: null,
@@ -171,7 +187,9 @@ test('placa não lida: não aceita em silêncio, exige tirar outra foto ou digit
   await expect(page.getByRole('button', { name: /confirmar/i })).toHaveCount(0)
 })
 
-test('leitura incerta: mesmo com placa, exige decisão em vez de aceitar sozinha', async ({ page }) => {
+test('leitura incerta: mesmo com placa, exige decisão em vez de aceitar sozinha', async ({
+  page,
+}) => {
   await mockOcr(page, { body: ocrResponse({ confidence: 0.45, needs_review: true }) })
   await page.goto('/')
   await sendPhoto(page)
@@ -195,7 +213,11 @@ test('mostra placa antiga com hífen e oferece corrigir manualmente', async ({ p
 test('alerta placa não encontrada na base oficial como possível falsa', async ({ page }) => {
   await mockOcr(page, {
     body: ocrResponse({
-      verification: { status: 'not_found', detail: 'Placa inexistente na base.', source: 'SENATRAN' },
+      verification: {
+        status: 'not_found',
+        detail: 'Placa inexistente na base.',
+        source: 'SENATRAN',
+      },
     }),
   })
   await page.goto('/')
@@ -209,7 +231,9 @@ test('alerta placa não encontrada na base oficial como possível falsa', async 
 
 test('mostra placa regular quando a base oficial confirma', async ({ page }) => {
   await mockOcr(page, {
-    body: ocrResponse({ verification: { status: 'regular', detail: 'Sem restrições.', source: 'SENATRAN' } }),
+    body: ocrResponse({
+      verification: { status: 'regular', detail: 'Sem restrições.', source: 'SENATRAN' },
+    }),
   })
   await page.goto('/')
   await sendPhoto(page)
@@ -218,7 +242,9 @@ test('mostra placa regular quando a base oficial confirma', async ({ page }) => 
   await expect(page.getByRole('alert')).toHaveCount(0)
 })
 
-test('não mostra aviso de verificação quando a integração oficial não está configurada', async ({ page }) => {
+test('não mostra aviso de verificação quando a integração oficial não está configurada', async ({
+  page,
+}) => {
   await mockOcr(page, {
     body: ocrResponse({
       verification: {
@@ -251,7 +277,9 @@ test('reduz o tamanho de uma foto grande do celular antes de enviar', async ({ p
 
   const fileChooserPromise = page.waitForEvent('filechooser')
   await page.getByRole('button', { name: 'Enviar foto do aparelho' }).click()
-  await (await fileChooserPromise).setFiles({ name: 'foto-celular.png', mimeType: 'image/png', buffer: oversizedPng })
+  await (
+    await fileChooserPromise
+  ).setFiles({ name: 'foto-celular.png', mimeType: 'image/png', buffer: oversizedPng })
   await page.getByRole('button', { name: 'Sim, continuar' }).click()
 
   await expect(page.getByText('ABC1D23', { exact: true })).toBeVisible()
@@ -280,7 +308,8 @@ test.describe('digitação manual da placa', () => {
         needs_review: false,
         verification: {
           status: 'not_checked',
-          detail: 'Placa não verificada na base oficial (integração com a SENATRAN não configurada).',
+          detail:
+            'Placa não verificada na base oficial (integração com a SENATRAN não configurada).',
           source: null,
         },
         detections: [],
@@ -321,7 +350,10 @@ test.describe('digitação manual da placa', () => {
   test('mostra o erro do backend para um formato de placa inválido', async ({ page }) => {
     await mockManual(page, {
       status: 400,
-      body: { detail: 'Formato de placa inválido. Use o padrão Mercosul (ex.: ABC1D23) ou o padrão antigo.' },
+      body: {
+        detail:
+          'Formato de placa inválido. Use o padrão Mercosul (ex.: ABC1D23) ou o padrão antigo.',
+      },
     })
     await page.goto('/')
     await page.getByRole('button', { name: 'Digitar a placa manualmente' }).click()
@@ -355,7 +387,9 @@ test.describe('mensagem de processamento', () => {
 
     const fileChooserPromise = page.waitForEvent('filechooser')
     await page.getByRole('button', { name: 'Enviar foto do aparelho' }).click()
-    await (await fileChooserPromise).setFiles({ name: 'placa.png', mimeType: 'image/png', buffer: PNG_1PX })
+    await (
+      await fileChooserPromise
+    ).setFiles({ name: 'placa.png', mimeType: 'image/png', buffer: PNG_1PX })
     await page.getByRole('button', { name: 'Sim, continuar' }).click()
 
     await expect(page.getByText('EM PROCESSAMENTO')).toBeVisible()
@@ -367,7 +401,9 @@ test.describe('mensagem de processamento', () => {
 })
 
 test.describe('resguardo: foto salva junto com a digitação manual', () => {
-  test('anexa a foto e o que o OCR leu quando a digitação vem de uma leitura incerta', async ({ page }) => {
+  test('anexa a foto e o que o OCR leu quando a digitação vem de uma leitura incerta', async ({
+    page,
+  }) => {
     await mockOcr(page, { body: ocrResponse({ confidence: 0.4, needs_review: true }) })
     const uploadedFields = { hasPhoto: false }
     await page.route('**/api/ocr/manual', (route) => {
@@ -383,7 +419,9 @@ test.describe('resguardo: foto salva junto com a digitação manual', () => {
 
     await expect(page.getByText(/leitura incerta não é registrada sozinha/)).toBeVisible()
     await page.getByRole('button', { name: 'Digitar manualmente' }).click()
-    await expect(page.getByText('A foto será salva junto com a placa digitada, só de resguardo.')).toBeVisible()
+    await expect(
+      page.getByText('A foto será salva junto com a placa digitada, só de resguardo.'),
+    ).toBeVisible()
 
     await page.getByLabel('Digite a placa do veículo').fill('ABC1D23')
     await page.getByRole('button', { name: 'Confirmar placa' }).click()
@@ -392,7 +430,9 @@ test.describe('resguardo: foto salva junto com a digitação manual', () => {
     expect(uploadedFields.hasPhoto).toBe(true)
   })
 
-  test('anexa a foto quando o fiscal já recusa na conferência, antes do OCR rodar', async ({ page }) => {
+  test('anexa a foto quando o fiscal já recusa na conferência, antes do OCR rodar', async ({
+    page,
+  }) => {
     let calledUpload = false
     await page.route('**/api/ocr/upload', (route) => {
       calledUpload = true
@@ -403,10 +443,14 @@ test.describe('resguardo: foto salva junto com a digitação manual', () => {
 
     const fileChooserPromise = page.waitForEvent('filechooser')
     await page.getByRole('button', { name: 'Enviar foto do aparelho' }).click()
-    await (await fileChooserPromise).setFiles({ name: 'placa.png', mimeType: 'image/png', buffer: PNG_1PX })
+    await (
+      await fileChooserPromise
+    ).setFiles({ name: 'placa.png', mimeType: 'image/png', buffer: PNG_1PX })
     await page.getByRole('button', { name: 'Prefiro digitar a placa' }).click()
 
-    await expect(page.getByText('A foto será salva junto com a placa digitada, só de resguardo.')).toBeVisible()
+    await expect(
+      page.getByText('A foto será salva junto com a placa digitada, só de resguardo.'),
+    ).toBeVisible()
     await page.getByLabel('Digite a placa do veículo').fill('ABC1D23')
     await page.getByRole('button', { name: 'Confirmar placa' }).click()
 
@@ -414,7 +458,9 @@ test.describe('resguardo: foto salva junto com a digitação manual', () => {
     expect(calledUpload).toBe(false)
   })
 
-  test('não anexa foto quando a digitação parte da tela inicial, sem foto nenhuma', async ({ page }) => {
+  test('não anexa foto quando a digitação parte da tela inicial, sem foto nenhuma', async ({
+    page,
+  }) => {
     await mockManual(page, { body: ocrResponse({ audit_saved: null }) })
     await page.goto('/')
     await page.getByRole('button', { name: 'Digitar a placa manualmente' }).click()
@@ -426,7 +472,9 @@ test.describe('resguardo: foto salva junto com a digitação manual', () => {
     await expect(page.getByText('ABC1D23', { exact: true })).toBeVisible()
   })
 
-  test('avisa quando o resguardo não pôde ser salvo, sem travar a confirmação da placa', async ({ page }) => {
+  test('avisa quando o resguardo não pôde ser salvo, sem travar a confirmação da placa', async ({
+    page,
+  }) => {
     await mockManual(page, { body: ocrResponse({ audit_saved: false }) })
     await page.goto('/')
     await page.getByRole('button', { name: 'Digitar a placa manualmente' }).click()

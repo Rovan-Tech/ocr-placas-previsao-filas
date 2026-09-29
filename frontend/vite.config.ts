@@ -11,6 +11,11 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     test: {
       include: ['tests/unit/**/*.test.ts'],
+      coverage: {
+        provider: 'v8',
+        include: ['src/**/*.{ts,tsx}'],
+        all: true,
+      },
     },
     server: {
       // host: true expõe o dev server na rede local, para abrir no celular.

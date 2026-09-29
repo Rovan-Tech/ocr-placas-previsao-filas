@@ -46,7 +46,9 @@ export default function CheckinsTrendChart({ checkins }: { checkins: Checkin[] }
     y: yForMinutes(point.minutes),
   }))
 
-  const linePath = coordinates.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')
+  const linePath = coordinates
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+    .join(' ')
   const areaPath =
     coordinates.length > 1
       ? `${linePath} L ${xForTimestamp(maxTimestamp)} ${PADDING.top + plotHeight} ` +
@@ -91,7 +93,13 @@ export default function CheckinsTrendChart({ checkins }: { checkins: Checkin[] }
               y2={yForMinutes(value)}
               className="checkins-trend-grid"
             />
-            <text x={PADDING.left - 8} y={yForMinutes(value)} className="checkins-trend-axis-label" textAnchor="end" dy="0.32em">
+            <text
+              x={PADDING.left - 8}
+              y={yForMinutes(value)}
+              className="checkins-trend-axis-label"
+              textAnchor="end"
+              dy="0.32em"
+            >
               {Math.round(value)}
             </text>
           </g>
@@ -137,7 +145,10 @@ export default function CheckinsTrendChart({ checkins }: { checkins: Checkin[] }
         <div
           role="tooltip"
           className="checkins-trend-tooltip"
-          style={{ left: `${(hovered.x / VIEW_WIDTH) * 100}%`, top: `${(hovered.y / VIEW_HEIGHT) * 100}%` }}
+          style={{
+            left: `${(hovered.x / VIEW_WIDTH) * 100}%`,
+            top: `${(hovered.y / VIEW_HEIGHT) * 100}%`,
+          }}
         >
           <strong className="plate">{hovered.plate}</strong>
           <span>{timeFormatter.format(hovered.timestamp)}</span>

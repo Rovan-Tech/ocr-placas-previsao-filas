@@ -77,7 +77,9 @@ test('mostra o gráfico de tendência do tempo de espera quando há dados', asyn
   await page.goto('/checkins')
 
   await expect(page.getByRole('heading', { name: 'Tendência do tempo de espera' })).toBeVisible()
-  await expect(page.getByRole('img', { name: /Tendência do tempo de espera estimado/ })).toBeVisible()
+  await expect(
+    page.getByRole('img', { name: /Tendência do tempo de espera estimado/ }),
+  ).toBeVisible()
 })
 
 test('mostra um aviso quando não há dados suficientes pro gráfico', async ({ page }) => {
@@ -85,13 +87,22 @@ test('mostra um aviso quando não há dados suficientes pro gráfico', async ({ 
     route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify([
-        { id: 1, plate: 'ABC1D23', created_at: null, status: 'waiting', schedule_id: null, estimated_wait_minutes: null },
+        {
+          id: 1,
+          plate: 'ABC1D23',
+          created_at: null,
+          status: 'waiting',
+          schedule_id: null,
+          estimated_wait_minutes: null,
+        },
       ]),
     }),
   )
   await page.goto('/checkins')
 
-  await expect(page.getByText('Ainda não há dados suficientes para o gráfico de tendência.')).toBeVisible()
+  await expect(
+    page.getByText('Ainda não há dados suficientes para o gráfico de tendência.'),
+  ).toBeVisible()
 })
 
 test('passar o mouse no gráfico mostra a dica com placa, horário e minutos', async ({ page }) => {
@@ -124,11 +135,22 @@ test('mostra o erro do backend e recarrega com Atualizar', async ({ page }) => {
   let shouldFail = true
   await page.route('**/api/checkins?*', (route) => {
     return shouldFail
-      ? route.fulfill({ status: 500, contentType: 'application/json', body: '{"detail":"Erro interno."}' })
+      ? route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: '{"detail":"Erro interno."}',
+        })
       : route.fulfill({
           contentType: 'application/json',
           body: JSON.stringify([
-            { id: 1, plate: 'ABC1D23', created_at: '2026-09-23T14:05:00Z', status: 'admitted', schedule_id: null, estimated_wait_minutes: 5 },
+            {
+              id: 1,
+              plate: 'ABC1D23',
+              created_at: '2026-09-23T14:05:00Z',
+              status: 'admitted',
+              schedule_id: null,
+              estimated_wait_minutes: 5,
+            },
           ]),
         })
   })

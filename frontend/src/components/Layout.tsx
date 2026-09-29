@@ -8,9 +8,21 @@ const MOBILE_NAV_QUERY = '(max-width: 640px)'
 
 const NAV_ITEMS = [
   { to: '/', end: true, label: 'Capturar placa', shortLabel: 'Capturar', icon: Camera },
-  { to: '/checkins', end: false, label: 'Check-ins recentes', shortLabel: 'Check-ins', icon: ClipboardList },
+  {
+    to: '/checkins',
+    end: false,
+    label: 'Check-ins recentes',
+    shortLabel: 'Check-ins',
+    icon: ClipboardList,
+  },
   { to: '/logs', end: false, label: 'Logs', shortLabel: 'Logs', icon: FileClock },
-  { to: '/agendamentos', end: false, label: 'Agendamentos', shortLabel: 'Agenda', icon: NotebookPen },
+  {
+    to: '/agendamentos',
+    end: false,
+    label: 'Agendamentos',
+    shortLabel: 'Agenda',
+    icon: NotebookPen,
+  },
 ]
 
 function useIsMobileNav(): boolean {
@@ -31,7 +43,16 @@ export default function Layout() {
   const isMobileNav = useIsMobileNav()
 
   const items = employee?.is_admin
-    ? [...NAV_ITEMS, { to: '/funcionarios', end: false, label: 'Funcionários', shortLabel: 'Equipe', icon: Users }]
+    ? [
+        ...NAV_ITEMS,
+        {
+          to: '/funcionarios',
+          end: false,
+          label: 'Funcionários',
+          shortLabel: 'Equipe',
+          icon: Users,
+        },
+      ]
     : NAV_ITEMS
 
   return (

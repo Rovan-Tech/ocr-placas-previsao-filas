@@ -12,7 +12,9 @@ interface StatusMessageProps {
 }
 
 export default function StatusMessage({ tone, children, className }: StatusMessageProps) {
-  const classes = className ? `${resolveStatusMessageClassName(tone)} ${className}` : resolveStatusMessageClassName(tone)
+  const classes = className
+    ? `${resolveStatusMessageClassName(tone)} ${className}`
+    : resolveStatusMessageClassName(tone)
   return (
     <p className={classes} role={resolveStatusMessageRole(tone)}>
       {children}

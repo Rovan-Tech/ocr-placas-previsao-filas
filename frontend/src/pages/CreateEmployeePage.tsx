@@ -29,7 +29,11 @@ function DeactivateConfirmation({
   }
 
   return (
-    <div className="verification tone-danger" role="alertdialog" aria-label="Confirmar exclusão de funcionário">
+    <div
+      className="verification tone-danger"
+      role="alertdialog"
+      aria-label="Confirmar exclusão de funcionário"
+    >
       <strong>Tem certeza que deseja excluir este funcionário?</strong>
       <span>
         Nome: <strong>{employee.full_name}</strong>
@@ -93,7 +97,11 @@ function EmployeesTable({
               <td data-label="Situação">{employee.active ? 'Ativo' : 'Excluído'}</td>
               <td data-label="">
                 {employee.active && employee.id !== currentEmployeeId && (
-                  <button type="button" className="link" onClick={() => onSelectForDeactivation(employee)}>
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => onSelectForDeactivation(employee)}
+                  >
                     Excluir
                   </button>
                 )}
@@ -128,7 +136,9 @@ export default function CreateEmployeePage() {
         setEmployees(data)
         setListError(null)
       })
-      .catch((err: unknown) => setListError(err instanceof Error ? err.message : 'Erro ao carregar funcionários.'))
+      .catch((err: unknown) =>
+        setListError(err instanceof Error ? err.message : 'Erro ao carregar funcionários.'),
+      )
       .finally(() => setLoadingList(false))
   }, [token])
 
@@ -164,7 +174,9 @@ export default function CreateEmployeePage() {
       setTemporaryPassword('')
       setIsAdmin(false)
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Erro inesperado ao cadastrar o funcionário.')
+      setFormError(
+        err instanceof Error ? err.message : 'Erro inesperado ao cadastrar o funcionário.',
+      )
     } finally {
       setSending(false)
     }
@@ -222,7 +234,9 @@ export default function CreateEmployeePage() {
           onChange={(event) => setTemporaryPassword(event.target.value)}
           disabled={sending}
         />
-        <p className="hint">Pelo menos {MIN_LENGTH} caracteres. Repasse ao funcionário fora do sistema.</p>
+        <p className="hint">
+          Pelo menos {MIN_LENGTH} caracteres. Repasse ao funcionário fora do sistema.
+        </p>
 
         <label>
           <input

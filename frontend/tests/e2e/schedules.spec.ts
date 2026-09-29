@@ -11,11 +11,13 @@ const FAKE_PHOTO = Buffer.from(
 )
 
 function mockIbgeCities(page: Page, uf: string, cities: string[]) {
-  return page.route(`https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios**`, (route) =>
-    route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify(cities.map((nome, id) => ({ id, nome }))),
-    }),
+  return page.route(
+    `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios**`,
+    (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(cities.map((nome, id) => ({ id, nome }))),
+      }),
   )
 }
 
@@ -38,7 +40,12 @@ function mockSchedules(
   })
 }
 
-async function fillScheduleForm(page: Page, plate: string, driverName: string, driverDocument: string) {
+async function fillScheduleForm(
+  page: Page,
+  plate: string,
+  driverName: string,
+  driverDocument: string,
+) {
   await page.getByLabel('Placa').fill(plate)
   await page.getByLabel('Nome do motorista').fill(driverName)
   await page.getByLabel('Data de nascimento').fill('1988-04-12')
@@ -65,16 +72,25 @@ async function fillScheduleForm(page: Page, plate: string, driverName: string, d
     'Foto do documento do veículo',
     'Foto do manifesto de carga',
   ]) {
-    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByLabel(label).click()])
+    const [chooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      page.getByLabel(label).click(),
+    ])
     await chooser.setFiles({ name: 'foto.jpg', mimeType: 'image/jpeg', buffer: FAKE_PHOTO })
   }
 }
 
-test('o token da sessão salva já está pronto na primeira busca da página, sem cair pro login', async ({ page }) => {
+test('o token da sessão salva já está pronto na primeira busca da página, sem cair pro login', async ({
+  page,
+}) => {
   await page.route('**/api/schedules', (route) => {
     const authorization = route.request().headers()['authorization']
     if (authorization !== 'Bearer token-de-teste') {
-      return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ detail: 'Não autenticado.' }) })
+      return route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Não autenticado.' }),
+      })
     }
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify([]) })
   })
@@ -130,7 +146,8 @@ test('cadastra um agendamento novo com todos os campos e as quatro fotos', async
           driver_name: 'Maria Souza',
           driver_document: '98765432100',
           driver_document_validated: false,
-          driver_document_validation_detail: 'Número do documento não foi encontrado na foto — confira manualmente.',
+          driver_document_validation_detail:
+            'Número do documento não foi encontrado na foto — confira manualmente.',
           origin_location: 'Fortaleza - CE',
           destination_location: 'Recife - PE',
           cargo_items: [{ id: 1, product_name: 'Contêiner', category: 'nao_perecivel' }],
@@ -162,7 +179,8 @@ test('mostra o erro do backend quando a placa é inválida', async ({ page }) =>
         status: 400,
         contentType: 'application/json',
         body: JSON.stringify({
-          detail: 'Formato de placa inválido. Use o padrão Mercosul (ex.: ABC1D23) ou o padrão antigo (ex.: ABC1234).',
+          detail:
+            'Formato de placa inválido. Use o padrão Mercosul (ex.: ABC1D23) ou o padrão antigo (ex.: ABC1234).',
         }),
       }),
   })

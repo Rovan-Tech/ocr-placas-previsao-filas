@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(python scripts/quality_gate.py *)",
+      "Bash(python3 scripts/quality_gate.py *)",
+      "Bash(pytest*)",
+      "Bash(ruff *)",
+      "Bash(mypy*)",
+      "Bash(bandit *)",
+      "Bash(pip-audit*)",
+      "Bash(vulture *)",
+      "Bash(diff-cover *)",
+      "Bash(npm run test*)",
+      "Bash(npm run lint*)",
+      "Bash(npm run typecheck*)",
+      "Bash(npm run build*)",
+      "Bash(npm run format*)",
+      "Bash(npm run test:e2e*)",
+      "Bash(npm audit*)",
+      "Bash(npx --yes jscpd *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "mcp__context7",
+      "mcp__playwright"
+    ],
+    "deny": ["Read(./.env)", "Read(./backend/.env)", "Read(./frontend/.env)"]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_bash.py\" || python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_bash.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_files.py\" || python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_files.py\""
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/post_edit_quality.py\" || python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/post_edit_quality.py\""
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "code-reviewer|qa-tester",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/record_subagent_verdict.py\" || python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/record_subagent_verdict.py\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/stop_gate.py\" || python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/stop_gate.py\""
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/session_start_context.py\" || python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/session_start_context.py\""
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/notify.py\" || python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/notify.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -71,19 +71,30 @@ function CheckinSection({ checkin }: { checkin: CheckinContext }) {
     const status = scheduleStatusInfo(checkin.schedule.status)
     return (
       <>
-        {checkin.schedule.status === 'early' && <EarlyArrivalNotice scheduledDate={checkin.schedule.scheduled_date} />}
+        {checkin.schedule.status === 'early' && (
+          <EarlyArrivalNotice scheduledDate={checkin.schedule.scheduled_date} />
+        )}
         <div className={`verification tone-${status.tone}`} role="status" aria-live="polite">
           <strong>{status.label}</strong>
           <span>
             Motorista: {checkin.schedule.driver_name} ({checkin.schedule.driver_document})
           </span>
           <span>
-            {checkin.schedule.driver_document_validated ? '✅' : '⚠️'} {checkin.schedule.driver_document_validation_detail}
+            {checkin.schedule.driver_document_validated ? '✅' : '⚠️'}{' '}
+            {checkin.schedule.driver_document_validation_detail}
           </span>
-          <button type="button" className="link" onClick={() => openDriverDocumentPhoto(checkin.schedule!.id, 'front')}>
+          <button
+            type="button"
+            className="link"
+            onClick={() => openDriverDocumentPhoto(checkin.schedule!.id, 'front')}
+          >
             Ver frente do documento
           </button>{' '}
-          <button type="button" className="link" onClick={() => openDriverDocumentPhoto(checkin.schedule!.id, 'back')}>
+          <button
+            type="button"
+            className="link"
+            onClick={() => openDriverDocumentPhoto(checkin.schedule!.id, 'back')}
+          >
             Ver verso do documento
           </button>
           <span>
@@ -105,8 +116,12 @@ function CheckinSection({ checkin }: { checkin: CheckinContext }) {
     return (
       <div className="verification tone-warning" role="status" aria-live="polite">
         <strong>Sem agendamento cadastrado</strong>
-        <span>Veículo encontrado na consulta externa — confira manualmente antes de liberar a entrada.</span>
-        {!checkin.vehicle_data.is_mock && <VehicleDataSummary data={checkin.vehicle_data} label="Veículo" />}
+        <span>
+          Veículo encontrado na consulta externa — confira manualmente antes de liberar a entrada.
+        </span>
+        {!checkin.vehicle_data.is_mock && (
+          <VehicleDataSummary data={checkin.vehicle_data} label="Veículo" />
+        )}
       </div>
     )
   }
@@ -167,7 +182,12 @@ function EntryDecision({
 
   return (
     <div className="camera-actions">
-      <button type="button" className="primary" onClick={() => decide('admitted')} disabled={sending}>
+      <button
+        type="button"
+        className="primary"
+        onClick={() => decide('admitted')}
+        disabled={sending}
+      >
         Autorizar entrada
       </button>
       <button type="button" onClick={() => decide('cancelled')} disabled={sending}>
@@ -234,7 +254,9 @@ export default function OcrResult({ result }: OcrResultProps) {
         >
           <strong>{verification.label}</strong>
           <span>{result.verification.detail}</span>
-          {result.verification.source && <span className="source">Fonte: {result.verification.source}</span>}
+          {result.verification.source && (
+            <span className="source">Fonte: {result.verification.source}</span>
+          )}
         </div>
       )}
 

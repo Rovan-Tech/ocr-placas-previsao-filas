@@ -57,12 +57,18 @@ test('faz login com usuário e senha e mostra a tela de captura', async ({ page 
   expect(sentForm).toContain('password=senhaForte123')
 })
 
-test('login numa página que busca dados sozinha ao montar não cai de volta pro login', async ({ page }) => {
+test('login numa página que busca dados sozinha ao montar não cai de volta pro login', async ({
+  page,
+}) => {
   await mockLogin(page, { body: loginBody() })
   await page.route('**/api/schedules', (route) => {
     const authorization = route.request().headers()['authorization']
     if (authorization !== 'Bearer token-de-teste') {
-      return route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ detail: 'Não autenticado.' }) })
+      return route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({ detail: 'Não autenticado.' }),
+      })
     }
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify([]) })
   })
@@ -146,7 +152,11 @@ test('sair volta pra tela de login', async ({ page }) => {
 test('uma resposta 401 numa chamada normal desloga e volta pro login', async ({ page }) => {
   await loginAsTestUser(page)
   await page.route('**/api/checkins?*', (route) =>
-    route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ detail: 'Sessão inválida ou expirada. Faça login de novo.' }) }),
+    route.fulfill({
+      status: 401,
+      contentType: 'application/json',
+      body: JSON.stringify({ detail: 'Sessão inválida ou expirada. Faça login de novo.' }),
+    }),
   )
   await page.goto('/checkins')
 
@@ -166,13 +176,22 @@ test.describe('admin master cadastra funcionário', () => {
     let sentBody: Record<string, unknown> | null = null
     await page.route('**/api/auth/employees', (route) => {
       if (route.request().method() === 'GET') {
-        return route.fulfill({ contentType: 'application/json', body: JSON.stringify([FAKE_EMPLOYEE]) })
+        return route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify([FAKE_EMPLOYEE]),
+        })
       }
       sentBody = route.request().postDataJSON()
       return route.fulfill({
         status: 201,
         contentType: 'application/json',
-        body: JSON.stringify({ id: 2, username: 'fiscal.novo', full_name: 'Fiscal Novo', is_admin: false, active: true }),
+        body: JSON.stringify({
+          id: 2,
+          username: 'fiscal.novo',
+          full_name: 'Fiscal Novo',
+          is_admin: false,
+          active: true,
+        }),
       })
     })
     await page.goto('/')
@@ -184,7 +203,11 @@ test.describe('admin master cadastra funcionário', () => {
     await page.getByRole('button', { name: 'Cadastrar' }).click()
 
     await expect(page.getByText(/Fiscal Novo.*cadastrado/)).toBeVisible()
-    expect(sentBody).toMatchObject({ username: 'fiscal.novo', full_name: 'Fiscal Novo', temporary_password: 'temp12345' })
+    expect(sentBody).toMatchObject({
+      username: 'fiscal.novo',
+      full_name: 'Fiscal Novo',
+      temporary_password: 'temp12345',
+    })
   })
 
   test('não-admin não vê nem acessa a rota de cadastro', async ({ page }) => {
@@ -196,14 +219,32 @@ test.describe('admin master cadastra funcionário', () => {
 })
 
 test.describe('admin master exclui funcionário', () => {
-  const ADMIN = { id: 1, username: 'admin', full_name: 'Admin Master', is_admin: true, active: true }
-  const OTHER = { id: 2, username: 'fiscal.maria', full_name: 'Maria Fiscal', is_admin: false, active: true }
+  const ADMIN = {
+    id: 1,
+    username: 'admin',
+    full_name: 'Admin Master',
+    is_admin: true,
+    active: true,
+  }
+  const OTHER = {
+    id: 2,
+    username: 'fiscal.maria',
+    full_name: 'Maria Fiscal',
+    is_admin: false,
+    active: true,
+  }
 
-  async function openEmployeesPage(page: Page, { onDelete }: { onDelete?: (route: import('@playwright/test').Route) => Promise<void> } = {}) {
+  async function openEmployeesPage(
+    page: Page,
+    { onDelete }: { onDelete?: (route: import('@playwright/test').Route) => Promise<void> } = {},
+  ) {
     await loginAsTestUser(page, ADMIN)
     await page.route('**/api/auth/employees', (route) => {
       if (route.request().method() === 'GET') {
-        return route.fulfill({ contentType: 'application/json', body: JSON.stringify([ADMIN, OTHER]) })
+        return route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify([ADMIN, OTHER]),
+        })
       }
       return route.continue()
     })
@@ -222,16 +263,24 @@ test.describe('admin master exclui funcionário', () => {
     await expect(adminRow.getByRole('button', { name: 'Excluir' })).toHaveCount(0)
   })
 
-  test('mostra os dados do funcionário antes de excluir, e cancelar não chama a API', async ({ page }) => {
+  test('mostra os dados do funcionário antes de excluir, e cancelar não chama a API', async ({
+    page,
+  }) => {
     let called = false
     await openEmployeesPage(page, {
       onDelete: async (route) => {
         called = true
-        await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ...OTHER, active: false }) })
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ ...OTHER, active: false }),
+        })
       },
     })
 
-    await page.getByRole('row', { name: /Maria Fiscal/ }).getByRole('button', { name: 'Excluir' }).click()
+    await page
+      .getByRole('row', { name: /Maria Fiscal/ })
+      .getByRole('button', { name: 'Excluir' })
+      .click()
 
     const dialog = page.getByRole('alertdialog')
     await expect(dialog).toContainText('Maria Fiscal')
@@ -246,10 +295,16 @@ test.describe('admin master exclui funcionário', () => {
   test('confirmar exclui o funcionário e atualiza a situação na tabela', async ({ page }) => {
     await openEmployeesPage(page, {
       onDelete: async (route) =>
-        route.fulfill({ contentType: 'application/json', body: JSON.stringify({ ...OTHER, active: false }) }),
+        route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ ...OTHER, active: false }),
+        }),
     })
 
-    await page.getByRole('row', { name: /Maria Fiscal/ }).getByRole('button', { name: 'Excluir' }).click()
+    await page
+      .getByRole('row', { name: /Maria Fiscal/ })
+      .getByRole('button', { name: 'Excluir' })
+      .click()
     await page.getByRole('alertdialog').getByRole('button', { name: 'Sim, excluir' }).click()
 
     await expect(page.getByRole('alertdialog')).toHaveCount(0)
@@ -258,7 +313,9 @@ test.describe('admin master exclui funcionário', () => {
     await expect(row.getByRole('button', { name: 'Excluir' })).toHaveCount(0)
   })
 
-  test('mostra o erro do backend quando a exclusão falha, sem fechar o diálogo', async ({ page }) => {
+  test('mostra o erro do backend quando a exclusão falha, sem fechar o diálogo', async ({
+    page,
+  }) => {
     await openEmployeesPage(page, {
       onDelete: async (route) =>
         route.fulfill({
@@ -268,7 +325,10 @@ test.describe('admin master exclui funcionário', () => {
         }),
     })
 
-    await page.getByRole('row', { name: /Maria Fiscal/ }).getByRole('button', { name: 'Excluir' }).click()
+    await page
+      .getByRole('row', { name: /Maria Fiscal/ })
+      .getByRole('button', { name: 'Excluir' })
+      .click()
     await page.getByRole('alertdialog').getByRole('button', { name: 'Sim, excluir' }).click()
 
     await expect(page.getByText('Você não pode excluir a própria conta.')).toBeVisible()

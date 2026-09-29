@@ -3,4 +3,80 @@ pythonpath = ["."]
 testpaths = ["tests"]
 markers = [
     "ocr_real: roda o EasyOCR de verdade (lento, ~1 min). Pular com -m \"not ocr_real\"",
+    "unit: teste de unidade, sem I/O real (rede/disco/banco mockados)",
+    "integration: teste que bate em banco/disco real (ex.: TestClient + Postgres de teste)",
+    "e2e: teste de ponta a ponta (reservado; o E2E deste projeto hoje é só Playwright/TS)",
 ]
+addopts = "--strict-markers"
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+omit = ["app/scripts/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+# "D" (pydocstyle) fica de fora de propósito: este projeto proíbe docstring/comentário
+# no código (ver "Código sem comentários" no CLAUDE.md raiz e .claude/rules/python.md) —
+# selecionar "D" cobraria exatamente o oposto do que o projeto quer.
+select = [
+    "E", "W", "F", "I", "N", "UP", "B", "SIM", "C4", "C90", "RUF", "PL",
+    "ANN", "S", "PT", "RET", "ARG", "PTH", "ERA", "T20", "TRY",
+]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Form", "fastapi.Query", "fastapi.Header"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-args = 5
+max-statements = 40
+max-branches = 12
+
+[tool.ruff.lint.per-file-ignores]
+# Teste precisa de `assert` (S101) e valor literal em comparação (PLR2004) é normal em
+# fixture/caso de teste; anotação de tipo completa em toda função de teste é ruído (ANN).
+"tests/*" = ["S101", "PLR2004", "ANN"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+show_error_codes = true
+plugins = ["pydantic.mypy"]
+exclude = ["migrations/"]
+# silent: usa a assinatura/stub de biblioteca de terceiro sem reanalisar o corpo dela — evita
+# que sintaxe nova demais numa dependência transitiva (ex.: PEP 695 em "deprecated") quebre o
+# mypy inteiro por causa de um pacote que não é nosso.
+follow_imports = "silent"
+
+[[tool.mypy.overrides]]
+module = "easyocr.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "cv2.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# "deprecated" (dependência transitiva do easyocr) usa sintaxe do Python 3.12+ (PEP 695) num
+# módulo que o mypy tenta analisar mesmo com follow_imports=silent (erro de sintaxe acontece no
+# parse, antes do follow_imports decidir o que reportar) — não é código nosso, sem valor em
+# checar.
+module = "deprecated.*"
+ignore_errors = true
+follow_imports = "skip"
