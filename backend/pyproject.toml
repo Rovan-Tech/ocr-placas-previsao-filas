@@ -80,3 +80,6 @@ ignore_missing_imports = true
 module = "deprecated.*"
 ignore_errors = true
 follow_imports = "skip"
+
+[tool.vulture]
+ignore_names = ["cls"]
