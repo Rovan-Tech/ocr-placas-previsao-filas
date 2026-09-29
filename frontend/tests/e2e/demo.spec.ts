@@ -51,7 +51,10 @@ test('lista os exemplos disponíveis e roda o OCR ao escolher um', async ({ page
   let sentBody = ''
   await page.route('**/api/ocr/demo-upload', (route) => {
     sentBody = route.request().postData() ?? ''
-    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(demoUploadResponse()) })
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(demoUploadResponse()),
+    })
   })
   await page.goto('/demo')
 
@@ -70,13 +73,18 @@ test('permite enviar a própria foto em vez de escolher um exemplo', async ({ pa
   let uploadedContentType = ''
   await page.route('**/api/ocr/demo-upload', (route) => {
     uploadedContentType = route.request().headers()['content-type']
-    return route.fulfill({ contentType: 'application/json', body: JSON.stringify(demoUploadResponse()) })
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(demoUploadResponse()),
+    })
   })
   await page.goto('/demo')
 
   const fileChooserPromise = page.waitForEvent('filechooser')
   await page.getByRole('button', { name: 'Enviar foto do aparelho' }).click()
-  await (await fileChooserPromise).setFiles({ name: 'placa.png', mimeType: 'image/png', buffer: PNG_1PX })
+  await (
+    await fileChooserPromise
+  ).setFiles({ name: 'placa.png', mimeType: 'image/png', buffer: PNG_1PX })
 
   await expect(page.getByText('ABC1D23', { exact: true })).toBeVisible()
   expect(uploadedContentType).toContain('multipart/form-data')
@@ -126,7 +134,9 @@ test('em mobile, o botão de enviar foto não sobrepõe a área da câmera (sem 
   await page.goto('/demo')
 
   const cameraBox = await page.locator('.camera-viewport').boundingBox()
-  const uploadBox = await page.getByRole('button', { name: 'Enviar foto do aparelho' }).boundingBox()
+  const uploadBox = await page
+    .getByRole('button', { name: 'Enviar foto do aparelho' })
+    .boundingBox()
 
   expect(cameraBox).not.toBeNull()
   expect(uploadBox).not.toBeNull()

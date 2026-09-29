@@ -4,7 +4,12 @@ import ManualPlateEntry from '../components/ManualPlateEntry'
 import OcrResult from '../components/OcrResult'
 import ScheduleForm from '../components/ScheduleForm'
 import StatusMessage from '../components/StatusMessage'
-import { uploadPlateImage, type ManualPlateContext, type OcrUploadResponse, type ScheduleOut } from '../services/api'
+import {
+  uploadPlateImage,
+  type ManualPlateContext,
+  type OcrUploadResponse,
+  type ScheduleOut,
+} from '../services/api'
 import { todayIsoDate } from '../services/plate'
 
 type Status = 'idle' | 'reviewing_photo' | 'sending' | 'needs_decision' | 'confirmed' | 'error'
@@ -132,8 +137,14 @@ export default function CapturePage() {
     return (
       <section className="page">
         <h1>Digitar a placa</h1>
-        <p className="subtitle">Use quando a câmera não conseguir ler a placa, ou se preferir digitar direto.</p>
-        <ManualPlateEntry onSubmit={handleManualResult} onCancel={() => setManualEntry(false)} context={manualContext} />
+        <p className="subtitle">
+          Use quando a câmera não conseguir ler a placa, ou se preferir digitar direto.
+        </p>
+        <ManualPlateEntry
+          onSubmit={handleManualResult}
+          onCancel={() => setManualEntry(false)}
+          context={manualContext}
+        />
       </section>
     )
   }
@@ -204,8 +215,8 @@ export default function CapturePage() {
             <>
               <OcrResult result={result} />
               <StatusMessage tone="warning">
-                Não foi possível confirmar a placa por essa foto. Tire outra foto ou digite a
-                placa manualmente — a leitura incerta não é registrada sozinha.
+                Não foi possível confirmar a placa por essa foto. Tire outra foto ou digite a placa
+                manualmente — a leitura incerta não é registrada sozinha.
               </StatusMessage>
               <div className="camera-actions">
                 <button type="button" className="primary" onClick={reset}>
@@ -216,7 +227,10 @@ export default function CapturePage() {
                 </button>
               </div>
               {result.plate && result.checkin && !result.checkin.schedule && (
-                <UnscheduledArrivalRegistration plate={result.plate} onRegistered={handleScheduleRegistered} />
+                <UnscheduledArrivalRegistration
+                  plate={result.plate}
+                  onRegistered={handleScheduleRegistered}
+                />
               )}
             </>
           )}
@@ -226,7 +240,8 @@ export default function CapturePage() {
               <OcrResult result={result} />
               {result.audit_saved === false && (
                 <StatusMessage tone="warning">
-                  A placa foi confirmada, mas não foi possível guardar a foto de resguardo desta vez.
+                  A placa foi confirmada, mas não foi possível guardar a foto de resguardo desta
+                  vez.
                 </StatusMessage>
               )}
               <p className="manual-entry-link">
@@ -241,7 +256,10 @@ export default function CapturePage() {
                 </button>
               </div>
               {result.plate && result.checkin && !result.checkin.schedule && (
-                <UnscheduledArrivalRegistration plate={result.plate} onRegistered={handleScheduleRegistered} />
+                <UnscheduledArrivalRegistration
+                  plate={result.plate}
+                  onRegistered={handleScheduleRegistered}
+                />
               )}
             </>
           )}

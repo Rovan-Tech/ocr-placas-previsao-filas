@@ -46,7 +46,9 @@ export default function LogsPage() {
         setLogs(data)
         setError(null)
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'Erro ao carregar os logs.'))
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : 'Erro ao carregar os logs.'),
+      )
       .finally(() => setLoading(false))
   }, [])
 
@@ -63,7 +65,9 @@ export default function LogsPage() {
       <div className="page-header">
         <div>
           <h1>Logs</h1>
-          <p className="subtitle">Quem enviou cada foto ou placa, de onde, e o que a leitura deu.</p>
+          <p className="subtitle">
+            Quem enviou cada foto ou placa, de onde, e o que a leitura deu.
+          </p>
         </div>
         <button type="button" onClick={handleRefresh} disabled={loading}>
           Atualizar
@@ -96,7 +100,9 @@ export default function LogsPage() {
                   <td data-label="Placa">
                     {log.final_plate ? (
                       <>
-                        <span className="plate">{formatPlate(log.final_plate, log.final_plate_format)}</span>
+                        <span className="plate">
+                          {formatPlate(log.final_plate, log.final_plate_format)}
+                        </span>
                         {log.needs_review && ' · incerta'}
                       </>
                     ) : (

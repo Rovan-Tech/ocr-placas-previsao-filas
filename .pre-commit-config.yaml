@@ -1,0 +1,12 @@
+# Espelha o gate rápido (mesma fonte de verdade dos hooks do Claude Code e do CI, ver
+# scripts/quality_gate.py) — protege commit feito fora do Claude Code.
+# Instalar: pip install --user pre-commit (ou pipx install pre-commit) && pre-commit install
+repos:
+  - repo: local
+    hooks:
+      - id: quality-gate-fast
+        name: Gate de qualidade (rápido)
+        entry: python3 scripts/quality_gate.py --fast
+        language: system
+        pass_filenames: false
+        always_run: true

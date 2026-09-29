@@ -10,8 +10,9 @@ const MIN_Y_CEILING = 10
 
 export function toTrendPoints(checkins: Checkin[]): TrendPoint[] {
   return checkins
-    .filter((checkin): checkin is Checkin & { created_at: string; estimated_wait_minutes: number } =>
-      checkin.created_at != null && checkin.estimated_wait_minutes != null,
+    .filter(
+      (checkin): checkin is Checkin & { created_at: string; estimated_wait_minutes: number } =>
+        checkin.created_at != null && checkin.estimated_wait_minutes != null,
     )
     .map((checkin) => ({
       plate: checkin.plate,

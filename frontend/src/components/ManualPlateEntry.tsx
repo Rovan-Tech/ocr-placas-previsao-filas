@@ -1,5 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { ApiError, submitPlateManually, type ManualPlateContext, type OcrUploadResponse } from '../services/api'
+import {
+  ApiError,
+  submitPlateManually,
+  type ManualPlateContext,
+  type OcrUploadResponse,
+} from '../services/api'
 import StatusMessage from './StatusMessage'
 
 interface ManualPlateEntryProps {
@@ -47,8 +52,8 @@ export default function ManualPlateEntry({ onSubmit, onCancel, context }: Manual
         autoFocus
       />
       <p className="hint">
-        O sistema identifica sozinho, pela ordem das letras e números, se é o padrão Mercosul ou
-        o padrão antigo.
+        O sistema identifica sozinho, pela ordem das letras e números, se é o padrão Mercosul ou o
+        padrão antigo.
       </p>
       {context?.photo && (
         <p className="hint">A foto será salva junto com a placa digitada, só de resguardo.</p>

@@ -42,8 +42,7 @@ export default function ChangePasswordPage() {
       <ThemeToggle />
       <h1>Troque sua senha</h1>
       <p className="subtitle">
-        É preciso definir uma senha nova antes de continuar — no primeiro acesso, ou a cada 30
-        dias.
+        É preciso definir uma senha nova antes de continuar — no primeiro acesso, ou a cada 30 dias.
       </p>
 
       <form className="form" onSubmit={handleSubmit}>

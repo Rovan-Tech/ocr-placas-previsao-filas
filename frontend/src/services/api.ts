@@ -9,7 +9,8 @@ export interface OcrDetection {
 
 export type PlateFormat = 'mercosul' | 'antigo'
 
-export type VerificationStatus = 'not_checked' | 'regular' | 'irregular' | 'not_found' | 'unavailable'
+export type VerificationStatus =
+  'not_checked' | 'regular' | 'irregular' | 'not_found' | 'unavailable'
 
 export interface PlateVerification {
   status: VerificationStatus
@@ -91,10 +92,16 @@ export class ApiError extends Error {
 }
 
 function parseErrorDetail(body: unknown): { message: string | null; code: string | undefined } {
-  if (!body || typeof body !== 'object' || !('detail' in body)) return { message: null, code: undefined }
+  if (!body || typeof body !== 'object' || !('detail' in body))
+    return { message: null, code: undefined }
   const detail = (body as { detail: unknown }).detail
   if (typeof detail === 'string') return { message: detail, code: undefined }
-  if (detail && typeof detail === 'object' && 'message' in detail && typeof detail.message === 'string') {
+  if (
+    detail &&
+    typeof detail === 'object' &&
+    'message' in detail &&
+    typeof detail.message === 'string'
+  ) {
     const code = 'code' in detail && typeof detail.code === 'string' ? detail.code : undefined
     return { message: detail.message, code }
   }
@@ -118,7 +125,11 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     const { message, code } = parseErrorDetail(body)
     if (response.status === 401) notifySessionInvalid()
     if (code === 'password_change_required') notifyPasswordChangeRequired()
-    throw new ApiError(message || `Erro ${response.status} ao chamar o backend.`, response.status, code)
+    throw new ApiError(
+      message || `Erro ${response.status} ao chamar o backend.`,
+      response.status,
+      code,
+    )
   }
   return body as T
 }
@@ -135,7 +146,10 @@ export interface ManualPlateContext {
   ocrConfidence?: number | null
 }
 
-export function submitPlateManually(plate: string, context: ManualPlateContext = {}): Promise<OcrUploadResponse> {
+export function submitPlateManually(
+  plate: string,
+  context: ManualPlateContext = {},
+): Promise<OcrUploadResponse> {
   const form = new FormData()
   form.append('plate', plate)
   if (context.photo) form.append('photo', context.photo)
@@ -166,7 +180,9 @@ export function demoSampleImageUrl(sampleId: string): string {
   return `${API_BASE}/ocr/demo-samples/${encodeURIComponent(sampleId)}/image`
 }
 
-export function submitDemoOcr(input: { sampleId: string } | { file: File }): Promise<DemoPlateReadResponse> {
+export function submitDemoOcr(
+  input: { sampleId: string } | { file: File },
+): Promise<DemoPlateReadResponse> {
   const form = new FormData()
   if ('sampleId' in input) form.append('sample_id', input.sampleId)
   else form.append('file', input.file)
@@ -209,9 +225,10 @@ export interface UploadLogEntry {
   created_at: string
 }
 
-export function fetchLogs({ limit = 50, offset = 0 }: { limit?: number; offset?: number } = {}): Promise<
-  UploadLogEntry[]
-> {
+export function fetchLogs({
+  limit = 50,
+  offset = 0,
+}: { limit?: number; offset?: number } = {}): Promise<UploadLogEntry[]> {
   return request(`/logs?limit=${limit}&offset=${offset}`)
 }
 
@@ -309,7 +326,9 @@ export function createSchedule(input: CreateScheduleInput): Promise<ScheduleOut>
   form.append('destination_location', input.destinationLocation)
   form.append(
     'cargo_items',
-    JSON.stringify(input.cargoItems.map((item) => ({ product_name: item.productName, category: item.category }))),
+    JSON.stringify(
+      input.cargoItems.map((item) => ({ product_name: item.productName, category: item.category })),
+    ),
   )
   form.append('scheduled_date', input.scheduledDate)
   form.append('driver_document_photo_front', input.driverDocumentPhotoFront)
@@ -325,7 +344,11 @@ export function listSchedules(plate?: string): Promise<ScheduleOut[]> {
 
 async function fetchSchedulePhoto(
   scheduleId: number,
-  kind: 'driver-document-photo-front' | 'driver-document-photo-back' | 'vehicle-document-photo' | 'manifest-photo',
+  kind:
+    | 'driver-document-photo-front'
+    | 'driver-document-photo-back'
+    | 'vehicle-document-photo'
+    | 'manifest-photo',
 ): Promise<Blob> {
   const headers = new Headers()
   const token = getAuthToken()

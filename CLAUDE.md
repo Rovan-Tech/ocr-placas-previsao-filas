@@ -9,6 +9,7 @@ frontend) estão em [`backend/CLAUDE.md`](backend/CLAUDE.md) e valem junto com e
 [Comandos](#comandos) · [Testes](#testes-são-obrigatórios) ·
 [Segurança](#segurança-é-obrigatória) ·
 [Boas práticas / qual skill usar](#boas-práticas-de-desenvolvimento) ·
+[Fluxo obrigatório de qualidade](#fluxo-obrigatório-de-qualidade) ·
 [Deploy](#deploy-produção) · [Antes de abrir PR](#antes-de-abrir-pr) ·
 [O que não fazer](#o-que-não-fazer) · [Grafo de conhecimento](#grafo-de-conhecimento-do-projeto-graphify-out) ·
 [Skills disponíveis](#skills-disponíveis-claudeskills)
@@ -155,9 +156,11 @@ cd backend
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload
-pytest                                                # testes
-bandit -r app -q                                      # análise estática de segurança
-pip-audit -r requirements.txt                         # dependências com CVE conhecida
+pytest                                                 # testes
+ruff format . && ruff check --fix .                    # formatação + lint
+mypy app                                               # checagem de tipos (strict)
+bandit -r app -q                                       # análise estática de segurança
+pip-audit -r requirements.txt                          # dependências com CVE conhecida
 ```
 
 Frontend:
@@ -167,6 +170,8 @@ npm install
 npm run dev
 npm run test          # Vitest
 npm run test:e2e      # Playwright (1ª vez: npx playwright install chromium)
+npm run lint          # oxlint
+npm run format        # Prettier (--check no gate; sem --check aqui já corrige)
 npm run build         # tsc -b (checagem de tipos) + vite build
 npm audit --audit-level=high
 ```
@@ -174,6 +179,13 @@ npm audit --audit-level=high
 Banco:
 ```bash
 docker compose up -d   # sobe o PostgreSQL local
+```
+
+Gate de qualidade (única fonte de verdade — os mesmos comandos rodam nos hooks, no pre-commit e
+no CI):
+```bash
+python scripts/quality_gate.py --fast   # formatação + lint + tipos nos arquivos alterados (segundos)
+python scripts/quality_gate.py --full   # tudo: testes+cobertura, duplicação, código morto, auditoria, E2E
 ```
 
 ## Testes são obrigatórios
@@ -260,7 +272,11 @@ trabalho. Guia rápido de qual skill puxar para as tarefas mais comuns neste rep
 | Acessibilidade de tela nova/alterada | `a11y-audit` | WCAG 2.2 AA — a guarita pode usar em campo, com luz ruim |
 | Escrever/ajustar teste unitário (pytest ou Vitest) | `tdd-guide`, `senior-qa` | Teste junto com o código, de preferência antes (ver [Testes](#testes-são-obrigatórios)) |
 | Teste e2e (Playwright) | `playwright-pro` (`fix`/`generate`/`pw-review`) | Seletores semânticos, nunca classe CSS |
-| Revisão antes de commitar/abrir PR | `code-reviewer`, `adversarial-reviewer` | Além do `/prepare-pr`, que já roda os testes e o `/security-check` |
+| Toda mudança de código (revisão) | subagent `code-reviewer` (`/revisar` ou automático no fluxo) | `.claude/agents/code-reviewer.md` — ver [Fluxo obrigatório de qualidade](#fluxo-obrigatório-de-qualidade). Distinto da skill comunitária `code-reviewer`/`adversarial-reviewer`, para revisão avulsa fora do fluxo |
+| Toda mudança de código (QA) | subagent `qa-tester` (`/qa` ou automático no fluxo) | `.claude/agents/qa-tester.md` |
+| Rodar o fluxo completo numa tarefa | `/feature`, `/bugfix` | Implementa → `code-reviewer` → `qa-tester` → entrega, ver [Fluxo obrigatório de qualidade](#fluxo-obrigatório-de-qualidade) |
+| Só rodar o gate de qualidade | `/gate` | `python scripts/quality_gate.py --full` + resumo |
+| Revisão avulsa antes de commitar/abrir PR (fora do fluxo formal) | `adversarial-reviewer` | Além do `/prepare-pr`, que já roda os testes e o `/security-check` |
 | Schema novo ou migração Alembic | `database-designer` | Lembrar do `CheckConstraint` de formato de placa e do `NAMING_CONVENTION` em `app/db.py` |
 | Mexeu em auth, upload, CORS, rate limit ou qualquer endpoint | `/security-check` (skill do projeto) + `security-pen-testing`/`ai-security` | Obrigatório antes de PR — ver [Segurança](#segurança-é-obrigatória) |
 | Dúvida de arquitetura, "que arquivo mexe se eu alterar X" | `/graphify` | Ver [Grafo de conhecimento](#grafo-de-conhecimento-do-projeto-graphify-out) |
@@ -284,6 +300,60 @@ Outras diretrizes de estilo que valem para qualquer tarefa neste repo:
   vale também pra este próprio arquivo: ele já ficou desatualizado antes (dizia que `/checkins`
   não existia bem depois de o router ter sido implementado) — na dúvida, o código manda, não o
   `CLAUDE.md`.
+
+## Fluxo obrigatório de qualidade
+
+Regras detalhadas por linguagem/tema estão em [`.claude/rules/`](.claude/rules/) — carregadas
+automaticamente por caminho (`python.md` só para `backend/**/*.py`, `typescript.md` só para
+`frontend/src/**`, etc.); `architecture.md`, `security.md` e `git.md` valem sempre.
+
+**Para toda tarefa que altera código** (documentação pura em `.md` dispensa este fluxo):
+
+1. **Entender**: critérios de aceite claros; tarefa grande/ambígua ganha um plano antes de
+   codificar.
+2. **Pesquisar**: bibliotecas envolvidas (FastAPI, SQLAlchemy, React, EasyOCR...) sempre via
+   **context7** (`resolve-library-id` → `query-docs`) antes de usar uma API — nunca só memória,
+   que pode estar desatualizada.
+3. **Implementar com teste** (TDD quando der: teste falhando → código → refatoração), seguindo as
+   regras de `.claude/rules/`.
+4. **Gate rápido**: `python scripts/quality_gate.py --fast` (formatação + lint + tipos nos
+   arquivos alterados, roda em segundos) — corrigir tudo antes do passo 5.
+5. **Revisão**: invocar o subagent `code-reviewer` (`.claude/agents/code-reviewer.md`). Reprovado
+   → corrigir todo item `[BLOQUEANTE]`/`[IMPORTANTE]` → invocar de novo.
+6. **QA**: com a revisão aprovada, invocar `qa-tester` (`.claude/agents/qa-tester.md`). Reprovado
+   → cada bug vira um teste que falha, corrigir, **voltar ao passo 5** (qualquer mudança de código
+   invalida aprovação anterior).
+7. **Limite**: no máximo 3 rodadas em cada etapa (5 e 6). Sem convergência, parar e explicar o
+   impasse com opções — não insistir indefinidamente.
+8. **Entrega**: resumo do que mudou e por quê, vereditos, evidências, pendências não bloqueantes.
+   **Nunca commit/push sem autorização explícita** (ver [`.claude/rules/git.md`](.claude/rules/git.md)).
+
+**Definição de pronto**: `python scripts/quality_gate.py --full` verde, `code-reviewer` e
+`qa-tester` com `APROVADO` para o código atual, documentação afetada atualizada
+(`backend/CLAUDE.md`, `docs/design-system.md`, tabela de contrato da API).
+
+### Quando usar cada ferramenta
+
+- **context7** (MCP): documentação atual de qualquer biblioteca/framework antes de configurar ou
+  usar API nova — nunca confiar só na memória para sintaxe/opção de config.
+- **Playwright MCP**: teste exploratório manual e evidência visual (screenshot) durante o
+  desenvolvimento e no `qa-tester` — não vira teste versionado.
+- **pytest-playwright**: não aplicável aqui — o E2E deste projeto já é 100% TypeScript
+  (`@playwright/test`, `frontend/tests/e2e/`), não há superfície Python para testar via
+  `pytest-playwright`. Testes E2E versionados ficam em `frontend/tests/e2e/`.
+- **Claude in Chrome**: validação no navegador real (sessão iniciada com `claude --chrome` ou
+  `/chrome`) — útil pra fluxo com login e pra inspecionar console/DOM ao vivo. Sem ele ativo, o
+  `qa-tester` roda normalmente e só registra que essa etapa não rodou (não bloqueia).
+
+### Regras inegociáveis
+
+- Nunca silenciar erro de lint/tipo/teste para o gate passar (`# noqa`/`# type: ignore` sem código
+  e motivo, teste pulado/apagado/enfraquecido, assert trivial, limite rebaixado) — isso é
+  reprovação automática no `code-reviewer` (ver "Anti-gambiarra" em
+  `.claude/agents/code-reviewer.md`).
+- Nenhum comentário/docstring novo no código (ver "Código sem comentários" acima) — vale também
+  para o código que o Claude escreve durante este fluxo.
+- Commit e push só com autorização explícita do usuário, mesmo com os dois subagentes aprovados.
 
 ## Deploy (produção)
 

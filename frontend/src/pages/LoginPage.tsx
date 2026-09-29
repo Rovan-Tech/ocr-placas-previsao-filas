@@ -16,9 +16,25 @@ const ROLES = [
 
 function Waves({ className }: { className: string }) {
   return (
-    <svg className={className} viewBox="0 0 400 160" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-      <path d="M0 80 C 60 30, 130 30, 200 70 S 340 120, 400 60" fill="none" stroke="currentColor" strokeWidth="2" />
-      <path d="M0 120 C 70 80, 150 90, 220 120 S 340 150, 400 110" fill="none" stroke="currentColor" strokeWidth="2" />
+    <svg
+      className={className}
+      viewBox="0 0 400 160"
+      preserveAspectRatio="none"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M0 80 C 60 30, 130 30, 200 70 S 340 120, 400 60"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M0 120 C 70 80, 150 90, 220 120 S 340 150, 400 110"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
     </svg>
   )
 }
@@ -119,7 +135,11 @@ export default function LoginPage() {
                 aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
                 title={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
               >
-                {showPassword ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+                {showPassword ? (
+                  <EyeOff size={16} aria-hidden="true" />
+                ) : (
+                  <Eye size={16} aria-hidden="true" />
+                )}
                 <span>{showPassword ? 'Ocultar' : 'Mostrar'}</span>
               </button>
             </div>

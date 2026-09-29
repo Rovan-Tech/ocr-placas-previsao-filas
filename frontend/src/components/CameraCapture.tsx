@@ -20,7 +20,10 @@ function drawScaledCanvas(source: CanvasImageSource, width: number, height: numb
 function canvasToJpegFile(canvas: HTMLCanvasElement, filename: string) {
   return new Promise<File>((resolve, reject) => {
     canvas.toBlob(
-      (blob) => (blob ? resolve(new File([blob], filename, { type: 'image/jpeg' })) : reject(new Error('toBlob falhou'))),
+      (blob) =>
+        blob
+          ? resolve(new File([blob], filename, { type: 'image/jpeg' }))
+          : reject(new Error('toBlob falhou')),
       'image/jpeg',
       JPEG_QUALITY,
     )
@@ -118,7 +121,9 @@ export default function CameraCapture({ onCapture, disabled = false }: CameraCap
     <div className="camera">
       <div className={`camera-viewport ${cameraOn ? 'is-on' : ''}`}>
         <video ref={videoRef} autoPlay playsInline muted onLoadedData={() => setVideoReady(true)} />
-        {!cameraOn && <p className="camera-placeholder">Aponte a câmera para a placa do caminhão</p>}
+        {!cameraOn && (
+          <p className="camera-placeholder">Aponte a câmera para a placa do caminhão</p>
+        )}
         {cameraOn && <div className="camera-guide" aria-hidden="true" />}
       </div>
 
@@ -132,10 +137,17 @@ export default function CameraCapture({ onCapture, disabled = false }: CameraCap
         )}
         {cameraOn && (
           <>
-            <button type="button" className="primary" onClick={takePhoto} disabled={disabled || !videoReady}>
+            <button
+              type="button"
+              className="primary"
+              onClick={takePhoto}
+              disabled={disabled || !videoReady}
+            >
               Tirar foto
             </button>
-            <button type="button" onClick={stopCamera}>Cancelar</button>
+            <button type="button" onClick={stopCamera}>
+              Cancelar
+            </button>
           </>
         )}
         {!cameraOn && (

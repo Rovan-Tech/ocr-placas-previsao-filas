@@ -102,16 +102,16 @@ Toda chamada, exceto o próprio login, exige estar autenticado — `api.ts` anex
 `detail.code === "password_change_required"` leva pra tela de trocar senha — ver `request()` em
 `api.ts`.
 
-| Tela                       | Endpoint                                  | Status                   |
-| --------------------------- | ------------------------------------------ | ------------------------ |
-| Login                      | `POST /auth/login`                        | ✅ existe |
-| Troca de senha             | `POST /auth/change-password`              | ✅ existe |
-| Funcionários (listar/cadastrar/excluir) | `GET`/`POST /auth/employees`, `DELETE /auth/employees/{id}` | ✅ existe (só admin) |
-| Capturar placa (com check-in inteligente) | `POST /ocr/upload`, `POST /ocr/manual`    | ✅ existe |
-| Logs                       | `GET /logs`, `GET /logs/{id}/photo`       | ✅ existe |
-| Agendamentos (listar/cadastrar) | `GET`/`POST /schedules`               | ✅ existe |
-| Autorizar/recusar entrada  | `POST /checkins`                          | ✅ existe |
-| Check-ins recentes         | `GET /checkins?limit=20`                  | ✅ existe |
+| Tela                                      | Endpoint                                                    | Status               |
+| ----------------------------------------- | ----------------------------------------------------------- | -------------------- |
+| Login                                     | `POST /auth/login`                                          | ✅ existe            |
+| Troca de senha                            | `POST /auth/change-password`                                | ✅ existe            |
+| Funcionários (listar/cadastrar/excluir)   | `GET`/`POST /auth/employees`, `DELETE /auth/employees/{id}` | ✅ existe (só admin) |
+| Capturar placa (com check-in inteligente) | `POST /ocr/upload`, `POST /ocr/manual`                      | ✅ existe            |
+| Logs                                      | `GET /logs`, `GET /logs/{id}/photo`                         | ✅ existe            |
+| Agendamentos (listar/cadastrar)           | `GET`/`POST /schedules`                                     | ✅ existe            |
+| Autorizar/recusar entrada                 | `POST /checkins`                                            | ✅ existe            |
+| Check-ins recentes                        | `GET /checkins?limit=20`                                    | ✅ existe            |
 
 A tela de check-ins lista `id`, `plate`, `created_at` (ISO 8601), `status`
 (`waiting`/`admitted`/`cancelled`) e `estimated_wait_minutes` (previsão de fila por média móvel,

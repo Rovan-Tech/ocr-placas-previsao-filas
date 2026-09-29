@@ -69,7 +69,9 @@ export default function CheckinsPage() {
             <tbody>
               {checkins.map((checkin) => (
                 <tr key={checkin.id}>
-                  <td className="plate" data-label="Placa">{checkin.plate}</td>
+                  <td className="plate" data-label="Placa">
+                    {checkin.plate}
+                  </td>
                   <td data-label="Entrada">
                     {checkin.created_at ? dateFormatter.format(new Date(checkin.created_at)) : '—'}
                   </td>

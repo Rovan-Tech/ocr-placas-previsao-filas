@@ -25,11 +25,17 @@ async function authRequest<T>(path: string, options: RequestInit): Promise<T> {
 
   const body: unknown = await response.json().catch(() => null)
   if (!response.ok) {
-    const detail = body && typeof body === 'object' && 'detail' in body ? (body as { detail: unknown }).detail : null
+    const detail =
+      body && typeof body === 'object' && 'detail' in body
+        ? (body as { detail: unknown }).detail
+        : null
     const message =
       typeof detail === 'string'
         ? detail
-        : detail && typeof detail === 'object' && 'message' in detail && typeof detail.message === 'string'
+        : detail &&
+            typeof detail === 'object' &&
+            'message' in detail &&
+            typeof detail.message === 'string'
           ? detail.message
           : `Erro ${response.status} ao chamar o backend.`
     throw new Error(message)
@@ -70,7 +76,9 @@ export function createEmployee(
 }
 
 export function listEmployees(token: string): Promise<Employee[]> {
-  return authRequest<Employee[]>('/auth/employees', { headers: { Authorization: `Bearer ${token}` } })
+  return authRequest<Employee[]>('/auth/employees', {
+    headers: { Authorization: `Bearer ${token}` },
+  })
 }
 
 export function deactivateEmployee(token: string, employeeId: number): Promise<Employee> {

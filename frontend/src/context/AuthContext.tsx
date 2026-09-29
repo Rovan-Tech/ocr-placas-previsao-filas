@@ -80,7 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         })
       },
       onPasswordChanged: (employee) =>
-        setSession((current) => (current ? { ...current, employee, mustChangePassword: false } : current)),
+        setSession((current) =>
+          current ? { ...current, employee, mustChangePassword: false } : current,
+        ),
       logout: () => clearSession(setSession),
     }),
     [session],
