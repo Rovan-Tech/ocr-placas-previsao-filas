@@ -1,6 +1,8 @@
 name: Semgrep
 on:
   pull_request: {}
+  push:
+    branches: [main]
   workflow_dispatch: {}
 permissions:
   contents: read
@@ -13,6 +15,10 @@ jobs:
     if: (github.actor != 'dependabot[bot]')
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Exigir SEMGREP_APP_TOKEN
+        run: test -n "$SEMGREP_APP_TOKEN" || { echo "SEMGREP_APP_TOKEN vazio ou ausente"; exit 1; }
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
       - run: semgrep ci
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
