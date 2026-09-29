@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { loginAsTestUser } from './testAuth'
+import { employeeWithRole, loginAsTestUser } from './testAuth'
 
 test.beforeEach(async ({ page }) => {
   await loginAsTestUser(page)
@@ -334,4 +334,27 @@ test('no desktop a foto fica à esquerda e o resultado à direita', async ({ pag
   const photo = await page.getByRole('img', { name: 'Foto tirada da placa' }).boundingBox()
   const authorize = await page.getByRole('button', { name: 'Autorizar entrada' }).boundingBox()
   expect(photo && authorize && authorize.x > photo.x + photo.width).toBe(true)
+})
+
+test('o Fiscal não vê o cadastro de chegada nem os documentos do motorista', async ({ page }) => {
+  await page.unroute('**/api/auth/me')
+  await loginAsTestUser(page, employeeWithRole('fiscal'))
+  await mockAndSend(page, { found: true, schedule: scheduleInfo() })
+
+  await expect(page.getByText('Agendado para hoje')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Ver frente do documento' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Ver verso do documento' })).toHaveCount(0)
+})
+
+test('o Fiscal, sem agendamento, é orientado a pedir o cadastro ao Planejador', async ({
+  page,
+}) => {
+  await page.unroute('**/api/auth/me')
+  await loginAsTestUser(page, employeeWithRole('fiscal'))
+  await mockAndSend(page, { found: true, schedule: null })
+
+  await expect(page.getByText(/Peça ao Planejador ou ao Supervisor/)).toBeVisible()
+  await expect(
+    page.getByRole('button', { name: 'Cadastrar motorista, carga e caminhão' }),
+  ).toHaveCount(0)
 })

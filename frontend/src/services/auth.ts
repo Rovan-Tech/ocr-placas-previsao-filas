@@ -1,11 +1,18 @@
+import type { Access, Permissions, Role, Screen } from './roles'
+
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
 export interface Employee {
   id: number
   username: string
   full_name: string
-  is_admin: boolean
+  role: Role
+  permissions: Permissions
   active: boolean
+}
+
+export interface PermissionsMatrix {
+  roles: Record<Role, Record<Screen, Access>>
 }
 
 export interface LoginResponse {
@@ -66,7 +73,7 @@ export function fetchCurrentEmployee(token: string): Promise<Employee> {
 
 export function createEmployee(
   token: string,
-  data: { username: string; full_name: string; temporary_password: string; is_admin?: boolean },
+  data: { username: string; full_name: string; temporary_password: string; role: Role },
 ): Promise<Employee> {
   return authRequest<Employee>('/auth/employees', {
     method: 'POST',
@@ -84,6 +91,12 @@ export function listEmployees(token: string): Promise<Employee[]> {
 export function deactivateEmployee(token: string, employeeId: number): Promise<Employee> {
   return authRequest<Employee>(`/auth/employees/${employeeId}`, {
     method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+}
+
+export function fetchPermissions(token: string): Promise<PermissionsMatrix> {
+  return authRequest<PermissionsMatrix>('/auth/permissions', {
     headers: { Authorization: `Bearer ${token}` },
   })
 }

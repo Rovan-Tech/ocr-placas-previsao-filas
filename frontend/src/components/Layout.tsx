@@ -1,30 +1,32 @@
-import { BarChart3, Camera, ClipboardList, FileClock, NotebookPen, Users } from 'lucide-react'
+import {
+  BarChart3,
+  Camera,
+  ClipboardList,
+  FileClock,
+  Lock,
+  NotebookPen,
+  Settings,
+  Users,
+  type LucideIcon,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { desktopNavItems, mobileNavItems } from '../services/navigation'
+import { roleLabel } from '../services/roles'
 import ThemeToggle from './ThemeToggle'
 
 const MOBILE_NAV_QUERY = '(max-width: 640px)'
 
-const NAV_ITEMS = [
-  { to: '/', end: true, label: 'Capturar placa', shortLabel: 'Capturar', icon: Camera },
-  {
-    to: '/checkins',
-    end: false,
-    label: 'Check-ins recentes',
-    shortLabel: 'Check-ins',
-    icon: ClipboardList,
-  },
-  { to: '/logs', end: false, label: 'Logs', shortLabel: 'Logs', icon: FileClock },
-  {
-    to: '/agendamentos',
-    end: false,
-    label: 'Agendamentos',
-    shortLabel: 'Agenda',
-    icon: NotebookPen,
-  },
-  { to: '/relatorios', end: false, label: 'Relatórios', shortLabel: 'Relatórios', icon: BarChart3 },
-]
+const NAV_ICONS: Record<string, LucideIcon> = {
+  capture: Camera,
+  checkins: ClipboardList,
+  schedules: NotebookPen,
+  logs: FileClock,
+  reports: BarChart3,
+  employees: Users,
+  permissions: Settings,
+}
 
 function useIsMobileNav(): boolean {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_NAV_QUERY).matches)
@@ -43,18 +45,7 @@ export default function Layout() {
   const { employee, logout } = useAuth()
   const isMobileNav = useIsMobileNav()
 
-  const items = employee?.is_admin
-    ? [
-        ...NAV_ITEMS,
-        {
-          to: '/funcionarios',
-          end: false,
-          label: 'Funcionários',
-          shortLabel: 'Equipe',
-          icon: Users,
-        },
-      ]
-    : NAV_ITEMS
+  const permissions = employee?.permissions
 
   return (
     <div className="app">
@@ -65,15 +56,30 @@ export default function Layout() {
         </div>
         {!isMobileNav && (
           <nav className="app-nav">
-            {items.map(({ to, end, label, icon: Icon }) => (
-              <NavLink key={to} to={to} end={end}>
-                <Icon aria-hidden="true" size={20} />
-                {label}
-              </NavLink>
-            ))}
+            {desktopNavItems(permissions).map(({ id, to, end, label, enabled }) => {
+              const Icon = NAV_ICONS[id] ?? Camera
+              return enabled ? (
+                <NavLink key={id} to={to} end={end}>
+                  <Icon aria-hidden="true" size={20} />
+                  {label}
+                </NavLink>
+              ) : (
+                <span key={id} className="nav-locked" aria-disabled="true">
+                  <Icon aria-hidden="true" size={20} />
+                  {label}
+                  <Lock aria-label="Sem acesso" className="nav-lock-icon" size={16} />
+                </span>
+              )
+            })}
           </nav>
         )}
         <div className="session">
+          {employee && (
+            <span className={`role-chip role-chip-${employee.role}`}>
+              <i aria-hidden="true" />
+              {roleLabel(employee.role)}
+            </span>
+          )}
           <ThemeToggle />
           <span>{employee?.full_name}</span>
           <button type="button" onClick={logout}>
@@ -87,14 +93,17 @@ export default function Layout() {
       {isMobileNav && (
         <nav className="tab-bar" aria-label="Navegação principal">
           <ul className="tab-bar-list">
-            {items.map(({ to, end, shortLabel, icon: Icon }) => (
-              <li className="tab-bar-item" key={to}>
-                <NavLink to={to} end={end} className="tab-bar-link">
-                  <Icon aria-hidden="true" />
-                  <span>{shortLabel}</span>
-                </NavLink>
-              </li>
-            ))}
+            {mobileNavItems(permissions).map(({ id, to, end, shortLabel }) => {
+              const Icon = NAV_ICONS[id] ?? Camera
+              return (
+                <li className="tab-bar-item" key={id}>
+                  <NavLink to={to} end={end} className="tab-bar-link">
+                    <Icon aria-hidden="true" />
+                    <span>{shortLabel}</span>
+                  </NavLink>
+                </li>
+              )
+            })}
           </ul>
         </nav>
       )}

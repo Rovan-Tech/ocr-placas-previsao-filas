@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { FAKE_EMPLOYEE, loginAsTestUser } from './testAuth'
+import { FAKE_EMPLOYEE, PERMISSIONS, employeeWithRole, loginAsTestUser } from './testAuth'
 
 function mockLogin(page: Page, { status = 200, body }: { status?: number; body: unknown }) {
   return page.route('**/api/auth/login', (route) =>
@@ -165,14 +165,14 @@ test('uma resposta 401 numa chamada normal desloga e volta pro login', async ({ 
 
 test.describe('admin master cadastra funcionário', () => {
   test('link de cadastro só aparece pra admin', async ({ page }) => {
-    await loginAsTestUser(page, { ...FAKE_EMPLOYEE, is_admin: false })
+    await loginAsTestUser(page, FAKE_EMPLOYEE)
     await page.goto('/')
 
     await expect(page.getByRole('link', { name: 'Funcionários' })).toHaveCount(0)
   })
 
   test('admin cadastra um funcionário com senha temporária', async ({ page }) => {
-    await loginAsTestUser(page, { ...FAKE_EMPLOYEE, is_admin: true })
+    await loginAsTestUser(page, employeeWithRole('admin'))
     let sentBody: Record<string, unknown> | null = null
     await page.route('**/api/auth/employees', (route) => {
       if (route.request().method() === 'GET') {
@@ -189,7 +189,7 @@ test.describe('admin master cadastra funcionário', () => {
           id: 2,
           username: 'fiscal.novo',
           full_name: 'Fiscal Novo',
-          is_admin: false,
+          role: 'fiscal',
           active: true,
         }),
       })
@@ -211,7 +211,7 @@ test.describe('admin master cadastra funcionário', () => {
   })
 
   test('não-admin não vê nem acessa a rota de cadastro', async ({ page }) => {
-    await loginAsTestUser(page, { ...FAKE_EMPLOYEE, is_admin: false })
+    await loginAsTestUser(page, FAKE_EMPLOYEE)
     await page.goto('/funcionarios')
 
     await expect(page.getByRole('heading', { name: 'Funcionários' })).toHaveCount(0)
@@ -220,17 +220,16 @@ test.describe('admin master cadastra funcionário', () => {
 
 test.describe('admin master exclui funcionário', () => {
   const ADMIN = {
+    ...employeeWithRole('admin'),
     id: 1,
     username: 'admin',
     full_name: 'Admin Master',
-    is_admin: true,
-    active: true,
   }
   const OTHER = {
     id: 2,
     username: 'fiscal.maria',
     full_name: 'Maria Fiscal',
-    is_admin: false,
+    role: 'fiscal',
     active: true,
   }
 
@@ -350,5 +349,128 @@ test.describe('alternância de tema', () => {
 
     await page.reload()
     await expect(html).toHaveAttribute('data-theme', toggledTheme ?? '')
+  })
+})
+
+test.describe('menu e rotas por cargo', () => {
+  test('o Fiscal vê só Capturar e Check-ins liberados; o resto fica bloqueado', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await loginAsTestUser(page, employeeWithRole('fiscal'))
+    await page.goto('/')
+
+    await expect(page.getByRole('link', { name: 'Capturar placa' })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Check-ins recentes' })).toBeVisible()
+    for (const name of ['Agendamentos', 'Logs', 'Relatórios', 'Funcionários', 'Permissões']) {
+      await expect(page.getByRole('link', { name })).toHaveCount(0)
+    }
+    await expect(page.locator('.nav-locked')).toHaveCount(4)
+    await expect(page.getByText('Fiscal de Portaria').first()).toBeVisible()
+  })
+
+  test('no celular o Fiscal tem só duas abas', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 })
+    await loginAsTestUser(page, employeeWithRole('fiscal'))
+    await page.goto('/')
+
+    await expect(
+      page.getByRole('navigation', { name: 'Navegação principal' }).getByRole('link'),
+    ).toHaveCount(2)
+  })
+
+  test('acessar uma tela sem permissão leva à tela principal do cargo', async ({ page }) => {
+    await loginAsTestUser(page, employeeWithRole('analista'))
+    await page.route('**/api/checkins?*', (route) =>
+      route.fulfill({ contentType: 'application/json', body: '[]' }),
+    )
+    await page.route('**/api/logs?*', (route) =>
+      route.fulfill({ contentType: 'application/json', body: '[]' }),
+    )
+    await page.goto('/agendamentos')
+
+    await expect(page).toHaveURL(/\/relatorios$/)
+    await expect(page.getByRole('heading', { name: 'Relatórios' })).toBeVisible()
+  })
+
+  test('só o Administrador enxerga o menu e a tela de Permissões', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await loginAsTestUser(page, employeeWithRole('supervisor'))
+    await page.goto('/permissoes')
+
+    await expect(page.getByRole('heading', { name: 'Permissões por cargo' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Permissões' })).toHaveCount(0)
+  })
+})
+
+test.describe('cadastro com cargo e tela de permissões', () => {
+  test('o administrador escolhe o cargo ao cadastrar e vê o selo na lista', async ({ page }) => {
+    await loginAsTestUser(page, employeeWithRole('admin'))
+    let sentBody: Record<string, unknown> | null = null
+    await page.route('**/api/auth/employees', (route) => {
+      if (route.request().method() === 'GET') {
+        return route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify([
+            { id: 2, username: 'ana', full_name: 'Ana Analista', role: 'analista', active: true },
+          ]),
+        })
+      }
+      sentBody = route.request().postDataJSON()
+      return route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 3,
+          username: 'paulo',
+          full_name: 'Paulo Planejador',
+          role: 'planejador',
+          active: true,
+        }),
+      })
+    })
+    await page.goto('/funcionarios')
+
+    await expect(page.getByRole('row', { name: /Ana Analista/ })).toContainText(
+      'Analista de Operações',
+    )
+    await page.getByLabel('Usuário').fill('paulo')
+    await page.getByLabel('Nome completo').fill('Paulo Planejador')
+    await page.getByLabel('Senha temporária').fill('temp12345')
+    await page.getByLabel('Cargo').selectOption('planejador')
+    await page.getByRole('button', { name: 'Cadastrar' }).click()
+
+    await expect(page.getByText(/Paulo Planejador.*cadastrado/)).toBeVisible()
+    expect(sentBody).toMatchObject({ role: 'planejador', username: 'paulo' })
+  })
+
+  test('mostra a matriz de permissões vinda do backend', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await loginAsTestUser(page, employeeWithRole('admin'))
+    await page.route('**/api/auth/permissions', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          roles: {
+            fiscal: PERMISSIONS.fiscal,
+            planejador: PERMISSIONS.planejador,
+            analista: PERMISSIONS.analista,
+            supervisor: PERMISSIONS.supervisor,
+            admin: PERMISSIONS.admin,
+          },
+        }),
+      }),
+    )
+    await page.goto('/')
+    await page.getByRole('link', { name: 'Permissões' }).click()
+
+    await expect(page.getByRole('heading', { name: 'Permissões por cargo' })).toBeVisible()
+    const fiscal = page.getByRole('row', { name: /Fiscal de Portaria/ })
+    await expect(fiscal.getByLabel('Acesso total')).toHaveCount(1)
+    await expect(fiscal.getByLabel('Somente leitura')).toHaveCount(1)
+    await expect(fiscal.getByLabel('Sem acesso')).toHaveCount(4)
+    await expect(
+      page.getByRole('row', { name: /Administrador/ }).getByLabel('Acesso total'),
+    ).toHaveCount(6)
   })
 })

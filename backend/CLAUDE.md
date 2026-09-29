@@ -245,7 +245,7 @@ então não há CORS configurado. Toda chamada abaixo, exceto `/auth/login`, exi
 | `POST /auth/login`      | `{ access_token, token_type, employee, must_change_password }` |
 | `GET /auth/me`          | `{ id, username, full_name, role, permissions, is_admin, active }` |
 | `POST /auth/change-password` | Mesma forma de `/auth/me` |
-| `POST /auth/employees`  | Mesma forma de `/auth/me`, a partir de `{ username, full_name, temporary_password, role? }` (`is_admin` ainda é aceito e vira `role: admin`) |
+| `POST /auth/employees`  | Mesma forma de `/auth/me`, a partir de `{ username, full_name, temporary_password, role? }` (`role` padrão: `fiscal`) |
 | `PATCH /auth/employees/{id}/role` | Mesma forma de `/auth/me`, a partir de `{ role }` |
 | `GET /auth/permissions` | `{ roles: { <cargo>: { <tela>: full \| read \| none } } }` (só Administrador) |
 | `GET /auth/employees`   | Lista de `EmployeeOut` (com `active`) |
