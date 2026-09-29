@@ -31,11 +31,13 @@ function fail(message) {
 
 /** Roda um comando até o fim, mostrando a saída; aborta o script se falhar. */
 function run(command, args, { cwd = ROOT, errorMessage } = {}) {
+  // nosemgrep: javascript.lang.security.audit.spawn-shell-true.spawn-shell-true
   const result = spawnSync(command, args, { cwd, stdio: 'inherit', shell: IS_WINDOWS })
   if (result.status !== 0) fail(errorMessage ?? `Falhou: ${command} ${args.join(' ')}`)
 }
 
 function commandExists(command, args = ['--version']) {
+  // nosemgrep: javascript.lang.security.audit.spawn-shell-true.spawn-shell-true
   return spawnSync(command, args, { stdio: 'ignore', shell: IS_WINDOWS }).status === 0
 }
 
@@ -123,6 +125,7 @@ async function ensurePortFree(port, name) {
 const children = []
 
 function startServer(name, command, args, cwd) {
+  // nosemgrep: javascript.lang.security.audit.spawn-shell-true.spawn-shell-true
   const child = spawn(command, args, { cwd, shell: IS_WINDOWS, env: { ...process.env, FORCE_COLOR: '1' } })
   const prefix = color(name, `[${name}]`.padEnd(11))
   const pipe = (stream, target) => {

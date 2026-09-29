@@ -22,12 +22,16 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app app
-COPY alembic.ini .
-COPY migrations migrations
+RUN useradd --create-home --uid 10001 app && chown app:app /app
+
+COPY --chown=app:app app app
+COPY --chown=app:app alembic.ini .
+COPY --chown=app:app migrations migrations
+
+USER app
 
 # Baixa e cacheia os modelos do EasyOCR na própria imagem (fica em
-# /root/.EasyOCR), em vez de na primeira requisição em produção.
+# /home/app/.EasyOCR), em vez de na primeira requisição em produção.
 RUN python -c "from app.services.ocr_service import get_reader; get_reader()"
 
 ENV PORT=8080
