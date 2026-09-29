@@ -5,7 +5,9 @@ async function hasHorizontalOverflow(page: Page) {
   return page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
 }
 
-test.describe('login — tema claro de alto contraste', () => {
+test.describe('login — tema claro de alto contraste (celular)', () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
   test('botão Entrar é verde escuro com texto branco, e os campos têm borda de 2px', async ({
     page,
   }) => {
@@ -57,8 +59,8 @@ test.describe('login — tema claro de alto contraste', () => {
   })
 })
 
-test.describe('login — tema padrão com o sistema em modo escuro', () => {
-  test.use({ colorScheme: 'dark' })
+test.describe('login — tema padrão com o sistema em modo escuro (celular)', () => {
+  test.use({ colorScheme: 'dark', viewport: { width: 390, height: 844 } })
 
   test('usa o tema claro por padrão, mesmo com o sistema em modo escuro', async ({ page }) => {
     await page.goto('/')
@@ -68,6 +70,28 @@ test.describe('login — tema padrão com o sistema em modo escuro', () => {
       'background-color',
       'rgb(11, 110, 76)',
     )
+  })
+})
+
+test.describe('login — tema padrão no desktop', () => {
+  test.use({ viewport: { width: 1280, height: 800 } })
+
+  test('abre no tema escuro e permite trocar para o claro, lembrando a escolha', async ({
+    page,
+  }) => {
+    await page.goto('/')
+
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    await expect(page.getByRole('button', { name: 'Entrar' })).toHaveCSS(
+      'background-color',
+      'rgb(79, 190, 149)',
+    )
+
+    await page.getByRole('switch', { name: /Mudar para tema claro/ }).click()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
+
+    await page.reload()
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   })
 })
 

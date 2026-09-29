@@ -39,6 +39,7 @@ test('acessa a demonstração direto, sem passar pelo login', async ({ page }) =
 })
 
 test('mostra o aviso de modo de demonstração com destaque visual', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/demo')
 
   const banner = page.getByText(/nada aqui fica gravado como registro de produção/)
