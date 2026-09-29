@@ -68,6 +68,15 @@ def test_limit_and_offset_paginate_the_listing(authenticated_client, db_session,
     assert {entry["id"] for entry in first_page}.isdisjoint({entry["id"] for entry in second_page})
 
 
+def test_negative_limit_and_offset_are_clamped_instead_of_erroring(authenticated_client, db_session, employee):
+    _add_log(db_session, employee, final_plate="AAA1111")
+
+    response = authenticated_client.get("/logs?limit=-5&offset=-5")
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+
+
 def test_limit_is_capped_even_if_a_larger_value_is_requested(authenticated_client, db_session, employee):
     for i in range(3):
         _add_log(db_session, employee, final_plate=f"AAA{i:04d}")
