@@ -1,23 +1,76 @@
 :root {
+  /* Paleta base — escala 50-900, fonte única de cor. Tokens semânticos abaixo
+     referenciam esta escala; componente nunca usa hex solto (ver
+     .claude/rules/design-system.md). Ver docs/design-system.md para a tabela
+     completa e o contraste WCAG de cada passo. */
+  --color-primary-50: #f0f5f4;
+  --color-primary-100: #dde8e6;
+  --color-primary-200: #bbd2cc;
+  --color-primary-300: #8fb4ac;
+  --color-primary-400: #599184;
+  --color-primary-500: #0b5d4a;
+  --color-primary-600: #094e3e;
+  --color-primary-700: #073f32;
+  --color-primary-800: #063026;
+  --color-primary-900: #04211b;
+
+  --color-secondary-50: #f7f4f0;
+  --color-secondary-100: #ece6db;
+  --color-secondary-200: #daccb8;
+  --color-secondary-300: #c2ac8a;
+  --color-secondary-400: #a58452;
+  --color-secondary-500: #7a4a00;
+  --color-secondary-600: #663e00;
+  --color-secondary-700: #533200;
+  --color-secondary-800: #3f2600;
+  --color-secondary-900: #2c1b00;
+
+  --color-neutral-50: #f5f6f6;
+  --color-neutral-100: #e8eae9;
+  --color-neutral-200: #d2d6d4;
+  --color-neutral-300: #b4bbb8;
+  --color-neutral-400: #919a96;
+  --color-neutral-500: #5d6b64;
+  --color-neutral-600: #4e5a54;
+  --color-neutral-700: #3f4944;
+  --color-neutral-800: #303834;
+  --color-neutral-900: #212724;
+
+  --color-error-50: #faf2f2;
+  --color-error-100: #f4e1e0;
+  --color-error-500: #b3261e;
+  --color-error-600: #962019;
+  --color-error-900: #400e0b;
+
+  /* info: tom novo (não existia antes um "info" semântico) — ver nota em
+     docs/design-system.md. */
+  --color-info-50: #f3f7fb;
+  --color-info-100: #e3ebf7;
+  --color-info-500: #3672c4;
+  --color-info-600: #2d60a5;
+  --color-info-900: #132947;
+
   --bg: #f4f6f5;
   --surface: #ffffff;
   --border: #d9e0dc;
   --text: #17201c;
-  --muted: #5d6b64;
+  --muted: var(--color-neutral-500);
 
-  --primary: #0b5d4a;
+  --primary: var(--color-primary-500);
   --primary-hover: #063d31;
   --primary-text: #ffffff;
   --primary-tint: #e6f5f0;
 
-  --accent-text: #7a4a00;
+  --accent-text: var(--color-secondary-500);
   --accent-bg: #fff4e0;
 
-  --error: #b3261e;
+  --error: var(--color-error-500);
   --error-bg: #fdecea;
   --warning-bg: #fff4d6;
-  --success: #0b5d4a;
+  --success: var(--color-primary-500);
   --success-bg: #e3f3eb;
+  --info-text: var(--color-info-600);
+  --info-bg: #e9f1fb;
 
   --font-brand: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;

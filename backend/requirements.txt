@@ -21,3 +21,13 @@ httpx
 
 bandit
 pip-audit
+
+# Qualidade (gate: scripts/quality_gate.py na raiz)
+ruff
+mypy
+pydantic  # traz o plugin pydantic.mypy usado em [tool.mypy] plugins
+pytest-cov
+pytest-xdist
+pytest-randomly
+vulture
+diff-cover

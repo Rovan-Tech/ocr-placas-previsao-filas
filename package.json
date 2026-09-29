@@ -4,7 +4,9 @@
   "description": "Atalhos da raiz do monorepo. O app em si está em backend/ e frontend/.",
   "type": "module",
   "scripts": {
-    "dev": "node scripts/dev.mjs"
+    "dev": "node scripts/dev.mjs",
+    "gate:fast": "python3 scripts/quality_gate.py --fast || python scripts/quality_gate.py --fast",
+    "gate": "python3 scripts/quality_gate.py --full || python scripts/quality_gate.py --full"
   },
   "engines": {
     "node": ">=20"

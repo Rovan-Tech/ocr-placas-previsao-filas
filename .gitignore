@@ -32,6 +32,24 @@ backend/data/uploads/
 # Docker
 *.pid
 
+# Claude Code — estado/relatório gravado só pelos hooks (Fase 6), nunca versionado; config
+# pessoal de permissão fora do repo compartilhado.
+.claude/state/*
+!.claude/state/.gitkeep
+.claude/reports/*
+!.claude/reports/.gitkeep
+.claude/settings.local.json
+
+# QA/gate — evidência de teste exploratório, cobertura e cache de análise, tudo reproduzível.
+.qa-artifacts/
+backend/.coverage
+backend/coverage.xml
+backend/htmlcov/
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+.jscpd-cache/
+
 # graphify (/graphify) — grafo de conhecimento gerado localmente, cache incluído; regerar quando
 # precisar, não versionar (ver "Grafo de conhecimento" no CLAUDE.md).
 graphify-out/
