@@ -91,6 +91,21 @@ def decode_image(image_bytes: bytes) -> np.ndarray:
     return image
 
 
+def _group_into_rows(boxes: list[tuple]) -> list[list[tuple]]:
+    order = sorted(range(len(boxes)), key=lambda i: boxes[i][1])
+    assigned = [False] * len(boxes)
+    rows: list[list[tuple]] = []
+    for i in order:
+        if assigned[i]:
+            continue
+        _, y, height, _, _ = boxes[i]
+        row_indices = [j for j in order if not assigned[j] and abs(boxes[j][1] - y) < max(height, 1) / 2]
+        for j in row_indices:
+            assigned[j] = True
+        rows.append(sorted((boxes[j] for j in row_indices), key=lambda b: b[0]))
+    return rows
+
+
 def _text_lines(results: list) -> Iterator[tuple[str, float]]:
     boxes = []
     for box, text, confidence in results:
@@ -105,6 +120,13 @@ def _text_lines(results: list) -> Iterator[tuple[str, float]]:
         line = [b for b in boxes[i:] if abs(b[1] - y) < max(height, 1) / 2]
         if len(line) > 1:
             yield "".join(b[3] for b in line), min(b[4] for b in line)
+
+    tallest = max((b[2] for b in boxes), default=0.0)
+    plate_boxes = [b for b in boxes if b[2] >= 0.6 * tallest]
+    plate_rows = _group_into_rows(plate_boxes)
+    if len(plate_rows) > 1:
+        stacked = [b for row in plate_rows for b in row]
+        yield "".join(b[3] for b in stacked), min(b[4] for b in stacked)
 
 
 def _is_confident(vote: _Vote) -> bool:

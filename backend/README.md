@@ -212,7 +212,26 @@ Pipeline do `POST /ocr/upload`, pensado para fotos de celular tiradas na guarita
    linha de base — com uma checagem de espaçamento horizontal pra não "encadear" um caractere de
    ruído distante da placa. Pontua cada região pela textura de caracteres e endireita rotação e
    perspectiva. Os 3 melhores recortes são testados, e a foto inteira entra só como último
-   recurso.
+   recurso. **Placa de moto** (duas linhas, formato quase quadrado): moldura e bloco de texto
+   também aceitam a proporção de moto (`MOTO_MIN_ASPECT_RATIO`/`MOTO_MAX_ASPECT_RATIO`,
+   0,7–1,9), mas só quando o recorte "parece conteúdo de placa" (`_looks_like_plate_text`):
+   conta quantos componentes escuros (`cv2.MORPH_BLACKHAT` + Otsu) existem no recorte, na
+   resolução original — **sem** redimensionar antes de contar, porque redimensionar um recorte
+   pequeno pra uma altura fixa amplifica ruído de interpolação e engana a contagem. Uma placa de
+   verdade (moldura, QR code, faixa "BRASIL", ~7 caracteres) sempre produz muito mais componentes
+   do que uma letra isolada ampliada de perto (ex.: só o "2" de "7G62", ou até um caractere de
+   placa de carro fotografada muito perto) — testado e calibrado contra fotos reais de placa de
+   moto (perto e a ~2 m) e contra o caso de carro fotografado muito perto (`test_plate_locator.py`
+   cobre os dois lados). Nem tamanho absoluto em pixel nem tamanho relativo ao quadro funcionam
+   como filtro aqui — um caractere isolado numa foto "muito perto" pode ficar maior, em pixel e em
+   proporção do quadro, do que uma placa de moto inteira fotografada de um pouco mais longe; só a
+   contagem de componentes (uma placa tem muito mais estrutura que uma letra) resistiu aos dois
+   casos ao mesmo tempo. O agrupamento por caractere continua servindo como quarto caminho,
+   juntando duas linhas empilhadas próximas e alinhadas horizontalmente num candidato só quando os
+   dois primeiros não acham nada; `ocr_service.py` concatena as linhas na ordem de leitura (cima →
+   baixo) antes de validar o formato de 7 caracteres — só as linhas com altura compatível com o
+   maior traço detectado entram nessa concatenação, pra não juntar a faixa "BRASIL"/sigla do
+   estado (texto bem menor, sempre presente na moldura Mercosul) ao texto da placa.
 2. **Pré-processamento** (`image_preprocessing.py`): variantes para pouca luz (gama, CLAHE),
    granulado noturno (redução de ruído), reflexo/contraluz, arranhões longos e retos (detectados
    por transformada de Hough e removidos por inpainting — só quando o arranhão é comprido o
@@ -224,14 +243,19 @@ Pipeline do `POST /ocr/upload`, pensado para fotos de celular tiradas na guarita
    pela posição. A 5ª posição nunca é alterada, porque é ela que diferencia os dois formatos.
 5. **Votação** (`ocr_service.py`): cada leitura válida de cada variante vale um voto, e para cedo
    quando a leitura já é confiável. Leitura cortada (ex.: `MA-8376`) pula direto para um recorte
-   mais largo. Orçamento de tempo: passados 2,5 s, responde com o que já tiver lido; em 3,5 s,
-   responde de qualquer jeito (pior caso medido: ~4 s). Confiança baixa, duas placas disputando ou
-   uma leitura que só existe graças ao agrupamento de caracteres ou à foto inteira (evidência mais
-   frágil — ver `_Vote.has_strong_evidence` em `ocr_service.py`) põem `needs_review: true`: o
-   fiscal confere no veículo. Essa última regra existe porque, sem ela, uma leitura de último
-   recurso pode "concordar consigo mesma" nas várias variantes de pré-processamento e sair com
-   confiança alta mesmo estando errada — dado que todas leem o mesmo defeito real da imagem
-   (ex.: sujeira sobre um caractere), a votação sozinha não pega esse tipo de erro.
+   mais largo. Placa de moto: as linhas detectadas próximas e alinhadas horizontalmente são
+   concatenadas na ordem de leitura (cima → baixo) antes de validar contra o formato de 7
+   caracteres — sem essa junção, cada linha isolada (3 ou 4 caracteres) nunca fecha o formato
+   sozinha. Orçamento de tempo: com sinal parcial, responde em até 7 s; sem sinal nenhum, até 10 s
+   (valores aumentados depois de um caso real — foto de câmera muito perto — que estourava o
+   orçamento antigo de 2,5 s/3,5 s numa máquina de CI mais lenta). Confiança baixa, duas placas
+   disputando ou uma leitura que só existe graças ao agrupamento de caracteres ou à foto inteira
+   (evidência mais frágil — ver `_Vote.has_strong_evidence` em `ocr_service.py`) põem
+   `needs_review: true`: o fiscal confere no veículo. Essa última regra existe porque, sem ela,
+   uma leitura de último recurso pode "concordar consigo mesma" nas várias variantes de
+   pré-processamento e sair com confiança alta mesmo estando errada — dado que todas leem o mesmo
+   defeito real da imagem (ex.: sujeira sobre um caractere), a votação sozinha não pega esse tipo
+   de erro.
 6. **Verificação oficial** (`plate_verification.py`): ponto de integração. Não há API pública e
    gratuita do governo para consultar placas (o acesso oficial à base da SENATRAN é pago, via
    Serpro, e automatizar o Sinesp Cidadão viola os termos de uso). Por isso a resposta hoje é
@@ -259,17 +283,18 @@ Resposta:
 Sem placa válida: `plate`, `plate_format`, `confidence` e `verification` vêm `null` e
 `needs_review` vem `true`.
 
-**Precisão** (`tests/test_ocr_accuracy.py`, fotos sintéticas geradas em `tests/plate_samples.py`):
+**Precisão** (`tests/test_ocr_accuracy.py`, fotos sintéticas geradas em `app/services/plate_samples.py`):
 
 | Conjunto                                                     | Resultado     |
 | ------------------------------------------------------------- | ------------- |
-| 23 casos difíceis calibrados (luz, ângulo, sujeira, reflexo, contraluz, chuva, arranhões...) | 22/23 (96%) |
-| 40 casos aleatórios de validação (mesmas condições, sorteadas, não usadas pra calibrar) | 27/40 (68%) |
-| Tempo médio por foto (CPU)                                     | ~1,3 s        |
+| 29 casos difíceis calibrados (luz, ângulo, sujeira, reflexo, contraluz, chuva, arranhões, placa de moto...) | 28/29 (97%) |
+| 40 casos aleatórios de validação (mesmas condições, sorteadas, não usadas pra calibrar) | 30/40 (75%) |
+| Tempo médio por foto (CPU)                                     | ~1,8 s        |
 
 Histórico: antes deste pipeline, os primeiros 16 casos difíceis iam de 5/16 (31%) para 16/16, e a
 validação de 10/40 (25%) para 36/40 (90%) — números que caíram de novo ao adicionar contraluz,
-chuva e arranhões ao conjunto de teste (cenários mais difíceis, não porque o pipeline piorou).
+chuva, arranhões e placa de moto ao conjunto de teste (cenários mais difíceis, não porque o
+pipeline piorou).
 
 **Limite conhecido:** em 2 dos 40 casos de validação, o sistema lê uma placa errada com confiança
 alta — verificado manualmente, não é bug de localização ou de pré-processamento. Num deles, um
@@ -282,6 +307,16 @@ foto, todas leem igual. A correção definitiva desse tipo de erro é conferir a
 oficial de verdade (`plate_verification.py`), que hoje não está disponível de graça — ver `O que
 não fazer` no `CLAUDE.md` da raiz. Até lá, é por isso que o fiscal deve confirmar a placa lida
 contra o veículo antes de liberar a entrada, mesmo quando a tela não pede revisão.
+
+O mesmo tipo de limite apareceu num teste manual com uma foto real de placa de moto Mercosul
+("SLS7G62"), fotografada tanto de perto quanto a ~2 m: nas duas distâncias o "G" da segunda linha
+foi lido como "6" (fonte em relevo, ambos arredondados), e "SLS7662" por acaso também é um formato
+antigo válido (`LLLNNNN`) — a correção de posição não tem como saber que deveria tentar Mercosul
+em vez de aceitar o formato antigo que já bateu sem nenhuma troca. O fato de o erro se repetir
+igual nas duas distâncias reforça que é mesmo ambiguidade de caractere (a letra genuinamente
+parece o dígito nessa foto), não efeito de localização/recorte. Não virou caso de teste
+automatizado porque o repositório não versiona foto de placa real (ver
+`app/services/plate_samples.py`), só as sintéticas.
 
 As fotos são sintéticas, então esses números medem a robustez do pipeline, não a taxa real em
 campo — para essa, é preciso testar com fotos reais da guarita, em todas as condições citadas

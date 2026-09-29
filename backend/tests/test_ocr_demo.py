@@ -28,7 +28,8 @@ def test_lists_demo_samples_without_authentication():
     assert len(body) == len(DEMO_SAMPLE_NAMES)
     assert {sample["id"] for sample in body} == set(DEMO_SAMPLE_NAMES)
     for sample in body:
-        assert set(sample.keys()) == {"id", "description"}
+        assert set(sample.keys()) == {"id", "plate", "description"}
+        assert sample["plate"]
 
 
 def test_serves_a_demo_sample_image():
