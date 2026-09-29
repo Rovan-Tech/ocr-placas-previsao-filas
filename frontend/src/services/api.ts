@@ -146,6 +146,7 @@ export function submitPlateManually(plate: string, context: ManualPlateContext =
 
 export interface DemoSampleInfo {
   id: string
+  plate: string
   description: string
 }
 

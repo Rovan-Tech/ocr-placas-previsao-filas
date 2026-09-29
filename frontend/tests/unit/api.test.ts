@@ -263,7 +263,7 @@ describe('listSchedules', () => {
 
 describe('fetchDemoSamples', () => {
   it('busca /api/ocr/demo-samples', async () => {
-    const body = [{ id: 'limpa_mercosul', description: 'foto boa, controle' }]
+    const body = [{ id: 'limpa_mercosul', plate: 'BRA2E19', description: 'foto boa, controle' }]
     const fetchMock = mockFetch(jsonResponse(body))
 
     const result = await fetchDemoSamples()

@@ -4,10 +4,6 @@ type Theme = 'light' | 'dark'
 
 const STORAGE_KEY = 'ocr-placas.theme'
 
-function systemPrefersDark(): boolean {
-  return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
-}
-
 function loadStoredTheme(): Theme | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
@@ -25,7 +21,7 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => loadStoredTheme() ?? (systemPrefersDark() ? 'dark' : 'light'))
+  const [theme, setTheme] = useState<Theme>(() => loadStoredTheme() ?? 'light')
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme

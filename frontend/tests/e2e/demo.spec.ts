@@ -6,19 +6,13 @@ const PNG_1PX = Buffer.from(
 )
 
 const SAMPLES = [
-  { id: 'limpa_mercosul', description: 'foto boa, controle' },
-  { id: 'suja', description: 'placa com barro e riscos' },
+  { id: 'limpa_mercosul', plate: 'BRA2E19', description: 'foto boa, controle' },
+  { id: 'suja', plate: 'LMN2B34', description: 'placa com barro e riscos' },
 ]
 
 function mockDemoSamples(page: Page, samples: unknown[] = SAMPLES) {
   return page.route('**/api/ocr/demo-samples', (route) =>
     route.fulfill({ contentType: 'application/json', body: JSON.stringify(samples) }),
-  )
-}
-
-function mockDemoSampleImages(page: Page) {
-  return page.route('**/api/ocr/demo-samples/*/image', (route) =>
-    route.fulfill({ contentType: 'image/jpeg', body: PNG_1PX }),
   )
 }
 
@@ -35,7 +29,6 @@ function demoUploadResponse(overrides: Record<string, unknown> = {}) {
 
 test.beforeEach(async ({ page }) => {
   await mockDemoSamples(page)
-  await mockDemoSampleImages(page)
 })
 
 test('acessa a demonstração direto, sem passar pelo login', async ({ page }) => {
@@ -45,10 +38,13 @@ test('acessa a demonstração direto, sem passar pelo login', async ({ page }) =
   await expect(page.getByLabel('Usuário')).toHaveCount(0)
 })
 
-test('mostra o aviso de modo de demonstração', async ({ page }) => {
+test('mostra o aviso de modo de demonstração com destaque visual', async ({ page }) => {
   await page.goto('/demo')
 
-  await expect(page.getByText(/nada aqui fica gravado como registro de produção/)).toBeVisible()
+  const banner = page.getByText(/nada aqui fica gravado como registro de produção/)
+  await expect(banner).toBeVisible()
+  await expect(banner).toHaveCSS('background-color', 'rgb(220, 239, 230)')
+  await expect(banner).toHaveCSS('border-top-color', 'rgb(14, 122, 87)')
 })
 
 test('lista os exemplos disponíveis e roda o OCR ao escolher um', async ({ page }) => {
@@ -61,6 +57,8 @@ test('lista os exemplos disponíveis e roda o OCR ao escolher um', async ({ page
 
   await expect(page.getByText('foto boa, controle')).toBeVisible()
   await expect(page.getByText('placa com barro e riscos')).toBeVisible()
+  await expect(page.getByText('BRA2E19', { exact: true })).toBeVisible()
+  await expect(page.getByText('LMN2B34', { exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: /foto boa, controle/ }).click()
 
@@ -119,4 +117,18 @@ test('link "Testar sem login" na tela de login leva pra demonstração', async (
   await page.getByRole('link', { name: 'Testar sem login' }).click()
 
   await expect(page.getByRole('heading', { name: 'Testar o OCR de placas' })).toBeVisible()
+})
+
+test('em mobile, o botão de enviar foto não sobrepõe a área da câmera (sem tab bar fixa nesta página)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/demo')
+
+  const cameraBox = await page.locator('.camera-viewport').boundingBox()
+  const uploadBox = await page.getByRole('button', { name: 'Enviar foto do aparelho' }).boundingBox()
+
+  expect(cameraBox).not.toBeNull()
+  expect(uploadBox).not.toBeNull()
+  expect(uploadBox!.y).toBeGreaterThanOrEqual(cameraBox!.y + cameraBox!.height)
 })

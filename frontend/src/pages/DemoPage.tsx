@@ -5,7 +5,6 @@ import StatusMessage from '../components/StatusMessage'
 import ThemeToggle from '../components/ThemeToggle'
 import {
   ApiError,
-  demoSampleImageUrl,
   fetchDemoSamples,
   submitDemoOcr,
   type DemoPlateReadResponse,
@@ -67,7 +66,7 @@ export default function DemoPage() {
   }
 
   return (
-    <div className="app">
+    <div className="app field-shell">
       <header className="app-header">
         <div className="brand">
           <strong>Porto Baía Verde</strong>
@@ -83,7 +82,7 @@ export default function DemoPage() {
             uma foto sua para ver o reconhecimento funcionando.
           </p>
 
-          <StatusMessage tone="info">
+          <StatusMessage tone="info" className="demo-banner">
             Modo de demonstração: nada aqui fica gravado como registro de produção. Se você enviar sua própria
             foto, ela é processada só na hora, em memória, e descartada em seguida — não fica salva em disco
             nem associada a nenhuma conta.
@@ -103,7 +102,7 @@ export default function DemoPage() {
                       className="demo-sample"
                       onClick={() => run({ sampleId: sample.id })}
                     >
-                      <img src={demoSampleImageUrl(sample.id)} alt={sample.description} />
+                      <span className="demo-plate-mock">{sample.plate}</span>
                       <span>{sample.description}</span>
                     </button>
                   ))}

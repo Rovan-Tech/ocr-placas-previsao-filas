@@ -8,11 +8,13 @@ import {
 interface StatusMessageProps {
   tone: StatusMessageTone
   children: ReactNode
+  className?: string
 }
 
-export default function StatusMessage({ tone, children }: StatusMessageProps) {
+export default function StatusMessage({ tone, children, className }: StatusMessageProps) {
+  const classes = className ? `${resolveStatusMessageClassName(tone)} ${className}` : resolveStatusMessageClassName(tone)
   return (
-    <p className={resolveStatusMessageClassName(tone)} role={resolveStatusMessageRole(tone)}>
+    <p className={classes} role={resolveStatusMessageRole(tone)}>
       {children}
     </p>
   )
