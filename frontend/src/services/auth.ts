@@ -1,4 +1,4 @@
-import type { Access, Permissions, Role, Screen } from './roles'
+import type { Overrides, PermissionKey, PermissionsMatrix, RoleDetail, RoleSummary } from './roles'
 
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
@@ -6,13 +6,22 @@ export interface Employee {
   id: number
   username: string
   full_name: string
-  role: Role
-  permissions: Permissions
+  role: RoleSummary
+  permissions: PermissionKey[]
+  overrides: Overrides
   active: boolean
 }
 
-export interface PermissionsMatrix {
-  roles: Record<Role, Record<Screen, Access>>
+export interface PermissionLogEntry {
+  id: number
+  created_at: string
+  actor_username: string
+  actor_name: string
+  client_ip: string | null
+  action: string
+  target_name: string
+  summary: string
+  details: Record<string, unknown>
 }
 
 export interface LoginResponse {
@@ -73,7 +82,7 @@ export function fetchCurrentEmployee(token: string): Promise<Employee> {
 
 export function createEmployee(
   token: string,
-  data: { username: string; full_name: string; temporary_password: string; role: Role },
+  data: { username: string; full_name: string; temporary_password: string; role_id: number },
 ): Promise<Employee> {
   return authRequest<Employee>('/auth/employees', {
     method: 'POST',
@@ -95,8 +104,66 @@ export function deactivateEmployee(token: string, employeeId: number): Promise<E
   })
 }
 
+function jsonInit(token: string, method: string, body?: unknown): RequestInit {
+  return {
+    method,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  }
+}
+
 export function fetchPermissions(token: string): Promise<PermissionsMatrix> {
-  return authRequest<PermissionsMatrix>('/auth/permissions', {
-    headers: { Authorization: `Bearer ${token}` },
-  })
+  return authRequest<PermissionsMatrix>('/auth/permissions', jsonInit(token, 'GET'))
+}
+
+export function fetchRoles(token: string): Promise<RoleSummary[]> {
+  return authRequest<RoleSummary[]>('/auth/roles', jsonInit(token, 'GET'))
+}
+
+export function createRole(
+  token: string,
+  data: { name: string; permissions: PermissionKey[] },
+): Promise<RoleDetail> {
+  return authRequest<RoleDetail>('/auth/roles', jsonInit(token, 'POST', data))
+}
+
+export function updateRole(
+  token: string,
+  roleId: number,
+  data: { name: string; permissions: PermissionKey[] },
+): Promise<RoleDetail> {
+  return authRequest<RoleDetail>(`/auth/roles/${roleId}`, jsonInit(token, 'PUT', data))
+}
+
+export async function deleteRole(token: string, roleId: number): Promise<void> {
+  await authRequest<null>(`/auth/roles/${roleId}`, jsonInit(token, 'DELETE'))
+}
+
+export function changeEmployeeRole(
+  token: string,
+  employeeId: number,
+  roleId: number,
+): Promise<Employee> {
+  return authRequest<Employee>(
+    `/auth/employees/${employeeId}/role`,
+    jsonInit(token, 'PATCH', { role_id: roleId }),
+  )
+}
+
+export function setEmployeeOverrides(
+  token: string,
+  employeeId: number,
+  overrides: Overrides,
+): Promise<Employee> {
+  return authRequest<Employee>(
+    `/auth/employees/${employeeId}/permissions`,
+    jsonInit(token, 'PUT', overrides),
+  )
+}
+
+export function fetchPermissionLog(token: string, limit = 50): Promise<PermissionLogEntry[]> {
+  return authRequest<PermissionLogEntry[]>(
+    `/auth/permission-log?limit=${limit}`,
+    jsonInit(token, 'GET'),
+  )
 }

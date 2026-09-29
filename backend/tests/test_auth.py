@@ -5,17 +5,17 @@ from fastapi.testclient import TestClient
 
 from app.db import get_db
 from app.main import app
-from app.models import Employee, Role, UploadEndpoint, UploadLog
+from app.models import Employee, SystemRole, UploadEndpoint, UploadLog
 from app.services.auth import PASSWORD_MAX_AGE, create_access_token, hash_password
 
 
 @pytest.fixture
-def admin(db_session):
+def admin(db_session, role_named):
     record = Employee(
         username="admin.teste",
         full_name="Admin de Teste",
         password_hash=hash_password("senhaAdminForte1"),
-        role=Role.ADMIN,
+        role=role_named(SystemRole.ADMIN),
         must_change_password=False,
     )
     db_session.add(record)
@@ -54,7 +54,7 @@ class TestCreateEmployee:
         assert response.status_code == 201
         body = response.json()
         assert body["username"] == "fiscal.novo"
-        assert body["is_admin"] is False
+        assert body["role"]["key"] == "fiscal"
         assert "temporary_password" not in body
         assert "password_hash" not in body
 
@@ -299,14 +299,10 @@ class TestDeactivateEmployee:
 
         assert response.status_code == 401
 
-    def test_non_admin_cannot_deactivate_anyone(self, employee, db_session, db_client):
-        other = Employee(
-            username="fiscal.outro",
-            full_name="Outro",
-            password_hash=hash_password("senha12345"),
-        )
-        db_session.add(other)
-        db_session.flush()
+    def test_non_admin_cannot_deactivate_anyone(
+        self, employee, make_employee, db_client
+    ):
+        other = make_employee(SystemRole.FISCAL, "fiscal.outro")
 
         response = db_client.delete(
             f"/auth/employees/{other.id}",
@@ -324,9 +320,9 @@ class TestDeactivateEmployee:
         assert response.status_code == 400
 
     def test_an_admin_can_deactivate_another_admin(
-        self, admin, employee, db_session, db_client
+        self, admin, employee, db_session, db_client, role_named
     ):
-        employee.role = Role.ADMIN
+        employee.role = role_named(SystemRole.ADMIN)
         db_session.flush()
 
         response = db_client.delete(

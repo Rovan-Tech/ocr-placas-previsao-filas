@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import ScheduleForm from '../components/ScheduleForm'
+import { useAuth } from '../context/AuthContext'
 import { listSchedules, type ScheduleOut } from '../services/api'
 import { cargoCategoryLabel, documentStatusInfo, formatScheduledDate } from '../services/plate'
+import { can } from '../services/roles'
 
 function cargoSummary(schedule: ScheduleOut): string {
   return schedule.cargo_items
@@ -64,11 +66,15 @@ function SchedulesTable({
 }
 
 export default function CreateSchedulePage() {
+  const { employee } = useAuth()
+  const canView = can(employee?.permissions, 'schedules.view')
+  const canCreate = can(employee?.permissions, 'schedules.create')
   const [schedules, setSchedules] = useState<ScheduleOut[]>([])
-  const [loadingList, setLoadingList] = useState(true)
+  const [loadingList, setLoadingList] = useState(canView)
   const [listError, setListError] = useState<string | null>(null)
 
   const loadSchedules = useCallback(() => {
+    if (!canView) return
     listSchedules()
       .then((data) => {
         setSchedules(data)
@@ -78,7 +84,7 @@ export default function CreateSchedulePage() {
         setListError(err instanceof Error ? err.message : 'Erro ao carregar agendamentos.'),
       )
       .finally(() => setLoadingList(false))
-  }, [])
+  }, [canView])
 
   useEffect(() => loadSchedules(), [loadSchedules])
 
@@ -90,14 +96,18 @@ export default function CreateSchedulePage() {
       </p>
 
       <div className="schedules-layout">
-        <SchedulesTable schedules={schedules} loading={loadingList} error={listError} />
+        {canView && (
+          <SchedulesTable schedules={schedules} loading={loadingList} error={listError} />
+        )}
 
-        <aside className="schedules-form-panel">
-          <h2>Cadastrar agendamento</h2>
-          <ScheduleForm
-            onCreated={(schedule) => setSchedules((current) => [schedule, ...current])}
-          />
-        </aside>
+        {canCreate && (
+          <aside className="schedules-form-panel">
+            <h2>Cadastrar agendamento</h2>
+            <ScheduleForm
+              onCreated={(schedule) => setSchedules((current) => [schedule, ...current])}
+            />
+          </aside>
+        )}
       </div>
     </section>
   )

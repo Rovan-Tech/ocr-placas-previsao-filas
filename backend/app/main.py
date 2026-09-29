@@ -11,7 +11,7 @@ from starlette.responses import Response
 
 from app.config import settings
 from app.rate_limit import limiter
-from app.routers import auth, checkins, health, logs, ocr, ocr_demo, schedules
+from app.routers import access, auth, checkins, health, logs, ocr, ocr_demo, schedules
 from app.services.ocr_service import get_reader
 
 SECURITY_HEADERS = {
@@ -41,7 +41,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.frontend_origins_list,
     allow_credentials=False,
-    allow_methods=["GET", "POST", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -66,6 +66,7 @@ async def add_security_headers(
 
 app.include_router(health.router)
 app.include_router(auth.router)
+app.include_router(access.router)
 app.include_router(ocr.router)
 app.include_router(ocr_demo.router)
 app.include_router(logs.router)

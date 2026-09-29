@@ -13,7 +13,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { desktopNavItems, mobileNavItems } from '../services/navigation'
-import { roleLabel } from '../services/roles'
+import { roleTone } from './RoleBadge'
 import ThemeToggle from './ThemeToggle'
 
 const MOBILE_NAV_QUERY = '(max-width: 640px)'
@@ -75,9 +75,9 @@ export default function Layout() {
         )}
         <div className="session">
           {employee && (
-            <span className={`role-chip role-chip-${employee.role}`}>
+            <span className={`role-chip role-chip-${roleTone(employee.role)}`}>
               <i aria-hidden="true" />
-              {roleLabel(employee.role)}
+              {employee.role.name}
             </span>
           )}
           <ThemeToggle />

@@ -358,3 +358,54 @@ test('o Fiscal, sem agendamento, é orientado a pedir o cadastro ao Planejador',
     page.getByRole('button', { name: 'Cadastrar motorista, carga e caminhão' }),
   ).toHaveCount(0)
 })
+
+test.describe('permissão por ação na captura', () => {
+  const withoutPermissions = (removed: string[]) => {
+    const fiscal = employeeWithRole('fiscal')
+    return { ...fiscal, permissions: fiscal.permissions.filter((key) => !removed.includes(key)) }
+  }
+
+  test('sem recusar entrada, só o botão de autorizar aparece', async ({ page }) => {
+    await page.unroute('**/api/auth/me')
+    await loginAsTestUser(page, withoutPermissions(['capture.refuse_entry']))
+    await mockAndSend(page, { found: true, schedule: scheduleInfo() })
+
+    await expect(page.getByRole('button', { name: 'Autorizar entrada' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Recusar entrada' })).toHaveCount(0)
+  })
+
+  test('sem autorizar entrada, só o botão de recusar aparece', async ({ page }) => {
+    await page.unroute('**/api/auth/me')
+    await loginAsTestUser(page, withoutPermissions(['capture.authorize_entry']))
+    await mockAndSend(page, { found: true, schedule: scheduleInfo() })
+
+    await expect(page.getByRole('button', { name: 'Recusar entrada' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Autorizar entrada' })).toHaveCount(0)
+  })
+
+  test('sem autorizar nem recusar, mostra o aviso no lugar dos botões', async ({ page }) => {
+    await page.unroute('**/api/auth/me')
+    await loginAsTestUser(
+      page,
+      withoutPermissions(['capture.authorize_entry', 'capture.refuse_entry']),
+    )
+    await mockAndSend(page, { found: true, schedule: scheduleInfo() })
+
+    await expect(page.getByText('Seu cargo não pode autorizar nem recusar entradas.')).toBeVisible()
+    await expect(page.getByRole('button', { name: /entrada/ })).toHaveCount(0)
+  })
+
+  test('com permissão de ver agendamentos, os documentos do motorista aparecem', async ({
+    page,
+  }) => {
+    await page.unroute('**/api/auth/me')
+    const fiscal = employeeWithRole('fiscal')
+    await loginAsTestUser(page, {
+      ...fiscal,
+      permissions: [...fiscal.permissions, 'schedules.view'],
+    })
+    await mockAndSend(page, { found: true, schedule: scheduleInfo() })
+
+    await expect(page.getByRole('button', { name: 'Ver frente do documento' })).toBeVisible()
+  })
+})

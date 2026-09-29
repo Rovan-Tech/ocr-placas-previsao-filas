@@ -88,14 +88,23 @@ Revise sempre o arquivo gerado em `migrations/versions/` antes de commitar. O te
 - `GET /auth/me` — quem está logado com o token enviado.
 - `POST /auth/change-password` — troca a senha; obrigatório no primeiro login (senha temporária)
   e a cada 30 dias (ver "Login e cadastro de funcionário" abaixo).
-- `POST /auth/employees` — cadastra um funcionário com uma senha temporária e um cargo (`role`,
-  padrão `fiscal`). Só quem já é Administrador pode chamar (403 pra quem não é).
-- `GET /auth/employees` — lista todos os funcionários (ativos e excluídos). Só Administrador.
-- `PATCH /auth/employees/{id}/role` — troca o cargo do funcionário. Só Administrador; 400 se for
-  o próprio cargo.
-- `GET /auth/permissions` — matriz cargo × tela (`full`, `read` ou `none`). Só Administrador.
+- `POST /auth/employees` — cadastra um funcionário com uma senha temporária e um cargo
+  (`role_id`, padrão o cargo `fiscal`). Exige a ação `employees.create`.
+- `GET /auth/employees` — lista todos os funcionários (ativos e excluídos), com cargo,
+  permissões efetivas e exceções. Exige `employees.view`.
+- `PATCH /auth/employees/{id}/role` — troca o cargo do funcionário (`employees.set_role`); 400
+  se for o próprio cargo.
+- `PUT /auth/employees/{id}/permissions` — define as exceções do funcionário (`granted` e
+  `denied`), sem mudar o cargo dele. Exige `permissions.manage`.
+- `GET /auth/roles` — lista os cargos (para o formulário de cadastro).
+- `GET /auth/permissions` — catálogo de ações por tela e as permissões de cada cargo.
+- `GET /auth/permission-log` — histórico de toda mudança de permissão (quem, IP, horário e o
+  que mudou). Exige `permissions.manage`.
+- `POST /auth/roles`, `PUT /auth/roles/{id}`, `DELETE /auth/roles/{id}` — cria, edita e exclui
+  cargos. Os cinco cargos originais não podem ser renomeados nem excluídos, e nenhuma mudança
+  pode deixar o sistema sem alguém com `permissions.manage`. Exigem `permissions.manage`.
 - `DELETE /auth/employees/{id}` — exclusão lógica (marca `active=False`, não apaga a linha:
-  o histórico em `UploadLog` continua íntegro). Só Administrador; 400 se tentar excluir a
+  o histórico em `UploadLog` continua íntegro). Exige `employees.deactivate`; 400 se tentar excluir a
   própria conta (evita o admin se travar fora do sistema sem querer).
 - `POST /ocr/upload` — recebe uma imagem (`multipart/form-data`, campo `file`) e devolve a placa
   lida, já validada no formato Mercosul ou antigo (ver "Leitura da placa" abaixo), mais o
@@ -153,7 +162,7 @@ check-in. Nunca bloqueia o cadastro: se não bater, só fica sinalizado pra conf
 
 Não existe cadastro aberto (`POST /auth/register` não existe de propósito): qualquer um poder
 criar o próprio login tornaria inútil saber "quem enviou cada foto" (ver `UploadLog` abaixo). O
-cadastro é sempre feito por alguém já logado como Administrador, em `POST /auth/employees` — com
+cadastro é sempre feito por alguém com a permissão `employees.create` (por padrão, o Administrador), em `POST /auth/employees` — com
 usuário, nome completo e uma senha temporária, que o admin repassa ao funcionário fora do sistema
 (verbalmente, por escrito etc.).
 

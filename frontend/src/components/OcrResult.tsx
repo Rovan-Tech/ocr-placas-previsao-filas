@@ -19,9 +19,23 @@ import {
 } from '../services/plate'
 import StatusMessage from './StatusMessage'
 
+export interface OcrResultAccess {
+  viewSchedules: boolean
+  registerArrival: boolean
+  authorize: boolean
+  refuse: boolean
+}
+
+const FULL_ACCESS: OcrResultAccess = {
+  viewSchedules: true,
+  registerArrival: true,
+  authorize: true,
+  refuse: true,
+}
+
 interface OcrResultProps {
   result: OcrUploadResponse
-  canManageSchedules?: boolean
+  access?: OcrResultAccess
 }
 
 function VehicleDataSummary({ data, label }: { data: VehicleData; label: string }) {
@@ -69,10 +83,10 @@ function EarlyArrivalNotice({ scheduledDate }: { scheduledDate: string }) {
 
 function CheckinSection({
   checkin,
-  canManageSchedules,
+  canViewSchedules,
 }: {
   checkin: CheckinContext
-  canManageSchedules: boolean
+  canViewSchedules: boolean
 }) {
   if (checkin.schedule) {
     const status = scheduleStatusInfo(checkin.schedule.status)
@@ -90,7 +104,7 @@ function CheckinSection({
             {checkin.schedule.driver_document_validated ? '✅' : '⚠️'}{' '}
             {checkin.schedule.driver_document_validation_detail}
           </span>
-          {canManageSchedules && (
+          {canViewSchedules && (
             <>
               <button
                 type="button"
@@ -150,13 +164,13 @@ function EntryDecision({
   scheduleId,
   checkinId,
   canDecide,
-  canManageSchedules,
+  access,
 }: {
   plate: string
   scheduleId: number | null
   checkinId: number | null
   canDecide: boolean
-  canManageSchedules: boolean
+  access: OcrResultAccess
 }) {
   const [decision, setDecision] = useState<'admitted' | 'cancelled' | null>(null)
   const [sending, setSending] = useState(false)
@@ -187,7 +201,7 @@ function EntryDecision({
     return (
       <div className="camera-actions">
         <StatusMessage tone="review">
-          {canManageSchedules
+          {access.registerArrival
             ? 'Cadastre motorista, carga e caminhão abaixo para poder autorizar ou recusar a entrada.'
             : 'Chegada sem agendamento. Peça ao Planejador ou ao Supervisor para cadastrar o motorista, a carga e o caminhão antes de liberar a entrada.'}
         </StatusMessage>
@@ -195,24 +209,38 @@ function EntryDecision({
     )
   }
 
+  if (!access.authorize && !access.refuse) {
+    return (
+      <div className="camera-actions">
+        <StatusMessage tone="info">
+          Seu cargo não pode autorizar nem recusar entradas.
+        </StatusMessage>
+      </div>
+    )
+  }
+
   return (
     <div className="camera-actions">
-      <button
-        type="button"
-        className="primary"
-        onClick={() => decide('admitted')}
-        disabled={sending}
-      >
-        Autorizar entrada
-      </button>
-      <button
-        type="button"
-        className="danger-outline"
-        onClick={() => decide('cancelled')}
-        disabled={sending}
-      >
-        Recusar entrada
-      </button>
+      {access.authorize && (
+        <button
+          type="button"
+          className="primary"
+          onClick={() => decide('admitted')}
+          disabled={sending}
+        >
+          Autorizar entrada
+        </button>
+      )}
+      {access.refuse && (
+        <button
+          type="button"
+          className="danger-outline"
+          onClick={() => decide('cancelled')}
+          disabled={sending}
+        >
+          Recusar entrada
+        </button>
+      )}
       {error && <StatusMessage tone="error">{error}</StatusMessage>}
     </div>
   )
@@ -234,7 +262,7 @@ function RawDetections({ result }: OcrResultProps) {
   )
 }
 
-export default function OcrResult({ result, canManageSchedules = true }: OcrResultProps) {
+export default function OcrResult({ result, access = FULL_ACCESS }: OcrResultProps) {
   if (result.plate === null) {
     return (
       <div className="ocr-result">
@@ -281,7 +309,7 @@ export default function OcrResult({ result, canManageSchedules = true }: OcrResu
       )}
 
       {result.checkin && (
-        <CheckinSection checkin={result.checkin} canManageSchedules={canManageSchedules} />
+        <CheckinSection checkin={result.checkin} canViewSchedules={access.viewSchedules} />
       )}
 
       {result.checkin && (
@@ -290,7 +318,7 @@ export default function OcrResult({ result, canManageSchedules = true }: OcrResu
           scheduleId={result.checkin.schedule?.id ?? null}
           checkinId={result.checkin.checkin_id}
           canDecide={result.checkin.schedule !== null}
-          canManageSchedules={canManageSchedules}
+          access={access}
         />
       )}
 

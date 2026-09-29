@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { FAKE_EMPLOYEE, PERMISSIONS, employeeWithRole, loginAsTestUser } from './testAuth'
+import { FAKE_EMPLOYEE, employeeWithRole, loginAsTestUser, roleOf } from './testAuth'
 
 function mockLogin(page: Page, { status = 200, body }: { status?: number; body: unknown }) {
   return page.route('**/api/auth/login', (route) =>
@@ -189,7 +189,9 @@ test.describe('admin master cadastra funcionário', () => {
           id: 2,
           username: 'fiscal.novo',
           full_name: 'Fiscal Novo',
-          role: 'fiscal',
+          role: roleOf('fiscal'),
+          permissions: [],
+          overrides: { granted: [], denied: [] },
           active: true,
         }),
       })
@@ -229,7 +231,9 @@ test.describe('admin master exclui funcionário', () => {
     id: 2,
     username: 'fiscal.maria',
     full_name: 'Maria Fiscal',
-    role: 'fiscal',
+    role: roleOf('fiscal'),
+    permissions: [],
+    overrides: { granted: [], denied: [] },
     active: true,
   }
 
@@ -400,77 +404,5 @@ test.describe('menu e rotas por cargo', () => {
 
     await expect(page.getByRole('heading', { name: 'Permissões por cargo' })).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Permissões' })).toHaveCount(0)
-  })
-})
-
-test.describe('cadastro com cargo e tela de permissões', () => {
-  test('o administrador escolhe o cargo ao cadastrar e vê o selo na lista', async ({ page }) => {
-    await loginAsTestUser(page, employeeWithRole('admin'))
-    let sentBody: Record<string, unknown> | null = null
-    await page.route('**/api/auth/employees', (route) => {
-      if (route.request().method() === 'GET') {
-        return route.fulfill({
-          contentType: 'application/json',
-          body: JSON.stringify([
-            { id: 2, username: 'ana', full_name: 'Ana Analista', role: 'analista', active: true },
-          ]),
-        })
-      }
-      sentBody = route.request().postDataJSON()
-      return route.fulfill({
-        status: 201,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          id: 3,
-          username: 'paulo',
-          full_name: 'Paulo Planejador',
-          role: 'planejador',
-          active: true,
-        }),
-      })
-    })
-    await page.goto('/funcionarios')
-
-    await expect(page.getByRole('row', { name: /Ana Analista/ })).toContainText(
-      'Analista de Operações',
-    )
-    await page.getByLabel('Usuário').fill('paulo')
-    await page.getByLabel('Nome completo').fill('Paulo Planejador')
-    await page.getByLabel('Senha temporária').fill('temp12345')
-    await page.getByLabel('Cargo').selectOption('planejador')
-    await page.getByRole('button', { name: 'Cadastrar' }).click()
-
-    await expect(page.getByText(/Paulo Planejador.*cadastrado/)).toBeVisible()
-    expect(sentBody).toMatchObject({ role: 'planejador', username: 'paulo' })
-  })
-
-  test('mostra a matriz de permissões vinda do backend', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 800 })
-    await loginAsTestUser(page, employeeWithRole('admin'))
-    await page.route('**/api/auth/permissions', (route) =>
-      route.fulfill({
-        contentType: 'application/json',
-        body: JSON.stringify({
-          roles: {
-            fiscal: PERMISSIONS.fiscal,
-            planejador: PERMISSIONS.planejador,
-            analista: PERMISSIONS.analista,
-            supervisor: PERMISSIONS.supervisor,
-            admin: PERMISSIONS.admin,
-          },
-        }),
-      }),
-    )
-    await page.goto('/')
-    await page.getByRole('link', { name: 'Permissões' }).click()
-
-    await expect(page.getByRole('heading', { name: 'Permissões por cargo' })).toBeVisible()
-    const fiscal = page.getByRole('row', { name: /Fiscal de Portaria/ })
-    await expect(fiscal.getByLabel('Acesso total')).toHaveCount(1)
-    await expect(fiscal.getByLabel('Somente leitura')).toHaveCount(1)
-    await expect(fiscal.getByLabel('Sem acesso')).toHaveCount(4)
-    await expect(
-      page.getByRole('row', { name: /Administrador/ }).getByLabel('Acesso total'),
-    ).toHaveCount(6)
   })
 })

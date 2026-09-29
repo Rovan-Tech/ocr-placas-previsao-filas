@@ -1,58 +1,77 @@
-export type Role = 'fiscal' | 'planejador' | 'analista' | 'supervisor' | 'admin'
-export type Screen = 'capture' | 'checkins' | 'schedules' | 'logs' | 'reports' | 'employees'
-export type Access = 'none' | 'read' | 'full'
-export type Permissions = Partial<Record<Screen, Access>>
+export type PermissionKey =
+  | 'capture.read_plate'
+  | 'capture.authorize_entry'
+  | 'capture.refuse_entry'
+  | 'checkins.view'
+  | 'schedules.view'
+  | 'schedules.create'
+  | 'logs.view'
+  | 'reports.view'
+  | 'employees.view'
+  | 'employees.create'
+  | 'employees.deactivate'
+  | 'employees.set_role'
+  | 'permissions.manage'
 
-export const ROLES: Role[] = ['fiscal', 'planejador', 'analista', 'supervisor', 'admin']
-
-export const SCREENS: Screen[] = [
-  'capture',
-  'checkins',
-  'schedules',
-  'logs',
-  'reports',
-  'employees',
-]
-
-const ROLE_LABELS: Record<Role, string> = {
-  fiscal: 'Fiscal de Portaria',
-  planejador: 'Planejador de Agendamentos',
-  analista: 'Analista de Operações',
-  supervisor: 'Supervisor de Turno',
-  admin: 'Administrador',
+export interface RoleSummary {
+  id: number
+  key: string
+  name: string
+  is_system: boolean
 }
 
-const SCREEN_LABELS: Record<Screen, string> = {
-  capture: 'Capturar',
-  checkins: 'Check-ins',
-  schedules: 'Agendamentos',
-  logs: 'Logs',
-  reports: 'Relatórios',
-  employees: 'Funcionários',
+export interface RoleDetail extends RoleSummary {
+  permissions: PermissionKey[]
 }
 
-const ACCESS_LABELS: Record<Access, string> = {
-  none: 'Sem acesso',
-  read: 'Somente leitura',
-  full: 'Acesso total',
+export interface PermissionDef {
+  key: PermissionKey
+  label: string
+  description: string
 }
 
-export function roleLabel(role: Role): string {
-  return ROLE_LABELS[role]
+export interface ScreenDef {
+  key: string
+  label: string
+  permissions: PermissionDef[]
 }
 
-export function screenLabel(screen: Screen): string {
-  return SCREEN_LABELS[screen]
+export interface PermissionsMatrix {
+  catalog: ScreenDef[]
+  roles: RoleDetail[]
 }
 
-export function accessLabel(access: Access): string {
-  return ACCESS_LABELS[access]
+export interface Overrides {
+  granted: PermissionKey[]
+  denied: PermissionKey[]
 }
 
-export function accessTo(permissions: Permissions | undefined, screen: Screen): Access {
-  return permissions?.[screen] ?? 'none'
+export type OverrideChoice = 'inherit' | 'grant' | 'deny'
+
+export function can(
+  permissions: readonly PermissionKey[] | undefined,
+  key: PermissionKey,
+): boolean {
+  return permissions?.includes(key) ?? false
 }
 
-export function hasAccess(permissions: Permissions | undefined, screen: Screen): boolean {
-  return accessTo(permissions, screen) !== 'none'
+export function canAny(
+  permissions: readonly PermissionKey[] | undefined,
+  keys: readonly PermissionKey[],
+): boolean {
+  return keys.some((key) => can(permissions, key))
+}
+
+export function overrideChoiceFor(overrides: Overrides, key: PermissionKey): OverrideChoice {
+  if (overrides.granted.includes(key)) return 'grant'
+  if (overrides.denied.includes(key)) return 'deny'
+  return 'inherit'
+}
+
+export function overridesFromChoices(choices: Record<string, OverrideChoice>): Overrides {
+  const keys = Object.keys(choices) as PermissionKey[]
+  return {
+    granted: keys.filter((key) => choices[key] === 'grant'),
+    denied: keys.filter((key) => choices[key] === 'deny'),
+  }
 }

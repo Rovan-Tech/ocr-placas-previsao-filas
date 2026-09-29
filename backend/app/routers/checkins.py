@@ -7,13 +7,21 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import CheckIn, CheckInStatus, Employee, Schedule
-from app.services.auth import require_capture, require_checkins_read
+from app.services.auth import (
+    ensure_permission,
+    get_current_employee,
+    require_checkins_view,
+)
+from app.services.permissions import Permission
 from app.services.plate_format import normalize, plate_format
 from app.services.queue_prediction import estimate_wait_minutes
 
 router = APIRouter(prefix="/checkins", tags=["checkins"])
 
-DECIDABLE_STATUSES = {CheckInStatus.ADMITTED, CheckInStatus.CANCELLED}
+DECISION_PERMISSION = {
+    CheckInStatus.ADMITTED: Permission.CAPTURE_AUTHORIZE_ENTRY,
+    CheckInStatus.CANCELLED: Permission.CAPTURE_REFUSE_ENTRY,
+}
 
 INVALID_PLATE = HTTPException(
     status_code=400,
@@ -79,14 +87,16 @@ def create_checkin(  # noqa: PLR0913, PLR0917 - campos de formulário e dependê
     status: CheckInStatus = Form(...),
     schedule_id: int | None = Form(None),
     checkin_id: int | None = Form(None),
-    employee: Employee = Depends(require_capture),
+    employee: Employee = Depends(get_current_employee),
     db: Session = Depends(get_db),
 ) -> CheckinOut:
+    required_permission = DECISION_PERMISSION.get(status)
+    if required_permission is None:
+        raise INVALID_STATUS
+    ensure_permission(employee, required_permission)
     normalized_plate = normalize(plate)
     if plate_format(normalized_plate) is None:
         raise INVALID_PLATE
-    if status not in DECIDABLE_STATUSES:
-        raise INVALID_STATUS
     if schedule_id is not None and db.get(Schedule, schedule_id) is None:
         raise SCHEDULE_NOT_FOUND
 
@@ -130,7 +140,7 @@ def create_checkin(  # noqa: PLR0913, PLR0917 - campos de formulário e dependê
 def list_checkins(
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
-    _employee: Employee = Depends(require_checkins_read),
+    _employee: Employee = Depends(require_checkins_view),
 ) -> list[CheckinOut]:
     query = (
         select(CheckIn)
