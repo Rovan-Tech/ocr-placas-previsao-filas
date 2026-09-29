@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol
@@ -24,7 +23,6 @@ class PlateVerifier(Protocol):
 
 
 class NotConfiguredVerifier:
-
     def verify(self, plate: str) -> PlateVerification:
         return PlateVerification(
             status=VerificationStatus.NOT_CHECKED,

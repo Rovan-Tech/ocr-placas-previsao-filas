@@ -198,7 +198,9 @@ describe('createSchedule', () => {
   it('usa o detail do FastAPI quando a placa é inválida', async () => {
     mockFetch(jsonResponse({ detail: 'Formato de placa inválido.' }, 400))
 
-    const error = await createSchedule(validScheduleInput({ plate: 'NAO-VALIDA' })).catch((err) => err)
+    const error = await createSchedule(validScheduleInput({ plate: 'NAO-VALIDA' })).catch(
+      (err) => err,
+    )
 
     expect(error).toBeInstanceOf(ApiError)
     expect(error.status).toBe(400)
@@ -285,7 +287,13 @@ describe('demoSampleImageUrl', () => {
 
 describe('submitDemoOcr', () => {
   it('envia sample_id como multipart para /api/ocr/demo-upload', async () => {
-    const body = { plate: 'ABC1D23', plate_format: 'mercosul', confidence: 0.9, needs_review: false, detections: [] }
+    const body = {
+      plate: 'ABC1D23',
+      plate_format: 'mercosul',
+      confidence: 0.9,
+      needs_review: false,
+      detections: [],
+    }
     const fetchMock = mockFetch(jsonResponse(body))
 
     const result = await submitDemoOcr({ sampleId: 'limpa_mercosul' })
@@ -298,7 +306,13 @@ describe('submitDemoOcr', () => {
   })
 
   it('envia file como multipart para /api/ocr/demo-upload', async () => {
-    const body = { plate: null, plate_format: null, confidence: null, needs_review: true, detections: [] }
+    const body = {
+      plate: null,
+      plate_format: null,
+      confidence: null,
+      needs_review: true,
+      detections: [],
+    }
     const fetchMock = mockFetch(jsonResponse(body))
     const file = new File(['fake'], 'placa.jpg', { type: 'image/jpeg' })
 

@@ -48,7 +48,9 @@ class TokenResponse(BaseModel):
 
 def _require_admin(employee: Employee = Depends(get_current_employee)) -> Employee:
     if not employee.is_admin:
-        raise HTTPException(status_code=403, detail="Só o admin master pode gerenciar funcionários.")
+        raise HTTPException(
+            status_code=403, detail="Só o admin master pode gerenciar funcionários."
+        )
     return employee
 
 
@@ -80,17 +82,22 @@ class ChangePasswordRequest(BaseModel):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)) -> TokenResponse:
+def login(
+    form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+) -> TokenResponse:
     employee = authenticate_employee(db, form.username, form.password)
     return TokenResponse(
         access_token=create_access_token(employee),
         employee=_to_employee_out(employee),
-        must_change_password=employee.must_change_password or password_is_expired(employee),
+        must_change_password=employee.must_change_password
+        or password_is_expired(employee),
     )
 
 
 @router.get("/me", response_model=EmployeeOut)
-def read_current_employee(employee: Employee = Depends(get_current_employee)) -> EmployeeOut:
+def read_current_employee(
+    employee: Employee = Depends(get_current_employee),
+) -> EmployeeOut:
     return _to_employee_out(employee)
 
 
@@ -112,7 +119,9 @@ def change_password(
 
 
 @router.get("/employees", response_model=list[EmployeeOut])
-def list_employees(db: Session = Depends(get_db), _admin: Employee = Depends(_require_admin)) -> list[EmployeeOut]:
+def list_employees(
+    db: Session = Depends(get_db), _admin: Employee = Depends(_require_admin)
+) -> list[EmployeeOut]:
     employees = db.query(Employee).order_by(Employee.full_name).all()
     return [_to_employee_out(employee) for employee in employees]
 
@@ -123,8 +132,13 @@ def create_employee(
     db: Session = Depends(get_db),
     _admin: Employee = Depends(_require_admin),
 ) -> EmployeeOut:
-    if db.query(Employee).filter(Employee.username == payload.username).first() is not None:
-        raise HTTPException(status_code=409, detail="Já existe um funcionário com esse usuário.")
+    if (
+        db.query(Employee).filter(Employee.username == payload.username).first()
+        is not None
+    ):
+        raise HTTPException(
+            status_code=409, detail="Já existe um funcionário com esse usuário."
+        )
     _require_min_password_length(payload.temporary_password)
 
     employee = Employee(
@@ -149,7 +163,9 @@ def deactivate_employee(
     target = _get_employee_or_404(db, employee_id)
 
     if target.id == admin.id:
-        raise HTTPException(status_code=400, detail="Você não pode excluir a própria conta.")
+        raise HTTPException(
+            status_code=400, detail="Você não pode excluir a própria conta."
+        )
 
     target.active = False
     db.commit()

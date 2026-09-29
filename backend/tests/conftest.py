@@ -17,6 +17,7 @@ BACKEND_DIR = Path(__file__).resolve().parent.parent
 def _reset_rate_limiter():
     limiter.reset()
 
+
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+psycopg://ocr:ocr@localhost:5433/ocr_placas_test"
 )
@@ -81,14 +82,18 @@ def make_schedule(db_session):
 
     from app.models import CargoItem, DriverDocumentType, Schedule
 
-    def _make(employee, *, plate="ABC1D23", scheduled_date=date(2026, 9, 24), **overrides):
+    def _make(
+        employee, *, plate="ABC1D23", scheduled_date=date(2026, 9, 24), **overrides
+    ):
         record = Schedule(
             plate=plate,
             driver_name=overrides.get("driver_name", "João da Silva"),
             driver_birth_date=overrides.get("driver_birth_date", date(1990, 1, 1)),
             driver_birth_place=overrides.get("driver_birth_place", "São Luís - MA"),
             driver_birth_state=overrides.get("driver_birth_state", "MA"),
-            driver_document_type=overrides.get("driver_document_type", DriverDocumentType.CPF),
+            driver_document_type=overrides.get(
+                "driver_document_type", DriverDocumentType.CPF
+            ),
             driver_document=overrides.get("driver_document", "11144477735"),
             driver_document_photo_front_path=overrides.get(
                 "driver_document_photo_front_path", "schedules/doc-front.jpg"
@@ -98,9 +103,12 @@ def make_schedule(db_session):
             ),
             driver_document_validated=overrides.get("driver_document_validated", True),
             driver_document_validation_detail=overrides.get(
-                "driver_document_validation_detail", "Número do documento confere com a foto."
+                "driver_document_validation_detail",
+                "Número do documento confere com a foto.",
             ),
-            vehicle_document_photo_path=overrides.get("vehicle_document_photo_path", "schedules/vehicle.jpg"),
+            vehicle_document_photo_path=overrides.get(
+                "vehicle_document_photo_path", "schedules/vehicle.jpg"
+            ),
             vehicle_brand=overrides.get("vehicle_brand", "Volvo"),
             vehicle_model=overrides.get("vehicle_model", "FH 540"),
             vehicle_year=overrides.get("vehicle_year", "2020"),
@@ -111,11 +119,14 @@ def make_schedule(db_session):
             vehicle_width_m=overrides.get("vehicle_width_m", 2.6),
             origin_location=overrides.get("origin_location", "São Paulo - SP"),
             destination_location=overrides.get("destination_location", "São Luís - MA"),
-            manifest_photo_path=overrides.get("manifest_photo_path", "schedules/manifest.jpg"),
+            manifest_photo_path=overrides.get(
+                "manifest_photo_path", "schedules/manifest.jpg"
+            ),
             scheduled_date=scheduled_date,
             created_by_id=employee.id,
             cargo_items=overrides.get(
-                "cargo_items", [CargoItem(product_name="Grãos", category="nao_perecivel")]
+                "cargo_items",
+                [CargoItem(product_name="Grãos", category="nao_perecivel")],
             ),
         )
         db_session.add(record)

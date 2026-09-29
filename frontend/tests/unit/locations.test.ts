@@ -41,6 +41,8 @@ describe('fetchCitiesByState', () => {
   it('lança erro quando a API do IBGE responde com falha', async () => {
     mockFetch(jsonResponse({ error: 'indisponível' }, 500))
 
-    await expect(fetchCitiesByState('CE')).rejects.toThrow('Não foi possível carregar as cidades dessa UF.')
+    await expect(fetchCitiesByState('CE')).rejects.toThrow(
+      'Não foi possível carregar as cidades dessa UF.',
+    )
   })
 })

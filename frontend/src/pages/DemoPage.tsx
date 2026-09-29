@@ -54,7 +54,11 @@ export default function DemoPage() {
       setResult(toOcrUploadResponse(await submitDemoOcr(input)))
       setStatus('done')
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Erro inesperado ao rodar a leitura de demonstração.')
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : 'Erro inesperado ao rodar a leitura de demonstração.',
+      )
       setStatus('error')
     }
   }
@@ -78,14 +82,14 @@ export default function DemoPage() {
         <section className="page">
           <h1>Testar o OCR de placas</h1>
           <p className="subtitle">
-            Sem necessidade de login. Escolha uma placa de exemplo (sintética, gerada por computador) ou envie
-            uma foto sua para ver o reconhecimento funcionando.
+            Sem necessidade de login. Escolha uma placa de exemplo (sintética, gerada por
+            computador) ou envie uma foto sua para ver o reconhecimento funcionando.
           </p>
 
           <StatusMessage tone="info" className="demo-banner">
-            Modo de demonstração: nada aqui fica gravado como registro de produção. Se você enviar sua própria
-            foto, ela é processada só na hora, em memória, e descartada em seguida — não fica salva em disco
-            nem associada a nenhuma conta.
+            Modo de demonstração: nada aqui fica gravado como registro de produção. Se você enviar
+            sua própria foto, ela é processada só na hora, em memória, e descartada em seguida — não
+            fica salva em disco nem associada a nenhuma conta.
           </StatusMessage>
 
           {status !== 'sending' && (result === null || status === 'error') && (

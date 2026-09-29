@@ -24,11 +24,42 @@ import StatusMessage from './StatusMessage'
 
 const MAX_PLATE_LENGTH = 8
 
-const CARGO_CATEGORIES: CargoCategory[] = ['perecivel', 'nao_perecivel', 'quimico', 'toxico', 'inflamavel']
+const CARGO_CATEGORIES: CargoCategory[] = [
+  'perecivel',
+  'nao_perecivel',
+  'quimico',
+  'toxico',
+  'inflamavel',
+]
 const DOCUMENT_TYPES: DriverDocumentType[] = ['cpf', 'rg', 'cnh']
 const UFS = [
-  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB',
-  'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+  'AC',
+  'AL',
+  'AP',
+  'AM',
+  'BA',
+  'CE',
+  'DF',
+  'ES',
+  'GO',
+  'MA',
+  'MT',
+  'MS',
+  'MG',
+  'PA',
+  'PB',
+  'PR',
+  'PE',
+  'PI',
+  'RJ',
+  'RN',
+  'RS',
+  'RO',
+  'RR',
+  'SC',
+  'SP',
+  'SE',
+  'TO',
 ]
 
 interface ScheduleFormProps {
@@ -96,7 +127,9 @@ export default function ScheduleForm({
       })
       .catch(() => {
         if (latestBirthStateRequest.current === value) {
-          setBirthCitiesError('Não foi possível carregar as cidades dessa UF. Tente escolher a UF de novo.')
+          setBirthCitiesError(
+            'Não foi possível carregar as cidades dessa UF. Tente escolher a UF de novo.',
+          )
         }
       })
       .finally(() => {
@@ -105,7 +138,9 @@ export default function ScheduleForm({
   }
 
   function updateCargoItem(index: number, changes: Partial<CargoItemInput>) {
-    setCargoItems((current) => current.map((item, i) => (i === index ? { ...item, ...changes } : item)))
+    setCargoItems((current) =>
+      current.map((item, i) => (i === index ? { ...item, ...changes } : item)),
+    )
   }
 
   function addCargoItem() {
@@ -116,7 +151,8 @@ export default function ScheduleForm({
     setCargoItems((current) => current.filter((_, i) => i !== index))
   }
 
-  const hasValidCargoItems = cargoItems.length > 0 && cargoItems.every((item) => item.productName.trim())
+  const hasValidCargoItems =
+    cargoItems.length > 0 && cargoItems.every((item) => item.productName.trim())
   const isDriverDocumentValid = isValidDriverDocument(driverDocumentType, driverDocument)
   const canSubmit =
     Boolean(plate) &&
@@ -144,7 +180,13 @@ export default function ScheduleForm({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    if (!driverDocumentPhotoFront || !driverDocumentPhotoBack || !vehicleDocumentPhoto || !manifestPhoto) return
+    if (
+      !driverDocumentPhotoFront ||
+      !driverDocumentPhotoBack ||
+      !vehicleDocumentPhoto ||
+      !manifestPhoto
+    )
+      return
     setSending(true)
     setFormError(null)
     setCreated(null)
@@ -174,7 +216,9 @@ export default function ScheduleForm({
         vehicleDocumentPhoto,
         manifestPhoto,
       })
-      setCreated(`Agendamento da placa ${schedule.plate} cadastrado para ${formatScheduledDate(schedule.scheduled_date)}.`)
+      setCreated(
+        `Agendamento da placa ${schedule.plate} cadastrado para ${formatScheduledDate(schedule.scheduled_date)}.`,
+      )
       setDriverName('')
       setDriverBirthDate('')
       setDriverBirthPlace('')
@@ -201,7 +245,9 @@ export default function ScheduleForm({
       if (!plateReadOnly) setPlate('')
       onCreated(schedule)
     } catch (err) {
-      setFormError(err instanceof ApiError ? err.message : 'Erro inesperado ao cadastrar o agendamento.')
+      setFormError(
+        err instanceof ApiError ? err.message : 'Erro inesperado ao cadastrar o agendamento.',
+      )
     } finally {
       setSending(false)
     }
@@ -265,7 +311,9 @@ export default function ScheduleForm({
             id={`${idPrefix}-driver-birth-place`}
             value={driverBirthPlace}
             onChange={(event) => setDriverBirthPlace(event.target.value)}
-            disabled={sending || !driverBirthState || loadingBirthCities || birthCities.length === 0}
+            disabled={
+              sending || !driverBirthState || loadingBirthCities || birthCities.length === 0
+            }
           >
             <option value="" disabled>
               {loadingBirthCities
@@ -310,17 +358,23 @@ export default function ScheduleForm({
         autoComplete="off"
         maxLength={CPF_LENGTH}
         value={driverDocument}
-        onChange={(event) => setDriverDocument(sanitizeDriverDocument(event.target.value, driverDocumentType))}
+        onChange={(event) =>
+          setDriverDocument(sanitizeDriverDocument(event.target.value, driverDocumentType))
+        }
         disabled={sending}
       />
       <p className="hint">{driverDocumentHint(driverDocumentType)}</p>
       {driverDocument.length > 0 &&
         !isDriverDocumentValid &&
         !isDriverDocumentTooShortToJudge(driverDocumentType, driverDocument) && (
-          <StatusMessage tone="review">Documento inválido — confira o número digitado.</StatusMessage>
+          <StatusMessage tone="review">
+            Documento inválido — confira o número digitado.
+          </StatusMessage>
         )}
 
-      <label htmlFor={`${idPrefix}-driver-photo-front`}>Foto da frente do documento do motorista</label>
+      <label htmlFor={`${idPrefix}-driver-photo-front`}>
+        Foto da frente do documento do motorista
+      </label>
       <input
         id={`${idPrefix}-driver-photo-front`}
         type="file"
@@ -329,7 +383,9 @@ export default function ScheduleForm({
         disabled={sending}
       />
 
-      <label htmlFor={`${idPrefix}-driver-photo-back`}>Foto do verso do documento do motorista</label>
+      <label htmlFor={`${idPrefix}-driver-photo-back`}>
+        Foto do verso do documento do motorista
+      </label>
       <input
         id={`${idPrefix}-driver-photo-back`}
         type="file"
@@ -474,7 +530,9 @@ export default function ScheduleForm({
           <select
             id={`${idPrefix}-cargo-category-${index}`}
             value={item.category}
-            onChange={(event) => updateCargoItem(index, { category: event.target.value as CargoCategory })}
+            onChange={(event) =>
+              updateCargoItem(index, { category: event.target.value as CargoCategory })
+            }
             disabled={sending}
           >
             {CARGO_CATEGORIES.map((category) => (

@@ -50,7 +50,9 @@ def test_cors_never_configured_with_wildcard_and_credentials():
         ),
     ],
 )
-def test_frontend_origins_list_parses_comma_separated_env(monkeypatch, origins_env, expected):
+def test_frontend_origins_list_parses_comma_separated_env(
+    monkeypatch, origins_env, expected
+):
     monkeypatch.setattr(settings, "frontend_origins", origins_env)
 
     assert settings.frontend_origins_list == expected
@@ -58,7 +60,9 @@ def test_frontend_origins_list_parses_comma_separated_env(monkeypatch, origins_e
 
 def test_rate_limits_ocr_upload_per_ip(monkeypatch, authenticated_client):
     monkeypatch.setattr(settings, "ocr_upload_rate_limit", "2/minute")
-    reading = PlateReading(plate=None, format=None, confidence=None, needs_review=True, detections=[])
+    reading = PlateReading(
+        plate=None, format=None, confidence=None, needs_review=True, detections=[]
+    )
 
     with patch("app.routers.ocr.read_plate", return_value=reading):
         responses = [
@@ -87,7 +91,9 @@ def test_rejects_uploads_larger_than_the_limit(mock_read_plate, authenticated_cl
 
 
 @patch("app.routers.ocr.read_plate")
-def test_does_not_reflect_client_supplied_content_type(mock_read_plate, authenticated_client):
+def test_does_not_reflect_client_supplied_content_type(
+    mock_read_plate, authenticated_client
+):
     malicious_type = "text/html<script>alert(1)</script>"
 
     response = authenticated_client.post(
@@ -122,7 +128,9 @@ def test_opencv_decoder_is_capped_against_decompression_bombs():
     "payload",
     [b"", b"GIF89a" + b"\x00" * 32, b"%PDF-1.4 fake", b"\x00" * 1024],
 )
-def test_returns_400_for_non_image_bytes_disguised_as_jpeg(payload, authenticated_client):
+def test_returns_400_for_non_image_bytes_disguised_as_jpeg(
+    payload, authenticated_client
+):
     response = authenticated_client.post(
         "/ocr/upload",
         files={"file": ("placa.jpg", payload, "image/jpeg")},
@@ -132,7 +140,6 @@ def test_returns_400_for_non_image_bytes_disguised_as_jpeg(payload, authenticate
 
 
 class TestAuthentication:
-
     @pytest.fixture
     def db_client(self, db_session):
         app.dependency_overrides[get_db] = lambda: db_session
@@ -156,7 +163,9 @@ class TestAuthentication:
         assert response.status_code == 401
 
     def test_rejects_a_tampered_token(self):
-        response = client.get("/logs", headers={"Authorization": "Bearer isso.nao.eh.um.jwt.valido"})
+        response = client.get(
+            "/logs", headers={"Authorization": "Bearer isso.nao.eh.um.jwt.valido"}
+        )
 
         assert response.status_code == 401
 
@@ -165,33 +174,53 @@ class TestAuthentication:
 
         from app.config import settings
 
-        forged = jwt.encode({"sub": "1"}, "chave-errada-mas-com-32-bytes-ok", algorithm=settings.jwt_algorithm)
+        forged = jwt.encode(
+            {"sub": "1"},
+            "chave-errada-mas-com-32-bytes-ok",
+            algorithm=settings.jwt_algorithm,
+        )
 
         response = client.get("/logs", headers={"Authorization": f"Bearer {forged}"})
 
         assert response.status_code == 401
 
     def test_login_rejects_wrong_password(self, employee, db_client):
-        response = db_client.post("/auth/login", data={"username": employee.username, "password": "senha-errada"})
+        response = db_client.post(
+            "/auth/login",
+            data={"username": employee.username, "password": "senha-errada"},
+        )
 
         assert response.status_code == 401
 
     def test_login_rejects_unknown_username(self, db_client):
-        response = db_client.post("/auth/login", data={"username": "ninguem-com-esse-login", "password": "qualquer"})
+        response = db_client.post(
+            "/auth/login",
+            data={"username": "ninguem-com-esse-login", "password": "qualquer"},
+        )
 
         assert response.status_code == 401
 
-    def test_login_does_not_reveal_whether_the_username_exists(self, employee, db_client):
-        wrong_password = db_client.post("/auth/login", data={"username": employee.username, "password": "errada"})
+    def test_login_does_not_reveal_whether_the_username_exists(
+        self, employee, db_client
+    ):
+        wrong_password = db_client.post(
+            "/auth/login", data={"username": employee.username, "password": "errada"}
+        )
         unknown_user = db_client.post(
-            "/auth/login", data={"username": "ninguem-com-esse-login", "password": "errada"}
+            "/auth/login",
+            data={"username": "ninguem-com-esse-login", "password": "errada"},
         )
 
         assert wrong_password.status_code == unknown_user.status_code
         assert wrong_password.json() == unknown_user.json()
 
-    def test_successful_login_never_returns_the_password_hash(self, employee, db_client):
-        response = db_client.post("/auth/login", data={"username": employee.username, "password": "s3nhaSegura!"})
+    def test_successful_login_never_returns_the_password_hash(
+        self, employee, db_client
+    ):
+        response = db_client.post(
+            "/auth/login",
+            data={"username": employee.username, "password": "s3nhaSegura!"},
+        )
 
         assert response.status_code == 200
         assert "password_hash" not in response.text
@@ -199,10 +228,13 @@ class TestAuthentication:
 
     def test_login_returns_a_usable_token(self, employee, db_client):
         token = db_client.post(
-            "/auth/login", data={"username": employee.username, "password": "s3nhaSegura!"}
+            "/auth/login",
+            data={"username": employee.username, "password": "s3nhaSegura!"},
         ).json()["access_token"]
 
-        response = db_client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+        response = db_client.get(
+            "/auth/me", headers={"Authorization": f"Bearer {token}"}
+        )
 
         assert response.status_code == 200
         assert response.json() == {
@@ -217,18 +249,25 @@ class TestAuthentication:
         employee.active = False
         db_session.flush()
 
-        response = db_client.post("/auth/login", data={"username": employee.username, "password": "s3nhaSegura!"})
+        response = db_client.post(
+            "/auth/login",
+            data={"username": employee.username, "password": "s3nhaSegura!"},
+        )
 
         assert response.status_code == 401
 
-    def test_deactivating_an_employee_invalidates_their_existing_token(self, employee, db_session, db_client):
+    def test_deactivating_an_employee_invalidates_their_existing_token(
+        self, employee, db_session, db_client
+    ):
         from app.services.auth import create_access_token
 
         token = create_access_token(employee)
         employee.active = False
         db_session.flush()
 
-        response = db_client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+        response = db_client.get(
+            "/auth/me", headers={"Authorization": f"Bearer {token}"}
+        )
 
         assert response.status_code == 401
 
@@ -241,7 +280,6 @@ def test_photo_path_traversal_is_rejected():
 
 
 class TestPasswordValidationDoesNotReflectTheInput:
-
     @pytest.fixture
     def admin(self, db_session):
         from app.models import Employee
@@ -267,7 +305,9 @@ class TestPasswordValidationDoesNotReflectTheInput:
         finally:
             del app.dependency_overrides[get_db]
 
-    def test_create_employee_does_not_echo_a_short_temporary_password(self, admin, db_client):
+    def test_create_employee_does_not_echo_a_short_temporary_password(
+        self, admin, db_client
+    ):
         from app.services.auth import create_access_token
 
         short_password = "curta1"
@@ -284,7 +324,9 @@ class TestPasswordValidationDoesNotReflectTheInput:
         assert response.status_code == 422
         assert short_password not in response.text
 
-    def test_change_password_does_not_echo_a_short_new_password(self, employee, db_client):
+    def test_change_password_does_not_echo_a_short_new_password(
+        self, employee, db_client
+    ):
         from app.services.auth import create_access_token
 
         short_password = "curta2"
@@ -317,7 +359,9 @@ def _schedule_form_data(**overrides):
         "vehicle_width_m": "2.6",
         "origin_location": "São Paulo - SP",
         "destination_location": "São Luís - MA",
-        "cargo_items": json.dumps([{"product_name": "Grãos", "category": "nao_perecivel"}]),
+        "cargo_items": json.dumps(
+            [{"product_name": "Grãos", "category": "nao_perecivel"}]
+        ),
         "scheduled_date": "2026-09-24",
     }
     data.update(overrides)
@@ -336,13 +380,18 @@ def _schedule_form_files():
 
 
 class TestScheduleSecurity:
-
-    def test_sql_injection_payloads_in_schedule_fields_are_treated_as_plain_text(self, authenticated_client):
+    def test_sql_injection_payloads_in_schedule_fields_are_treated_as_plain_text(
+        self, authenticated_client
+    ):
         payload = "'; DROP TABLE schedules;--"
         short_payload = "ab12'or'1"
         response = authenticated_client.post(
             "/schedules",
-            data=_schedule_form_data(driver_name=payload, driver_document_type="rg", driver_document=short_payload),
+            data=_schedule_form_data(
+                driver_name=payload,
+                driver_document_type="rg",
+                driver_document=short_payload,
+            ),
             files=_schedule_form_files(),
         )
 
@@ -352,11 +401,17 @@ class TestScheduleSecurity:
         listing = authenticated_client.get("/schedules")
         assert listing.status_code == 200
 
-    def test_sql_injection_payload_in_a_cargo_item_name_is_treated_as_plain_text(self, authenticated_client):
+    def test_sql_injection_payload_in_a_cargo_item_name_is_treated_as_plain_text(
+        self, authenticated_client
+    ):
         payload = "'; DROP TABLE cargo_items;--"
         response = authenticated_client.post(
             "/schedules",
-            data=_schedule_form_data(cargo_items=json.dumps([{"product_name": payload, "category": "quimico"}])),
+            data=_schedule_form_data(
+                cargo_items=json.dumps(
+                    [{"product_name": payload, "category": "quimico"}]
+                )
+            ),
             files=_schedule_form_files(),
         )
 
@@ -367,7 +422,9 @@ class TestScheduleSecurity:
         assert listing.status_code == 200
 
     def test_requires_authentication_to_create(self):
-        response = client.post("/schedules", data=_schedule_form_data(), files=_schedule_form_files())
+        response = client.post(
+            "/schedules", data=_schedule_form_data(), files=_schedule_form_files()
+        )
 
         assert response.status_code == 401
 

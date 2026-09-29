@@ -1,4 +1,11 @@
-import type { CargoCategory, CheckInStatus, DriverDocumentType, PlateFormat, ScheduleStatus, VerificationStatus } from './api'
+import type {
+  CargoCategory,
+  CheckInStatus,
+  DriverDocumentType,
+  PlateFormat,
+  ScheduleStatus,
+  VerificationStatus,
+} from './api'
 
 export function formatPlate(plate: string, format: PlateFormat | null): string {
   return format === 'antigo' ? `${plate.slice(0, 3)}-${plate.slice(3)}` : plate
@@ -22,7 +29,11 @@ const VERIFICATION_INFO: Record<VerificationStatus, VerificationInfo> = {
   not_checked: { label: 'Não verificada na base oficial', tone: 'neutral', blocksEntry: false },
   regular: { label: 'Placa regular', tone: 'ok', blocksEntry: false },
   irregular: { label: 'Placa com restrição', tone: 'danger', blocksEntry: true },
-  not_found: { label: 'Placa não encontrada — possível placa falsa', tone: 'danger', blocksEntry: true },
+  not_found: {
+    label: 'Placa não encontrada — possível placa falsa',
+    tone: 'danger',
+    blocksEntry: true,
+  },
   unavailable: { label: 'Base oficial indisponível', tone: 'warning', blocksEntry: false },
 }
 
@@ -83,7 +94,11 @@ export const RG_MAX_LENGTH = 9
 
 export function sanitizeDriverDocument(value: string, type: DriverDocumentType): string {
   if (type === 'cpf' || type === 'cnh') return value.replace(/\D/g, '').slice(0, CPF_LENGTH)
-  if (type === 'rg') return value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, CPF_LENGTH)
+  if (type === 'rg')
+    return value
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .toUpperCase()
+      .slice(0, CPF_LENGTH)
   return value
 }
 
@@ -128,7 +143,8 @@ export function isValidDriverDocument(type: DriverDocumentType, value: string): 
 const DRIVER_DOCUMENT_HINTS: Record<DriverDocumentType, string> = {
   cpf: '11 dígitos — o dígito verificador é conferido automaticamente.',
   cnh: '11 dígitos (9 do número de registro + 2 dígitos verificadores).',
-  rg: 'De 7 a 9 caracteres (padrão estadual, pode ter letra) ou, se for a nova Carteira de ' +
+  rg:
+    'De 7 a 9 caracteres (padrão estadual, pode ter letra) ou, se for a nova Carteira de ' +
     'Identidade Nacional, os 11 dígitos do CPF.',
 }
 

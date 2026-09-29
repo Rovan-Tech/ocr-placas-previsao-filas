@@ -65,7 +65,6 @@ class _Vote:
 
 @dataclass(frozen=True)
 class PlateReading:
-
     plate: str | None
     format: PlateFormat | None
     confidence: float | None
@@ -99,7 +98,11 @@ def _group_into_rows(boxes: list[tuple]) -> list[list[tuple]]:
         if assigned[i]:
             continue
         _, y, height, _, _ = boxes[i]
-        row_indices = [j for j in order if not assigned[j] and abs(boxes[j][1] - y) < max(height, 1) / 2]
+        row_indices = [
+            j
+            for j in order
+            if not assigned[j] and abs(boxes[j][1] - y) < max(height, 1) / 2
+        ]
         for j in row_indices:
             assigned[j] = True
         rows.append(sorted((boxes[j] for j in row_indices), key=lambda b: b[0]))
@@ -110,7 +113,15 @@ def _text_lines(results: list) -> Iterator[tuple[str, float]]:
     boxes = []
     for box, text, confidence in results:
         points = np.asarray(box, dtype=np.float32)
-        boxes.append((points[:, 0].min(), points[:, 1].mean(), np.ptp(points[:, 1]), text, float(confidence)))
+        boxes.append(
+            (
+                points[:, 0].min(),
+                points[:, 1].mean(),
+                np.ptp(points[:, 1]),
+                text,
+                float(confidence),
+            )
+        )
 
     for _, _, _, text, confidence in boxes:
         yield text, confidence
@@ -139,8 +150,10 @@ def _is_confident(vote: _Vote) -> bool:
 def _looks_truncated(results: list) -> bool:
     for _, text, _ in results:
         chars = normalize(text)
-        if PLATE_LENGTH - 2 <= len(chars) < PLATE_LENGTH and any(c.isdigit() for c in chars) and any(
-            c.isalpha() for c in chars
+        if (
+            PLATE_LENGTH - 2 <= len(chars) < PLATE_LENGTH
+            and any(c.isdigit() for c in chars)
+            and any(c.isalpha() for c in chars)
         ):
             return True
     return False
@@ -165,11 +178,23 @@ def _vote(votes: dict[str, _Vote], results: list, is_weak_evidence: bool) -> Non
         vote.has_strong_evidence = vote.has_strong_evidence or not is_weak_evidence
 
 
-def _read_images(reader: easyocr.Reader, images: Iterable[tuple[np.ndarray, bool]], votes: dict[str, _Vote],
-                 detections: list[dict], started: float, max_variants: int | None = None) -> bool:
-    prepared = [(is_weak_evidence, list(ocr_variants(region))) for region, is_weak_evidence in images]
+def _read_images(
+    reader: easyocr.Reader,
+    images: Iterable[tuple[np.ndarray, bool]],
+    votes: dict[str, _Vote],
+    detections: list[dict],
+    started: float,
+    max_variants: int | None = None,
+) -> bool:
+    prepared = [
+        (is_weak_evidence, list(ocr_variants(region)))
+        for region, is_weak_evidence in images
+    ]
     if max_variants is not None:
-        prepared = [(is_weak_evidence, variants[:max_variants]) for is_weak_evidence, variants in prepared]
+        prepared = [
+            (is_weak_evidence, variants[:max_variants])
+            for is_weak_evidence, variants in prepared
+        ]
 
     exhausted = [False] * len(prepared)
     round_index = 0
@@ -188,7 +213,8 @@ def _read_images(reader: easyocr.Reader, images: Iterable[tuple[np.ndarray, bool
             _, variant = variants[round_index]
             results = reader.readtext(variant, allowlist=PLATE_ALLOWLIST)
             detections.extend(
-                {"text": text, "confidence": round(float(confidence), 4)} for _, text, confidence in results
+                {"text": text, "confidence": round(float(confidence), 4)}
+                for _, text, confidence in results
             )
             _vote(votes, results, is_weak_evidence)
             if votes and _is_confident(max(votes.values(), key=lambda v: v.score)):
@@ -216,8 +242,18 @@ def read_plate(image_bytes: bytes) -> PlateReading:
         reader = get_reader()
         started = time.monotonic()
         candidates = find_plate_candidates(image, max_candidates=6)
-        if not _read_images(reader, candidates, votes, detections, started) and not votes:
-            _read_images(reader, [(_full_image(image), True)], votes, detections, started, FULL_IMAGE_MAX_VARIANTS)
+        if (
+            not _read_images(reader, candidates, votes, detections, started)
+            and not votes
+        ):
+            _read_images(
+                reader,
+                [(_full_image(image), True)],
+                votes,
+                detections,
+                started,
+                FULL_IMAGE_MAX_VARIANTS,
+            )
 
     if not votes:
         return PlateReading(None, None, None, needs_review=True, detections=detections)
@@ -230,6 +266,8 @@ def read_plate(image_bytes: bytes) -> PlateReading:
         plate=plate,
         format=best.format,
         confidence=confidence,
-        needs_review=confidence < REVIEW_CONFIDENCE or ambiguous or not best.has_strong_evidence,
+        needs_review=confidence < REVIEW_CONFIDENCE
+        or ambiguous
+        or not best.has_strong_evidence,
         detections=detections,
     )

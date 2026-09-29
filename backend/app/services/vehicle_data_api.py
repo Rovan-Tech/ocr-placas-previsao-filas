@@ -61,7 +61,6 @@ def _parse_vehicle_data(payload: dict) -> VehicleData | None:
 
 
 class ApiBrasilVehicleDataProvider:
-
     def __init__(self, device_token: str, bearer_token: str, timeout: float) -> None:
         self._device_token = device_token
         self._bearer_token = bearer_token
@@ -80,17 +79,24 @@ class ApiBrasilVehicleDataProvider:
                     json={"placa": plate},
                 )
         except httpx.TimeoutException:
-            logger.warning("Consulta de veículo na API Brasil expirou (timeout) para a placa %s.", plate)
+            logger.warning(
+                "Consulta de veículo na API Brasil expirou (timeout) para a placa %s.",
+                plate,
+            )
             return None
         except httpx.HTTPError:
-            logger.exception("Falha de rede consultando a API Brasil para a placa %s.", plate)
+            logger.exception(
+                "Falha de rede consultando a API Brasil para a placa %s.", plate
+            )
             return None
 
         if response.status_code == 429:
             logger.warning("Limite diário da API Brasil estourado.")
             return None
         if response.status_code != 200:
-            logger.warning("API Brasil respondeu %s para a placa %s.", response.status_code, plate)
+            logger.warning(
+                "API Brasil respondeu %s para a placa %s.", response.status_code, plate
+            )
             return None
 
         try:
@@ -99,22 +105,55 @@ class ApiBrasilVehicleDataProvider:
             logger.warning("Resposta da API Brasil não é um JSON válido.")
             return None
 
-        if not isinstance(payload, dict) or payload.get("error") is True or payload.get("success") is False:
+        if (
+            not isinstance(payload, dict)
+            or payload.get("error") is True
+            or payload.get("success") is False
+        ):
             return None
         return _parse_vehicle_data(payload)
 
 
 _MOCK_PROFILES: tuple[VehicleData, ...] = (
-    VehicleData(brand="Volvo", model="FH 540", year="2019", uf="SP", color="Branco", is_mock=True),
-    VehicleData(brand="Scania", model="R 450", year="2021", uf="PR", color="Vermelho", is_mock=True),
-    VehicleData(brand="Mercedes-Benz", model="Actros 2651", year="2020", uf="RS", color="Prata", is_mock=True),
-    VehicleData(brand="DAF", model="XF 480", year="2018", uf="SC", color="Azul", is_mock=True),
-    VehicleData(brand="Volkswagen", model="Constellation 24.280", year="2022", uf="MG", color="Branco", is_mock=True),
+    VehicleData(
+        brand="Volvo",
+        model="FH 540",
+        year="2019",
+        uf="SP",
+        color="Branco",
+        is_mock=True,
+    ),
+    VehicleData(
+        brand="Scania",
+        model="R 450",
+        year="2021",
+        uf="PR",
+        color="Vermelho",
+        is_mock=True,
+    ),
+    VehicleData(
+        brand="Mercedes-Benz",
+        model="Actros 2651",
+        year="2020",
+        uf="RS",
+        color="Prata",
+        is_mock=True,
+    ),
+    VehicleData(
+        brand="DAF", model="XF 480", year="2018", uf="SC", color="Azul", is_mock=True
+    ),
+    VehicleData(
+        brand="Volkswagen",
+        model="Constellation 24.280",
+        year="2022",
+        uf="MG",
+        color="Branco",
+        is_mock=True,
+    ),
 )
 
 
 class MockVehicleDataProvider:
-
     async def lookup(self, plate: str) -> VehicleData | None:
         index = sum(ord(character) for character in plate) % len(_MOCK_PROFILES)
         return _MOCK_PROFILES[index]

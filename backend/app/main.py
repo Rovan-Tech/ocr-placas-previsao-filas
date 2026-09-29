@@ -17,6 +17,7 @@ SECURITY_HEADERS = {
     "Referrer-Policy": "no-referrer",
 }
 
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     threading.Thread(target=get_reader, name="easyocr-warmup", daemon=True).start()

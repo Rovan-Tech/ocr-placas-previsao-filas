@@ -16,22 +16,30 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import deny, git, project_dir, read_stdin_json  # noqa: E402
 
 
+def _is_wide_target(t: str) -> bool:
+    if t in ("/", "~", ".", "..", "*", "$HOME", '"$HOME"'):
+        return True
+    # Um caminho absoluto com poucos segmentos é uma pasta ampla (/home, /home/user);
+    # um caminho longo e específico (muitos segmentos) é um arquivo/pasta pontual, não amplo.
+    if t.startswith("/"):
+        segments = [s for s in t.split("/") if s]
+        return len(segments) <= 2
+    return False
+
+
 def is_destructive_rm(command: str) -> str | None:
     for match in re.finditer(r"\brm\s+([^\n;|&]*)", command):
         args = match.group(1)
-        if not re.search(r"-[a-zA-Z]*r[a-zA-Z]*f|-[a-zA-Z]*f[a-zA-Z]*r", args):
+        tokens = args.split()
+        flags = "".join(t for t in tokens if t.startswith("-") and not t.startswith("--"))
+        long_flags = [t for t in tokens if t.startswith("--")]
+        has_recursive_force = (
+            re.search(r"r", flags) and re.search(r"f", flags)
+        ) or ("--recursive" in long_flags and "--force" in long_flags)
+        if not has_recursive_force:
             continue
-        targets = [t for t in args.split() if not t.startswith("-")]
-        dangerous = any(
-            t in ("/", "~", ".", "..", "*", "$HOME", "\"$HOME\"")
-            or t.startswith("/home")
-            or t.startswith("/etc")
-            or t.startswith("/usr")
-            or t.startswith("/var")
-            or re.match(r"^/[^/]*$", t)
-            for t in targets
-        )
-        if dangerous or not targets:
+        targets = [t for t in tokens if not t.startswith("-")]
+        if not targets or any(_is_wide_target(t) for t in targets):
             return f"`rm` recursivo/forçado em caminho amplo: `{match.group(0).strip()}`"
     return None
 

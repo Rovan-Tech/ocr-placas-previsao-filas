@@ -20,10 +20,16 @@ def test_new_checkin_defaults_to_waiting_with_timestamp(db_session, employee):
 
 
 def test_status_is_stored_as_its_value(db_session, employee):
-    db_session.add(CheckIn(plate="ABC1234", status=CheckInStatus.ADMITTED, created_by_id=employee.id))
+    db_session.add(
+        CheckIn(
+            plate="ABC1234", status=CheckInStatus.ADMITTED, created_by_id=employee.id
+        )
+    )
     db_session.flush()
 
-    stored = db_session.execute(text("SELECT status FROM checkins WHERE plate = 'ABC1234'")).scalar_one()
+    stored = db_session.execute(
+        text("SELECT status FROM checkins WHERE plate = 'ABC1234'")
+    ).scalar_one()
     assert stored == "admitted"
 
 
@@ -37,7 +43,9 @@ def test_recent_checkins_can_be_ordered_by_created_at(db_session, employee):
         {"employee_id": employee.id},
     )
 
-    plates = db_session.scalars(select(CheckIn.plate).order_by(CheckIn.created_at.desc())).all()
+    plates = db_session.scalars(
+        select(CheckIn.plate).order_by(CheckIn.created_at.desc())
+    ).all()
     assert plates == ["BBB2B22", "AAA1A11"]
 
 
@@ -60,6 +68,8 @@ def test_rejects_plate_longer_than_seven_characters(db_session, employee, plate)
 def test_database_rejects_unknown_status(db_session, employee):
     with pytest.raises(IntegrityError, match="ck_checkins_checkin_status"):
         db_session.execute(
-            text("INSERT INTO checkins (plate, status, created_by_id) VALUES ('ABC1D23', 'foo', :employee_id)"),
+            text(
+                "INSERT INTO checkins (plate, status, created_by_id) VALUES ('ABC1D23', 'foo', :employee_id)"
+            ),
             {"employee_id": employee.id},
         )

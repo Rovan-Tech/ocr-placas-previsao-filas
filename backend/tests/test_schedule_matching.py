@@ -43,7 +43,9 @@ def test_a_different_plate_does_not_match(db_session, employee, make_schedule):
     assert match_schedule_for_plate(db_session, "ABC1D23", TODAY) is None
 
 
-def test_picks_the_schedule_closest_to_today_when_there_are_several(db_session, employee, make_schedule):
+def test_picks_the_schedule_closest_to_today_when_there_are_several(
+    db_session, employee, make_schedule
+):
     make_schedule(employee, scheduled_date=TODAY + timedelta(days=10))
     close = make_schedule(employee, scheduled_date=TODAY + timedelta(days=1))
 

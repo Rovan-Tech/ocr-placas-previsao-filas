@@ -5,28 +5,39 @@ import pytest
 from app.main import app
 from app.services.ocr_service import PlateReading
 from app.services.plate_format import PlateFormat
-from app.services.plate_verification import PlateVerification, VerificationStatus, get_plate_verifier
+from app.services.plate_verification import (
+    PlateVerification,
+    VerificationStatus,
+    get_plate_verifier,
+)
 
 READING = PlateReading(
     plate="ABC1D23",
     format=PlateFormat.MERCOSUL,
     confidence=0.98,
     needs_review=False,
-    detections=[{"text": "BRASIL", "confidence": 0.99}, {"text": "ABC1D23", "confidence": 0.98}],
+    detections=[
+        {"text": "BRASIL", "confidence": 0.99},
+        {"text": "ABC1D23", "confidence": 0.98},
+    ],
 )
 
 
 @pytest.fixture
 def verifier():
     fake = MagicMock()
-    fake.verify.return_value = PlateVerification(VerificationStatus.REGULAR, "Sem restrições.", "Base de teste")
+    fake.verify.return_value = PlateVerification(
+        VerificationStatus.REGULAR, "Sem restrições.", "Base de teste"
+    )
     app.dependency_overrides[get_plate_verifier] = lambda: fake
     yield fake
     del app.dependency_overrides[get_plate_verifier]
 
 
 def _upload(authenticated_client):
-    return authenticated_client.post("/ocr/upload", files={"file": ("placa.jpg", b"fake-image-bytes", "image/jpeg")})
+    return authenticated_client.post(
+        "/ocr/upload", files={"file": ("placa.jpg", b"fake-image-bytes", "image/jpeg")}
+    )
 
 
 def test_rejects_unsupported_content_type(authenticated_client):
@@ -39,7 +50,9 @@ def test_rejects_unsupported_content_type(authenticated_client):
 
 
 @patch("app.routers.ocr.read_plate", return_value=READING)
-def test_returns_plate_format_confidence_and_verification(_, authenticated_client, verifier):
+def test_returns_plate_format_confidence_and_verification(
+    _, authenticated_client, verifier
+):
     response = _upload(authenticated_client)
 
     assert response.status_code == 200
@@ -48,7 +61,11 @@ def test_returns_plate_format_confidence_and_verification(_, authenticated_clien
     assert body["plate_format"] == "mercosul"
     assert body["confidence"] == 0.98
     assert body["needs_review"] is False
-    assert body["verification"] == {"status": "regular", "detail": "Sem restrições.", "source": "Base de teste"}
+    assert body["verification"] == {
+        "status": "regular",
+        "detail": "Sem restrições.",
+        "source": "Base de teste",
+    }
     assert body["detections"][1] == {"text": "ABC1D23", "confidence": 0.98}
     verifier.verify.assert_called_once_with("ABC1D23")
 
@@ -62,9 +79,17 @@ def test_default_verification_is_not_checked(_, authenticated_client):
 
 @patch(
     "app.routers.ocr.read_plate",
-    return_value=PlateReading(None, None, None, needs_review=True, detections=[{"text": "SP", "confidence": 0.4}]),
+    return_value=PlateReading(
+        None,
+        None,
+        None,
+        needs_review=True,
+        detections=[{"text": "SP", "confidence": 0.4}],
+    ),
 )
-def test_without_a_valid_plate_nothing_is_sent_to_the_official_database(_, authenticated_client, verifier):
+def test_without_a_valid_plate_nothing_is_sent_to_the_official_database(
+    _, authenticated_client, verifier
+):
     body = _upload(authenticated_client).json()
 
     assert body["plate"] is None
@@ -75,13 +100,19 @@ def test_without_a_valid_plate_nothing_is_sent_to_the_official_database(_, authe
 
 
 @patch("app.routers.ocr.read_plate")
-def test_returns_400_when_the_image_cannot_be_decoded(mock_read_plate, authenticated_client):
-    mock_read_plate.side_effect = ValueError("Não foi possível decodificar a imagem enviada.")
+def test_returns_400_when_the_image_cannot_be_decoded(
+    mock_read_plate, authenticated_client
+):
+    mock_read_plate.side_effect = ValueError(
+        "Não foi possível decodificar a imagem enviada."
+    )
 
     response = _upload(authenticated_client)
 
     assert response.status_code == 400
-    assert response.json() == {"detail": "Não foi possível decodificar a imagem enviada."}
+    assert response.json() == {
+        "detail": "Não foi possível decodificar a imagem enviada."
+    }
 
 
 def test_ocr_runs_off_the_event_loop_so_the_api_keeps_responding(authenticated_client):
@@ -99,7 +130,9 @@ def test_ocr_runs_off_the_event_loop_so_the_api_keeps_responding(authenticated_c
 
     async def scenario():
         transport = httpx.ASGITransport(app=app)
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as async_client:
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as async_client:
 
             async def upload():
                 files = {"file": ("placa.jpg", b"fake-image-bytes", "image/jpeg")}
@@ -120,11 +153,12 @@ def test_ocr_runs_off_the_event_loop_so_the_api_keeps_responding(authenticated_c
 
 
 class TestManualPlateEntry:
-
     def _submit(self, authenticated_client, plate: str, **extra):
         return authenticated_client.post("/ocr/manual", data={"plate": plate, **extra})
 
-    def test_detects_mercosul_format_by_character_order(self, authenticated_client, verifier):
+    def test_detects_mercosul_format_by_character_order(
+        self, authenticated_client, verifier
+    ):
         response = self._submit(authenticated_client, "ABC1D23")
 
         assert response.status_code == 200
@@ -153,7 +187,9 @@ class TestManualPlateEntry:
         assert body["plate"] == "ABC1D23"
 
     @pytest.mark.parametrize("invalid", ["ABC123", "ABCD123", "1234567", "ABCDEFG"])
-    def test_rejects_text_that_is_not_a_valid_plate_format(self, authenticated_client, invalid):
+    def test_rejects_text_that_is_not_a_valid_plate_format(
+        self, authenticated_client, invalid
+    ):
         response = self._submit(authenticated_client, invalid)
 
         assert response.status_code == 400
@@ -169,7 +205,9 @@ class TestManualPlateEntry:
 
         assert response.status_code == 400
 
-    def test_is_verified_against_the_official_database_like_an_ocr_read(self, authenticated_client, verifier):
+    def test_is_verified_against_the_official_database_like_an_ocr_read(
+        self, authenticated_client, verifier
+    ):
         verifier.verify.return_value = PlateVerification(
             VerificationStatus.NOT_FOUND, "Placa não encontrada.", "Base de teste"
         )
@@ -182,18 +220,24 @@ class TestManualPlateEntry:
             "source": "Base de teste",
         }
 
-    def test_invalid_plate_is_never_sent_to_the_official_database(self, authenticated_client, verifier):
+    def test_invalid_plate_is_never_sent_to_the_official_database(
+        self, authenticated_client, verifier
+    ):
         self._submit(authenticated_client, "ABCDEFG")
 
         verifier.verify.assert_not_called()
 
-    def test_does_not_reflect_unsanitized_input_in_the_response(self, authenticated_client):
+    def test_does_not_reflect_unsanitized_input_in_the_response(
+        self, authenticated_client
+    ):
         response = self._submit(authenticated_client, "<script>alert(1)</script>")
 
         assert response.status_code == 400
         assert "<script>" not in response.text
 
-    def test_attaches_a_photo_as_a_safeguard_and_saves_it_to_disk(self, authenticated_client, tmp_path, monkeypatch):
+    def test_attaches_a_photo_as_a_safeguard_and_saves_it_to_disk(
+        self, authenticated_client, tmp_path, monkeypatch
+    ):
         import app.services.photo_storage as photo_storage
 
         monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))
@@ -211,7 +255,9 @@ class TestManualPlateEntry:
         assert len(saved_files) == 1
         assert saved_files[0].read_bytes() == b"fake-image-bytes"
 
-    def test_invalid_ocr_plate_context_is_dropped_instead_of_failing(self, authenticated_client, tmp_path, monkeypatch):
+    def test_invalid_ocr_plate_context_is_dropped_instead_of_failing(
+        self, authenticated_client, tmp_path, monkeypatch
+    ):
         import app.services.photo_storage as photo_storage
 
         monkeypatch.setattr(photo_storage.settings, "upload_dir", str(tmp_path))

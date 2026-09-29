@@ -22,7 +22,9 @@ DEMO_SAMPLE_NAMES = [
     "reflexo",
 ]
 
-SAMPLE_NOT_FOUND = HTTPException(status_code=404, detail="Exemplo de demonstração não encontrado.")
+SAMPLE_NOT_FOUND = HTTPException(
+    status_code=404, detail="Exemplo de demonstração não encontrado."
+)
 
 
 @lru_cache(maxsize=1)
@@ -55,7 +57,9 @@ class DemoPlateReadResponse(BaseModel):
 @router.get("/demo-samples", response_model=list[DemoSampleInfo])
 def list_demo_samples() -> list[DemoSampleInfo]:
     return [
-        DemoSampleInfo(id=sample.name, plate=sample.plate, description=sample.description)
+        DemoSampleInfo(
+            id=sample.name, plate=sample.plate, description=sample.description
+        )
         for sample in demo_samples()
     ]
 
@@ -89,7 +93,9 @@ async def demo_upload(
             )
         image_bytes = await file.read(MAX_UPLOAD_BYTES + 1)
         if len(image_bytes) > MAX_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail="Imagem muito grande. O limite é de 5 MB.")
+            raise HTTPException(
+                status_code=413, detail="Imagem muito grande. O limite é de 5 MB."
+            )
     else:
         raise HTTPException(
             status_code=422,

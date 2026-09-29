@@ -6,7 +6,9 @@ async function hasHorizontalOverflow(page: Page) {
 }
 
 test.describe('login — tema claro de alto contraste', () => {
-  test('botão Entrar é verde escuro com texto branco, e os campos têm borda de 2px', async ({ page }) => {
+  test('botão Entrar é verde escuro com texto branco, e os campos têm borda de 2px', async ({
+    page,
+  }) => {
     await page.goto('/')
 
     const submit = page.getByRole('button', { name: 'Entrar' })
@@ -17,24 +19,38 @@ test.describe('login — tema claro de alto contraste', () => {
     await expect(username).toHaveCSS('border-top-width', '2px')
     await expect(username).toHaveCSS('border-top-color', 'rgb(107, 125, 112)')
     await expect(username).toHaveCSS('color', 'rgb(15, 27, 21)')
-    await expect(page.getByRole('link', { name: 'Testar sem login' })).toHaveCSS('color', 'rgb(11, 110, 76)')
+    await expect(page.getByRole('link', { name: 'Testar sem login' })).toHaveCSS(
+      'color',
+      'rgb(11, 110, 76)',
+    )
   })
 
   test('o corpo do texto usa IBM Plex Sans', async ({ page }) => {
     await page.goto('/')
 
     await expect(page.getByLabel('Usuário')).toHaveCSS('font-family', /IBM Plex Sans/)
-    await expect(page.getByRole('heading', { name: 'Porto Baía Verde' })).toHaveCSS('font-family', /Space Grotesk/)
+    await expect(page.getByRole('heading', { name: 'Porto Baía Verde' })).toHaveCSS(
+      'font-family',
+      /Space Grotesk/,
+    )
   })
 
-  test('alternar para o tema escuro troca as cores do login e continua utilizável', async ({ page }) => {
+  test('alternar para o tema escuro troca as cores do login e continua utilizável', async ({
+    page,
+  }) => {
     await page.goto('/')
 
     await page.getByRole('switch', { name: /Mudar para tema escuro/ }).click()
 
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
-    await expect(page.getByRole('button', { name: 'Entrar' })).toHaveCSS('background-color', 'rgb(79, 190, 149)')
-    await expect(page.getByRole('link', { name: 'Testar sem login' })).toHaveCSS('color', 'rgb(79, 190, 149)')
+    await expect(page.getByRole('button', { name: 'Entrar' })).toHaveCSS(
+      'background-color',
+      'rgb(79, 190, 149)',
+    )
+    await expect(page.getByRole('link', { name: 'Testar sem login' })).toHaveCSS(
+      'color',
+      'rgb(79, 190, 149)',
+    )
     await page.getByLabel('Usuário').fill('fiscal')
     await page.getByLabel('Senha', { exact: true }).fill('senhaForte123')
     await expect(page.getByRole('button', { name: 'Entrar' })).toBeEnabled()
@@ -48,19 +64,26 @@ test.describe('login — tema padrão com o sistema em modo escuro', () => {
     await page.goto('/')
 
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
-    await expect(page.getByRole('button', { name: 'Entrar' })).toHaveCSS('background-color', 'rgb(11, 110, 76)')
+    await expect(page.getByRole('button', { name: 'Entrar' })).toHaveCSS(
+      'background-color',
+      'rgb(11, 110, 76)',
+    )
   })
 })
 
 test.describe('login — layout responsivo', () => {
-  test('em desktop, mostra o painel de marca à esquerda e o card de login à direita', async ({ page }) => {
+  test('em desktop, mostra o painel de marca à esquerda e o card de login à direita', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto('/')
 
     const panel = page.getByRole('complementary', { name: 'Sobre o sistema' })
     await expect(panel).toBeVisible()
     await expect(
-      panel.getByText('Leitura de placas e previsão de fila, do jeito que cada função do time precisa.'),
+      panel.getByText(
+        'Leitura de placas e previsão de fila, do jeito que cada função do time precisa.',
+      ),
     ).toBeVisible()
     await expect(panel).toHaveCSS('background-color', 'rgb(13, 26, 22)')
 
@@ -72,7 +95,9 @@ test.describe('login — layout responsivo', () => {
     expect(await hasHorizontalOverflow(page)).toBe(false)
   })
 
-  test('em mobile, esconde o painel de marca e mostra só o card, sem rolagem horizontal', async ({ page }) => {
+  test('em mobile, esconde o painel de marca e mostra só o card, sem rolagem horizontal', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/')
 
@@ -82,7 +107,9 @@ test.describe('login — layout responsivo', () => {
     expect(await hasHorizontalOverflow(page)).toBe(false)
   })
 
-  test('em mobile, o botão Entrar e o alternador de senha têm alvo de toque adequado', async ({ page }) => {
+  test('em mobile, o botão Entrar e o alternador de senha têm alvo de toque adequado', async ({
+    page,
+  }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/')
 

@@ -1,4 +1,3 @@
-
 import re
 from dataclasses import dataclass
 from enum import Enum
@@ -11,11 +10,30 @@ OLD_PATTERN = re.compile(r"^[A-Z]{3}[0-9]{4}$")
 LETTER_POSITIONS = (0, 1, 2)
 DIGIT_POSITIONS = (3, 5, 6)
 
-DIGIT_TO_LETTER = {"0": "O", "1": "I", "2": "Z", "4": "A", "5": "S", "6": "G", "7": "T", "8": "B"}
+DIGIT_TO_LETTER = {
+    "0": "O",
+    "1": "I",
+    "2": "Z",
+    "4": "A",
+    "5": "S",
+    "6": "G",
+    "7": "T",
+    "8": "B",
+}
 LETTER_TO_DIGIT = {
-    "O": "0", "Q": "0", "D": "0", "U": "0",
-    "I": "1", "L": "1", "J": "1", "T": "1",
-    "Z": "2", "A": "4", "S": "5", "G": "6", "B": "8",
+    "O": "0",
+    "Q": "0",
+    "D": "0",
+    "U": "0",
+    "I": "1",
+    "L": "1",
+    "J": "1",
+    "T": "1",
+    "Z": "2",
+    "A": "4",
+    "S": "5",
+    "G": "6",
+    "B": "8",
 }
 
 
@@ -75,4 +93,3 @@ def find_plate(text: str, *, max_corrections: int = 2) -> PlateMatch | None:
             if best is None or match.corrections < best.corrections:
                 best = match
     return best
-

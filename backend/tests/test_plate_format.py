@@ -50,7 +50,9 @@ def test_fifth_character_is_never_changed_because_it_defines_the_format():
     assert find_plate("ABC1023").format is PlateFormat.OLD
 
 
-@pytest.mark.parametrize("text", ["BRASIL", "SAO PAULO", "SP", "", "1234567", "ABCDEFG"])
+@pytest.mark.parametrize(
+    "text", ["BRASIL", "SAO PAULO", "SP", "", "1234567", "ABCDEFG"]
+)
 def test_rejects_text_that_is_not_a_plate(text):
     assert find_plate(text) is None
 

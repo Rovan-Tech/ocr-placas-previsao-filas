@@ -54,7 +54,9 @@ def _expand(corners: np.ndarray, margin_x: float, margin_y: float) -> np.ndarray
     )
 
 
-def rectify(image: np.ndarray, corners: np.ndarray, height: int = RECTIFIED_HEIGHT) -> np.ndarray:
+def rectify(
+    image: np.ndarray, corners: np.ndarray, height: int = RECTIFIED_HEIGHT
+) -> np.ndarray:
     corners = _order_corners(corners)
     top = np.linalg.norm(corners[1] - corners[0])
     bottom = np.linalg.norm(corners[2] - corners[3])
@@ -65,25 +67,40 @@ def rectify(image: np.ndarray, corners: np.ndarray, height: int = RECTIFIED_HEIG
         top, bottom, left, right = left, right, top, bottom
     aspect_ratio = max(top, bottom) / max(left, right, 1.0)
     width = int(round(height * aspect_ratio))
-    destination = np.float32([[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]])
+    destination = np.float32(
+        [[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]]
+    )
     matrix = cv2.getPerspectiveTransform(corners, destination)
-    return cv2.warpPerspective(image, matrix, (width, height), flags=cv2.INTER_CUBIC,
-                               borderMode=cv2.BORDER_REPLICATE)
+    return cv2.warpPerspective(
+        image,
+        matrix,
+        (width, height),
+        flags=cv2.INTER_CUBIC,
+        borderMode=cv2.BORDER_REPLICATE,
+    )
 
 
 def _character_boxes(gray: np.ndarray) -> list[tuple[float, float, float, float]]:
     denoised = cv2.medianBlur(gray, 3)
     enhanced = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(denoised)
-    blackhat = cv2.morphologyEx(enhanced, cv2.MORPH_BLACKHAT, cv2.getStructuringElement(cv2.MORPH_RECT, (9, 15)))
+    blackhat = cv2.morphologyEx(
+        enhanced, cv2.MORPH_BLACKHAT, cv2.getStructuringElement(cv2.MORPH_RECT, (9, 15))
+    )
     _, mask = cv2.threshold(blackhat, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
+    mask = cv2.morphologyEx(
+        mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    )
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     height = gray.shape[0]
     boxes = []
     for contour in contours:
         x, y, w, h = cv2.boundingRect(contour)
-        if not CHAR_MIN_HEIGHT_FRACTION * height <= h <= CHAR_MAX_HEIGHT_FRACTION * height:
+        if (
+            not CHAR_MIN_HEIGHT_FRACTION * height
+            <= h
+            <= CHAR_MAX_HEIGHT_FRACTION * height
+        ):
             continue
         if not CHAR_ASPECT_MIN <= w / h <= CHAR_ASPECT_MAX:
             continue
@@ -117,7 +134,9 @@ def _group_by_baseline(
             reference_center = group[0][1] + reference_height / 2
             if (
                 abs(center - reference_center) <= BASELINE_TOLERANCE * reference_height
-                and CHAR_HEIGHT_RATIO_MIN <= h / reference_height <= CHAR_HEIGHT_RATIO_MAX
+                and CHAR_HEIGHT_RATIO_MIN
+                <= h / reference_height
+                <= CHAR_HEIGHT_RATIO_MAX
             ):
                 group.append(box)
                 break
@@ -155,7 +174,8 @@ def _corners_from_box(box: tuple[float, float, float, float]) -> np.ndarray:
 
 
 def _lines_overlap_horizontally(
-    first: list[tuple[float, float, float, float]], second: list[tuple[float, float, float, float]]
+    first: list[tuple[float, float, float, float]],
+    second: list[tuple[float, float, float, float]],
 ) -> bool:
     ax0, _, ax1, _ = _bounding_box(first)
     bx0, _, bx1, _ = _bounding_box(second)
@@ -168,7 +188,9 @@ def _line_clusters(
 ) -> list[list[tuple[float, float, float, float]]]:
     lines = []
     for group in _group_by_baseline(boxes):
-        clusters = [cluster for cluster in _split_by_horizontal_gap(group) if len(cluster) >= 2]
+        clusters = [
+            cluster for cluster in _split_by_horizontal_gap(group) if len(cluster) >= 2
+        ]
         if clusters:
             lines.append(max(clusters, key=len))
     return lines
@@ -179,9 +201,13 @@ def _dark_component_count(patch: np.ndarray) -> int:
         return 0
     denoised = cv2.medianBlur(patch, 3)
     enhanced = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(denoised)
-    blackhat = cv2.morphologyEx(enhanced, cv2.MORPH_BLACKHAT, cv2.getStructuringElement(cv2.MORPH_RECT, (9, 15)))
+    blackhat = cv2.morphologyEx(
+        enhanced, cv2.MORPH_BLACKHAT, cv2.getStructuringElement(cv2.MORPH_RECT, (9, 15))
+    )
     _, mask = cv2.threshold(blackhat, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3)))
+    mask = cv2.morphologyEx(
+        mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    )
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     return sum(1 for contour in contours if cv2.contourArea(contour) > 5)
 
@@ -196,7 +222,9 @@ def _looks_like_plate_text(gray: np.ndarray, corners: np.ndarray) -> bool:
     return _dark_component_count(native_crop) >= MIN_DARK_COMPONENTS_FOR_PLATE
 
 
-def _cluster_characters_into_lines(boxes: list[tuple[float, float, float, float]]) -> list[np.ndarray]:
+def _cluster_characters_into_lines(
+    boxes: list[tuple[float, float, float, float]],
+) -> list[np.ndarray]:
     corners = []
     for group in _group_by_baseline(boxes):
         for cluster in _split_by_horizontal_gap(group):
@@ -237,17 +265,25 @@ def _candidate_corners(gray: np.ndarray) -> list[tuple[np.ndarray, bool]]:
     edges = cv2.dilate(edges, np.ones((3, 3), np.uint8))
     edge_contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
-    blackhat = cv2.morphologyEx(enhanced, cv2.MORPH_BLACKHAT, cv2.getStructuringElement(cv2.MORPH_RECT, (25, 9)))
+    blackhat = cv2.morphologyEx(
+        enhanced, cv2.MORPH_BLACKHAT, cv2.getStructuringElement(cv2.MORPH_RECT, (25, 9))
+    )
     gradient = np.absolute(cv2.Sobel(blackhat, cv2.CV_32F, 1, 0, ksize=3))
     gradient = cv2.normalize(gradient, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
     gradient = cv2.GaussianBlur(gradient, (7, 7), 0)
     _, text_mask = cv2.threshold(gradient, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-    text_mask = cv2.morphologyEx(text_mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (31, 7)))
+    text_mask = cv2.morphologyEx(
+        text_mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (31, 7))
+    )
     text_mask = cv2.erode(text_mask, None, iterations=1)
-    text_contours, _ = cv2.findContours(text_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    text_contours, _ = cv2.findContours(
+        text_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
 
     candidates = []
-    sources = [(contour, True) for contour in edge_contours] + [(contour, False) for contour in text_contours]
+    sources = [(contour, True) for contour in edge_contours] + [
+        (contour, False) for contour in text_contours
+    ]
     for contour, is_plate_outline in sources:
         area = cv2.contourArea(contour)
         if not MIN_AREA_FRACTION * image_area <= area <= MAX_AREA_FRACTION * image_area:
@@ -259,7 +295,9 @@ def _candidate_corners(gray: np.ndarray) -> list[tuple[np.ndarray, bool]]:
         ratio = long_side / short_side
         corners = cv2.boxPoints(cv2.minAreaRect(contour))
         approx = (
-            cv2.approxPolyDP(cv2.convexHull(contour), 0.04 * cv2.arcLength(contour, True), True)
+            cv2.approxPolyDP(
+                cv2.convexHull(contour), 0.04 * cv2.arcLength(contour, True), True
+            )
             if is_plate_outline
             else None
         )
@@ -268,11 +306,14 @@ def _candidate_corners(gray: np.ndarray) -> list[tuple[np.ndarray, bool]]:
             (_, _), (approx_w, approx_h), _ = cv2.minAreaRect(approx)
             if min(approx_w, approx_h) > 0:
                 approx_ratio = max(approx_w, approx_h) / min(approx_w, approx_h)
-        is_clean_quad = approx_ratio is not None and _is_plausible_plate_ratio(approx_ratio)
+        is_clean_quad = approx_ratio is not None and _is_plausible_plate_ratio(
+            approx_ratio
+        )
         if MIN_PLATE_ASPECT_RATIO <= ratio <= MAX_PLATE_ASPECT_RATIO:
             pass
-        elif MOTO_MIN_ASPECT_RATIO <= ratio <= MOTO_MAX_ASPECT_RATIO and _looks_like_plate_text(
-            gray, _order_corners(corners)
+        elif (
+            MOTO_MIN_ASPECT_RATIO <= ratio <= MOTO_MAX_ASPECT_RATIO
+            and _looks_like_plate_text(gray, _order_corners(corners))
         ):
             pass
         else:
@@ -282,7 +323,8 @@ def _candidate_corners(gray: np.ndarray) -> list[tuple[np.ndarray, bool]]:
         candidates.append((_order_corners(corners), False))
 
     candidates.extend(
-        (corners, True) for corners in _cluster_characters_into_lines(_character_boxes(gray))
+        (corners, True)
+        for corners in _cluster_characters_into_lines(_character_boxes(gray))
     )
     return candidates
 
@@ -309,8 +351,12 @@ def _text_score(gray: np.ndarray, corners: np.ndarray) -> float:
     return base_score * _character_count_bonus(gray, corners)
 
 
-def _boxes(a: np.ndarray, b: np.ndarray) -> tuple[tuple[float, float, float, float], tuple[float, float, float, float]]:
-    return cv2.boundingRect(a.astype(np.float32)), cv2.boundingRect(b.astype(np.float32))
+def _boxes(
+    a: np.ndarray, b: np.ndarray
+) -> tuple[tuple[float, float, float, float], tuple[float, float, float, float]]:
+    return cv2.boundingRect(a.astype(np.float32)), cv2.boundingRect(
+        b.astype(np.float32)
+    )
 
 
 def _intersection_area(a: np.ndarray, b: np.ndarray) -> float:
@@ -335,18 +381,28 @@ def _region_area(corners: np.ndarray) -> float:
     return float(w * h)
 
 
-def find_plate_candidates(image: np.ndarray, max_candidates: int = 3) -> list[tuple[np.ndarray, bool]]:
+def find_plate_candidates(
+    image: np.ndarray, max_candidates: int = 3
+) -> list[tuple[np.ndarray, bool]]:
     width = image.shape[1]
     scale = min(1.0, SEARCH_MAX_WIDTH / width)
-    small = cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1 else image
+    small = (
+        cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+        if scale < 1
+        else image
+    )
     gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
 
     corners_by_source = _candidate_corners(gray)
-    non_cluster = [corners for corners, is_cluster in corners_by_source if not is_cluster]
+    non_cluster = [
+        corners for corners, is_cluster in corners_by_source if not is_cluster
+    ]
     clusters = [corners for corners, is_cluster in corners_by_source if is_cluster]
 
     scored = sorted(
-        ((_text_score(gray, corners), corners) for corners in non_cluster), key=lambda item: item[0], reverse=True
+        ((_text_score(gray, corners), corners) for corners in non_cluster),
+        key=lambda item: item[0],
+        reverse=True,
     )
     chosen: list[np.ndarray] = []
     chosen_is_weak: list[bool] = []
@@ -371,11 +427,16 @@ def find_plate_candidates(image: np.ndarray, max_candidates: int = 3) -> list[tu
             chosen_is_weak.append(False)
 
     crops = [
-        (rectify(image, _expand(corners / scale, CROP_MARGIN_X, CROP_MARGIN_Y)), is_weak)
+        (
+            rectify(image, _expand(corners / scale, CROP_MARGIN_X, CROP_MARGIN_Y)),
+            is_weak,
+        )
         for corners, is_weak in zip(chosen, chosen_is_weak)
     ]
     if chosen:
-        wide = rectify(image, _expand(chosen[0] / scale, WIDE_CROP_MARGIN_X, CROP_MARGIN_Y))
+        wide = rectify(
+            image, _expand(chosen[0] / scale, WIDE_CROP_MARGIN_X, CROP_MARGIN_Y)
+        )
         crops.insert(1, (wide, chosen_is_weak[0]))
     return crops
 

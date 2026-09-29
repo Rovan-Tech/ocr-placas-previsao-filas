@@ -29,7 +29,9 @@ def test_database_healthcheck_returns_ok_when_database_is_up(db_session):
 
 def test_database_healthcheck_returns_503_when_database_is_down():
     broken_session = MagicMock()
-    broken_session.execute.side_effect = OperationalError("SELECT 1", {}, Exception("connection refused"))
+    broken_session.execute.side_effect = OperationalError(
+        "SELECT 1", {}, Exception("connection refused")
+    )
     app.dependency_overrides[get_db] = lambda: broken_session
     try:
         response = client.get("/health/db")

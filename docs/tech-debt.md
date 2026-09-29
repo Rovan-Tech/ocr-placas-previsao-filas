@@ -10,14 +10,18 @@ Ambiente onde rodou: Ubuntu 24, Python 3.14 (venv sem `python3-venv` do sistema 
 `pip-audit` abaixo), Node 20. Alguns números podem variar ligeiramente em outra máquina/CI, mas a
 ordem de grandeza e os arquivos afetados devem ser os mesmos.
 
+`ruff format .` e `prettier --write .` já foram rodados uma vez em todo o código existente como
+parte desta configuração (backend 63/63 arquivos, frontend 36/36) — formatação automática é
+mecânica e sem risco de mudar comportamento, então não fazia sentido deixar como dívida só para
+"não mexer no que não foi pedido". O que fica como dívida de verdade abaixo é lint semântico
+(ruff check) e tipagem (mypy), que exigem julgamento por arquivo e não foram tocados.
+
 ## Resumo por prioridade
 
 | Prioridade | Item | Volume |
 | --- | --- | --- |
 | Alta | mypy (backend) | 51 erros em 9 arquivos |
-| Média | ruff check (backend) | 867 achados (554 são só `E501`, ver detalhe) |
-| Média | Formatação não aplicada (backend, `ruff format`) | 53 de 63 arquivos `.py` |
-| Média | Formatação não aplicada (frontend, Prettier) | 36 arquivos |
+| Média | ruff check (backend) | 337 achados (ver detalhe por regra) |
 | Baixa | vulture (código morto, backend) | 1 achado |
 | Baixa | Cobertura Vitest concentrada em `services/` | ver nota abaixo — não é bug |
 | Bloqueado no ambiente | `pip-audit` | não rodou nesta sandbox — ver nota |

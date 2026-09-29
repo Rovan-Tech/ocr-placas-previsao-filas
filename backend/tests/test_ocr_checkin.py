@@ -8,9 +8,19 @@ from app.services.ocr_service import PlateReading
 from app.services.plate_format import PlateFormat
 from app.services.vehicle_data_api import VehicleData, get_vehicle_data_provider
 
-READING = PlateReading(plate="ABC1D23", format=PlateFormat.MERCOSUL, confidence=0.98, needs_review=False, detections=[])
-NO_PLATE_READING = PlateReading(plate=None, format=None, confidence=None, needs_review=True, detections=[])
-VEHICLE_DATA = VehicleData(brand="FIAT", model="UNO", year="2015", uf="SP", color="Branco")
+READING = PlateReading(
+    plate="ABC1D23",
+    format=PlateFormat.MERCOSUL,
+    confidence=0.98,
+    needs_review=False,
+    detections=[],
+)
+NO_PLATE_READING = PlateReading(
+    plate=None, format=None, confidence=None, needs_review=True, detections=[]
+)
+VEHICLE_DATA = VehicleData(
+    brand="FIAT", model="UNO", year="2015", uf="SP", color="Branco"
+)
 
 
 class _FakeVehicleProvider:
@@ -23,20 +33,26 @@ class _FakeVehicleProvider:
 
 @pytest.fixture
 def vehicle_provider_found():
-    app.dependency_overrides[get_vehicle_data_provider] = lambda: _FakeVehicleProvider(VEHICLE_DATA)
+    app.dependency_overrides[get_vehicle_data_provider] = lambda: _FakeVehicleProvider(
+        VEHICLE_DATA
+    )
     yield
     del app.dependency_overrides[get_vehicle_data_provider]
 
 
 @pytest.fixture
 def vehicle_provider_not_found():
-    app.dependency_overrides[get_vehicle_data_provider] = lambda: _FakeVehicleProvider(None)
+    app.dependency_overrides[get_vehicle_data_provider] = lambda: _FakeVehicleProvider(
+        None
+    )
     yield
     del app.dependency_overrides[get_vehicle_data_provider]
 
 
 def _upload(authenticated_client):
-    return authenticated_client.post("/ocr/upload", files={"file": ("placa.jpg", b"fake-image-bytes", "image/jpeg")})
+    return authenticated_client.post(
+        "/ocr/upload", files={"file": ("placa.jpg", b"fake-image-bytes", "image/jpeg")}
+    )
 
 
 @patch("app.routers.ocr.read_plate", return_value=READING)
@@ -50,7 +66,9 @@ def test_scheduled_for_today_shows_schedule_and_vehicle_data(
     assert body["checkin"]["found"] is True
     assert body["checkin"]["schedule"]["status"] == "on_time"
     assert body["checkin"]["schedule"]["driver_name"] == "João da Silva"
-    assert body["checkin"]["schedule"]["cargo_items"] == [{"product_name": "Grãos", "category": "nao_perecivel"}]
+    assert body["checkin"]["schedule"]["cargo_items"] == [
+        {"product_name": "Grãos", "category": "nao_perecivel"}
+    ]
     assert body["checkin"]["schedule"]["driver_document_validated"] is True
 
 
@@ -89,7 +107,12 @@ def test_scheduled_vehicle_shows_the_registered_vehicle_not_the_external_lookup(
     body = _upload(authenticated_client).json()
 
     assert body["checkin"]["vehicle_data"] == {
-        "brand": "Volvo", "model": "FH 540", "year": "2020", "uf": None, "color": "Branco", "is_mock": False
+        "brand": "Volvo",
+        "model": "FH 540",
+        "year": "2020",
+        "uf": None,
+        "color": "Branco",
+        "is_mock": False,
     }
 
 
@@ -102,7 +125,10 @@ def test_scheduled_for_a_future_date_is_early(
     body = _upload(authenticated_client).json()
 
     assert body["checkin"]["schedule"]["status"] == "early"
-    assert body["checkin"]["schedule"]["scheduled_date"] == scheduled.scheduled_date.isoformat()
+    assert (
+        body["checkin"]["schedule"]["scheduled_date"]
+        == scheduled.scheduled_date.isoformat()
+    )
 
 
 @patch("app.routers.ocr.read_plate", return_value=READING)
@@ -117,7 +143,9 @@ def test_scheduled_for_a_past_date_is_late(
 
 
 @patch("app.routers.ocr.read_plate", return_value=READING)
-def test_no_schedule_but_found_in_the_external_api(_, authenticated_client, vehicle_provider_found):
+def test_no_schedule_but_found_in_the_external_api(
+    _, authenticated_client, vehicle_provider_found
+):
     body = _upload(authenticated_client).json()
 
     assert body["checkin"]["found"] is True
@@ -149,13 +177,17 @@ def test_schedule_still_shows_the_registered_vehicle_even_when_the_external_api_
 
 
 @patch("app.routers.ocr.read_plate", return_value=NO_PLATE_READING)
-def test_no_checkin_context_when_no_plate_was_read(_, authenticated_client, vehicle_provider_found):
+def test_no_checkin_context_when_no_plate_was_read(
+    _, authenticated_client, vehicle_provider_found
+):
     body = _upload(authenticated_client).json()
 
     assert body["checkin"] is None
 
 
-def test_manual_entry_also_gets_a_checkin_context(authenticated_client, employee, make_schedule, vehicle_provider_found):
+def test_manual_entry_also_gets_a_checkin_context(
+    authenticated_client, employee, make_schedule, vehicle_provider_found
+):
     make_schedule(employee, scheduled_date=date.today())
 
     response = authenticated_client.post("/ocr/manual", data={"plate": "ABC1D23"})
@@ -167,7 +199,9 @@ def test_manual_entry_also_gets_a_checkin_context(authenticated_client, employee
 
 
 @patch("app.routers.ocr.read_plate", return_value=READING)
-def test_upload_automatically_creates_a_waiting_checkin(_, authenticated_client, db_session, vehicle_provider_found):
+def test_upload_automatically_creates_a_waiting_checkin(
+    _, authenticated_client, db_session, vehicle_provider_found
+):
     from app.models import CheckIn, CheckInStatus
 
     body = _upload(authenticated_client).json()
@@ -211,7 +245,9 @@ def test_upload_links_the_automatic_checkin_to_the_matched_schedule(
     assert record.schedule_id == schedule.id
 
 
-def test_manual_entry_automatically_creates_a_waiting_checkin(authenticated_client, db_session, vehicle_provider_found):
+def test_manual_entry_automatically_creates_a_waiting_checkin(
+    authenticated_client, db_session, vehicle_provider_found
+):
     from app.models import CheckIn, CheckInStatus
 
     body = authenticated_client.post("/ocr/manual", data={"plate": "ABC1D23"}).json()
@@ -222,7 +258,9 @@ def test_manual_entry_automatically_creates_a_waiting_checkin(authenticated_clie
 
 
 @patch("app.routers.ocr.read_plate", return_value=NO_PLATE_READING)
-def test_no_checkin_is_created_when_no_plate_was_read(_, authenticated_client, db_session, vehicle_provider_found):
+def test_no_checkin_is_created_when_no_plate_was_read(
+    _, authenticated_client, db_session, vehicle_provider_found
+):
     from app.models import CheckIn
 
     _upload(authenticated_client)

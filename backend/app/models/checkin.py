@@ -15,9 +15,7 @@ class CheckInStatus(str, enum.Enum):
 
 class CheckIn(Base):
     __tablename__ = "checkins"
-    __table_args__ = (
-        CheckConstraint("plate ~ '^[A-Z0-9]{7}$'", name="plate_format"),
-    )
+    __table_args__ = (CheckConstraint("plate ~ '^[A-Z0-9]{7}$'", name="plate_format"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     plate: Mapped[str] = mapped_column(String(7), index=True)

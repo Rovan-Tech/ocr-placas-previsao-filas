@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { resolveStatusMessageClassName, resolveStatusMessageRole } from '../../src/services/statusMessage'
+import {
+  resolveStatusMessageClassName,
+  resolveStatusMessageRole,
+} from '../../src/services/statusMessage'
 
 describe('resolveStatusMessageRole', () => {
   it.each([

@@ -9,13 +9,24 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.db import get_db
-from app.models import CargoCategory, CheckIn, CheckInStatus, Employee, UploadEndpoint, UploadLog
+from app.models import (
+    CargoCategory,
+    CheckIn,
+    CheckInStatus,
+    Employee,
+    UploadEndpoint,
+    UploadLog,
+)
 from app.rate_limit import limiter
 from app.services.auth import get_client_ip, get_current_employee
 from app.services.ocr_service import read_plate
 from app.services.photo_storage import save_photo
 from app.services.plate_format import PlateFormat, normalize, plate_format
-from app.services.plate_verification import PlateVerifier, VerificationStatus, get_plate_verifier
+from app.services.plate_verification import (
+    PlateVerifier,
+    VerificationStatus,
+    get_plate_verifier,
+)
 from app.services.schedule_matching import ScheduleStatus, match_schedule_for_plate
 from app.services.vehicle_data_api import VehicleDataProvider, get_vehicle_data_provider
 
@@ -90,7 +101,9 @@ def _verify(plate: str | None, verifier: PlateVerifier) -> Verification | None:
     if plate is None:
         return None
     result = verifier.verify(plate)
-    return Verification(status=result.status, detail=result.detail, source=result.source)
+    return Verification(
+        status=result.status, detail=result.detail, source=result.source
+    )
 
 
 def _create_waiting_checkin(
@@ -109,12 +122,17 @@ def _create_waiting_checkin(
         return checkin
     except SQLAlchemyError:
         db.rollback()
-        logger.exception("Não foi possível registrar o check-in automático para a placa %s.", plate)
+        logger.exception(
+            "Não foi possível registrar o check-in automático para a placa %s.", plate
+        )
         return None
 
 
 async def _build_checkin_context(
-    db: Session, plate: str | None, vehicle_provider: VehicleDataProvider, employee: Employee
+    db: Session,
+    plate: str | None,
+    vehicle_provider: VehicleDataProvider,
+    employee: Employee,
 ) -> CheckinContext | None:
     if plate is None:
         return None
@@ -210,7 +228,11 @@ def _log_upload(
         db.commit()
     except SQLAlchemyError:
         db.rollback()
-        logger.exception("Não foi possível registrar o log de %s para o funcionário %s.", endpoint, employee.id)
+        logger.exception(
+            "Não foi possível registrar o log de %s para o funcionário %s.",
+            endpoint,
+            employee.id,
+        )
 
 
 @router.post("/upload", response_model=PlateReadResponse)
@@ -263,7 +285,9 @@ async def upload_plate_image(
         needs_review=reading.needs_review,
         verification=_verify(reading.plate, verifier),
         detections=[Detection(**detection) for detection in reading.detections],
-        checkin=await _build_checkin_context(db, reading.plate, vehicle_provider, employee),
+        checkin=await _build_checkin_context(
+            db, reading.plate, vehicle_provider, employee
+        ),
     )
 
 
@@ -305,14 +329,21 @@ async def submit_plate_manually(
             )
         photo_bytes = await photo.read(MAX_UPLOAD_BYTES + 1)
         if len(photo_bytes) > MAX_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail="Imagem muito grande. O limite é de 5 MB.")
+            raise HTTPException(
+                status_code=413, detail="Imagem muito grande. O limite é de 5 MB."
+            )
 
         normalized_ocr_plate = normalize(ocr_plate) if ocr_plate else None
-        if normalized_ocr_plate is not None and plate_format(normalized_ocr_plate) is None:
+        if (
+            normalized_ocr_plate is not None
+            and plate_format(normalized_ocr_plate) is None
+        ):
             normalized_ocr_plate = None
 
         try:
-            photo_path = await run_in_threadpool(save_photo, photo_bytes, photo.content_type)
+            photo_path = await run_in_threadpool(
+                save_photo, photo_bytes, photo.content_type
+            )
             audit_saved = True
         except OSError:
             logger.exception("Não foi possível salvar a foto de resguardo em disco.")
@@ -340,6 +371,8 @@ async def submit_plate_manually(
         needs_review=False,
         verification=_verify(normalized, verifier),
         detections=[],
-        checkin=await _build_checkin_context(db, normalized, vehicle_provider, employee),
+        checkin=await _build_checkin_context(
+            db, normalized, vehicle_provider, employee
+        ),
         audit_saved=audit_saved,
     )

@@ -25,7 +25,9 @@ def document_number_matches(document_number: str, photo_text: str) -> bool:
     return number_digits in _only_digits(photo_text)
 
 
-def validate_document_photo(document_number: str, image_bytes: bytes) -> tuple[bool, str]:
+def validate_document_photo(
+    document_number: str, image_bytes: bytes
+) -> tuple[bool, str]:
     photo_text = extract_text(image_bytes)
     if document_number_matches(document_number, photo_text):
         return True, VALID_DETAIL

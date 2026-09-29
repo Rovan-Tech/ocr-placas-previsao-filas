@@ -15,19 +15,36 @@ MIN_PASSWORD_LENGTH = 8
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--username", required=True, help="login do funcionário (único)")
-    parser.add_argument("--full-name", required=True, help="nome completo, pra aparecer nos logs")
-    parser.add_argument("--password", help="senha temporária; se não passar, pede de forma interativa")
-    parser.add_argument("--admin", action="store_true", help="cadastra como admin master (pode cadastrar outros)")
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--username", required=True, help="login do funcionário (único)"
+    )
+    parser.add_argument(
+        "--full-name", required=True, help="nome completo, pra aparecer nos logs"
+    )
+    parser.add_argument(
+        "--password", help="senha temporária; se não passar, pede de forma interativa"
+    )
+    parser.add_argument(
+        "--admin",
+        action="store_true",
+        help="cadastra como admin master (pode cadastrar outros)",
+    )
     args = parser.parse_args()
 
     password = args.password or getpass.getpass("Senha temporária: ")
     if len(password) < MIN_PASSWORD_LENGTH:
-        parser.error(f"a senha precisa ter pelo menos {MIN_PASSWORD_LENGTH} caracteres.")
+        parser.error(
+            f"a senha precisa ter pelo menos {MIN_PASSWORD_LENGTH} caracteres."
+        )
 
     with SessionLocal() as session:
-        if session.query(Employee).filter(Employee.username == args.username).first() is not None:
+        if (
+            session.query(Employee).filter(Employee.username == args.username).first()
+            is not None
+        ):
             parser.error(f"já existe um funcionário com o usuário {args.username!r}.")
 
         employee = Employee(
@@ -41,8 +58,12 @@ def main() -> None:
         session.commit()
         session.refresh(employee)
         role = "admin master" if employee.is_admin else "funcionário"
-        print(f"{role.capitalize()} criado: id={employee.id} username={employee.username!r}")
-        print("Senha temporária — precisa ser trocada no primeiro login (POST /auth/change-password).")
+        print(
+            f"{role.capitalize()} criado: id={employee.id} username={employee.username!r}"
+        )
+        print(
+            "Senha temporária — precisa ser trocada no primeiro login (POST /auth/change-password)."
+        )
 
 
 if __name__ == "__main__":

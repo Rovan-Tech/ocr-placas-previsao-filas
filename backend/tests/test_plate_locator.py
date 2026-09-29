@@ -36,14 +36,27 @@ def test_rectify_straightens_a_rotated_plate():
     canvas = np.zeros((600, 800, 3), np.uint8)
     rotation = cv2.getRotationMatrix2D((400, 300), 12, 1.0)
     offset = np.float32([[400 - plate.shape[1] / 2], [300 - plate.shape[0] / 2]])
-    corners = np.float32([[0, 0], [plate.shape[1], 0], [plate.shape[1], plate.shape[0]], [0, plate.shape[0]]])
+    corners = np.float32(
+        [
+            [0, 0],
+            [plate.shape[1], 0],
+            [plate.shape[1], plate.shape[0]],
+            [0, plate.shape[0]],
+        ]
+    )
     placed = cv2.transform((corners + offset.T)[None], rotation)[0]
     matrix = cv2.getPerspectiveTransform(corners, placed)
     canvas = cv2.warpPerspective(plate, matrix, (800, 600))
 
     straightened = rectify(canvas, placed, height=plate.shape[0])
 
-    assert abs(straightened.shape[1] / straightened.shape[0] - plate.shape[1] / plate.shape[0]) < 0.05
+    assert (
+        abs(
+            straightened.shape[1] / straightened.shape[0]
+            - plate.shape[1] / plate.shape[0]
+        )
+        < 0.05
+    )
     difference = np.abs(straightened.astype(int) - plate.astype(int)).mean()
     assert difference < 25
 
@@ -53,7 +66,14 @@ def test_rectify_keeps_the_plate_wider_than_tall_even_at_a_steep_rotation():
     canvas = np.zeros((900, 900, 3), np.uint8)
     rotation = cv2.getRotationMatrix2D((450, 450), 80, 1.0)
     offset = np.float32([[450 - plate.shape[1] / 2], [450 - plate.shape[0] / 2]])
-    corners = np.float32([[0, 0], [plate.shape[1], 0], [plate.shape[1], plate.shape[0]], [0, plate.shape[0]]])
+    corners = np.float32(
+        [
+            [0, 0],
+            [plate.shape[1], 0],
+            [plate.shape[1], plate.shape[0]],
+            [0, plate.shape[0]],
+        ]
+    )
     placed = cv2.transform((corners + offset.T)[None], rotation)[0]
     matrix = cv2.getPerspectiveTransform(corners, placed)
     canvas = cv2.warpPerspective(plate, matrix, (900, 900))
@@ -61,7 +81,9 @@ def test_rectify_keeps_the_plate_wider_than_tall_even_at_a_steep_rotation():
     straightened = rectify(canvas, placed, height=plate.shape[0])
 
     aspect_ratio = straightened.shape[1] / straightened.shape[0]
-    assert aspect_ratio > 1.0, f"recorte saiu mais alto que largo (aspect ratio {aspect_ratio:.2f})"
+    assert aspect_ratio > 1.0, (
+        f"recorte saiu mais alto que largo (aspect ratio {aspect_ratio:.2f})"
+    )
     assert abs(aspect_ratio - plate.shape[1] / plate.shape[0]) < 0.3
 
 
@@ -83,17 +105,25 @@ def test_best_candidate_is_the_plate_and_not_the_bumper(sample):
     assert equalized.std() > 15
 
 
-def test_ignores_a_degenerate_approx_polygon_for_the_plate_outline_candidate(monkeypatch):
+def test_ignores_a_degenerate_approx_polygon_for_the_plate_outline_candidate(
+    monkeypatch,
+):
     sample = hard_cases()[0]
     gray = cv2.cvtColor(_decode(sample.image_bytes), cv2.COLOR_BGR2GRAY)
 
-    degenerate_quad = np.array([[[0, 0]], [[2, 0]], [[2, 200]], [[0, 200]]], dtype=np.int32)
+    degenerate_quad = np.array(
+        [[[0, 0]], [[2, 0]], [[2, 200]], [[0, 200]]], dtype=np.int32
+    )
     monkeypatch.setattr(cv2, "approxPolyDP", lambda *args, **kwargs: degenerate_quad)
 
     corners_by_source = _candidate_corners(gray)
-    non_cluster_candidates = [corners for corners, is_cluster in corners_by_source if not is_cluster]
+    non_cluster_candidates = [
+        corners for corners, is_cluster in corners_by_source if not is_cluster
+    ]
 
-    assert non_cluster_candidates, "nenhum candidato por moldura/bloco de texto encontrado"
+    assert non_cluster_candidates, (
+        "nenhum candidato por moldura/bloco de texto encontrado"
+    )
     for corners in non_cluster_candidates:
         (_, _), (w, h), _ = cv2.minAreaRect(corners)
         long_side, short_side = max(w, h), min(w, h)
@@ -119,7 +149,9 @@ def _plate_with_characters_torn_apart(text: str) -> np.ndarray:
     canvas = np.full((260, 620, 3), 200, np.uint8)
     x = 40
     for char in text:
-        cv2.putText(canvas, char, (x, 160), cv2.FONT_HERSHEY_SIMPLEX, 2.2, (20, 20, 20), 6)
+        cv2.putText(
+            canvas, char, (x, 160), cv2.FONT_HERSHEY_SIMPLEX, 2.2, (20, 20, 20), 6
+        )
         x += 60
     return canvas
 
@@ -129,7 +161,9 @@ def test_clusters_scattered_characters_into_a_single_plate_candidate():
 
     candidates = find_plate_candidates(canvas)
 
-    assert any(is_weak for _, is_weak in candidates), "o agrupamento de caracteres não achou nada"
+    assert any(is_weak for _, is_weak in candidates), (
+        "o agrupamento de caracteres não achou nada"
+    )
     best, _ = candidates[0]
     assert best.shape[1] / best.shape[0] > 3.0
 
@@ -152,10 +186,14 @@ def test_merges_two_stacked_lines_into_a_square_moto_plate_candidate():
     corners = _cluster_characters_into_lines(_character_boxes(gray))
 
     assert corners, "o agrupamento de caracteres não achou nenhum candidato"
-    ratios = [max(w, h) / min(w, h) for box in corners for (_, _), (w, h), _ in [cv2.minAreaRect(box)]]
-    assert any(MOTO_MIN_ASPECT_RATIO <= ratio <= MOTO_MAX_ASPECT_RATIO for ratio in ratios), (
-        f"nenhum candidato de agrupamento ficou no formato de placa de moto: {ratios}"
-    )
+    ratios = [
+        max(w, h) / min(w, h)
+        for box in corners
+        for (_, _), (w, h), _ in [cv2.minAreaRect(box)]
+    ]
+    assert any(
+        MOTO_MIN_ASPECT_RATIO <= ratio <= MOTO_MAX_ASPECT_RATIO for ratio in ratios
+    ), f"nenhum candidato de agrupamento ficou no formato de placa de moto: {ratios}"
 
 
 def test_is_plausible_plate_ratio_accepts_car_and_moto_shapes_but_not_in_between():
@@ -163,13 +201,21 @@ def test_is_plausible_plate_ratio_accepts_car_and_moto_shapes_but_not_in_between
     assert _is_plausible_plate_ratio(MAX_PLATE_ASPECT_RATIO)
     assert _is_plausible_plate_ratio(MOTO_MIN_ASPECT_RATIO)
     assert _is_plausible_plate_ratio(MOTO_MAX_ASPECT_RATIO)
-    assert not _is_plausible_plate_ratio((MOTO_MAX_ASPECT_RATIO + MIN_PLATE_ASPECT_RATIO) / 2)
+    assert not _is_plausible_plate_ratio(
+        (MOTO_MAX_ASPECT_RATIO + MIN_PLATE_ASPECT_RATIO) / 2
+    )
 
 
 def _single_character_canvas(char: str, size: int) -> np.ndarray:
     canvas = np.full((size, size), 235, np.uint8)
     cv2.putText(
-        canvas, char, (int(size * 0.15), int(size * 0.8)), cv2.FONT_HERSHEY_SIMPLEX, size / 90, (20,), 12
+        canvas,
+        char,
+        (int(size * 0.15), int(size * 0.8)),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        size / 90,
+        (20,),
+        12,
     )
     return canvas
 
@@ -184,6 +230,13 @@ def test_looks_like_plate_text_rejects_a_single_blown_up_character():
 def test_looks_like_plate_text_accepts_a_real_moto_plate_crop():
     plate = render_moto_plate("ABC1D23")
     gray = cv2.cvtColor(plate, cv2.COLOR_BGR2GRAY)
-    corners = np.float32([[0, 0], [plate.shape[1], 0], [plate.shape[1], plate.shape[0]], [0, plate.shape[0]]])
+    corners = np.float32(
+        [
+            [0, 0],
+            [plate.shape[1], 0],
+            [plate.shape[1], plate.shape[0]],
+            [0, plate.shape[0]],
+        ]
+    )
 
     assert _looks_like_plate_text(gray, corners)

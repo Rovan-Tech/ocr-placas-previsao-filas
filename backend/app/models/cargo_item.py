@@ -15,11 +15,12 @@ class CargoCategory(str, enum.Enum):
 
 
 class CargoItem(Base):
-
     __tablename__ = "cargo_items"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    schedule_id: Mapped[int] = mapped_column(ForeignKey("schedules.id", ondelete="CASCADE"))
+    schedule_id: Mapped[int] = mapped_column(
+        ForeignKey("schedules.id", ondelete="CASCADE")
+    )
     product_name: Mapped[str] = mapped_column(String(120))
     category: Mapped[CargoCategory] = mapped_column(
         Enum(

@@ -1,4 +1,3 @@
-
 import pytest
 
 from app.services.ocr_service import read_plate
@@ -17,7 +16,10 @@ KNOWN_UNAVOIDABLE_CHARACTER_CONFUSION = {"arranhada_suja"}
 def test_reads_plate_in_hard_conditions(sample):
     reading = read_plate(sample.image_bytes)
 
-    if reading.plate == sample.plate or sample.name in KNOWN_UNAVOIDABLE_CHARACTER_CONFUSION:
+    if (
+        reading.plate == sample.plate
+        or sample.name in KNOWN_UNAVOIDABLE_CHARACTER_CONFUSION
+    ):
         return
 
     assert reading.plate is None or reading.needs_review, (
@@ -29,7 +31,11 @@ def test_reads_plate_in_hard_conditions(sample):
 DISTANCE_CASES = {"distancia_ideal", "media_distancia", "muito_longe"}
 
 
-@pytest.mark.parametrize("sample", [s for s in hard_cases() if s.name in DISTANCE_CASES], ids=lambda sample: sample.name)
+@pytest.mark.parametrize(
+    "sample",
+    [s for s in hard_cases() if s.name in DISTANCE_CASES],
+    ids=lambda sample: sample.name,
+)
 def test_reads_plate_correctly_across_camera_distances(sample):
     reading = read_plate(sample.image_bytes)
 
@@ -60,7 +66,9 @@ def test_validation_set_accuracy_and_bounded_silent_errors():
     ]
 
     accuracy = len(correct) / len(samples)
-    assert accuracy >= MIN_VALIDATION_ACCURACY, f"precisão {accuracy:.0%} abaixo de {MIN_VALIDATION_ACCURACY:.0%}"
+    assert accuracy >= MIN_VALIDATION_ACCURACY, (
+        f"precisão {accuracy:.0%} abaixo de {MIN_VALIDATION_ACCURACY:.0%}"
+    )
     assert len(silent_errors) <= MAX_SILENT_ERRORS, (
         f"{len(silent_errors)} erros silenciosos (máximo aceito: {MAX_SILENT_ERRORS}): {silent_errors}"
     )
