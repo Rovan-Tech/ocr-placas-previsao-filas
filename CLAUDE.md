@@ -406,6 +406,18 @@ estão de pé e se comunicando direito (sem precisar repetir a investigação ma
   CPU-only (`--index-url https://download.pytorch.org/whl/cpu`) antes do resto do
   `requirements.txt` — sem isso a imagem fica ~3,5x maior e o CI mais lento à toa.
 
+### Dados de demonstração em produção
+
+O banco de produção nasce vazio, e não existe cadastro aberto. Para ter login e telas cheias na
+demonstração pública, o workflow manual `seed-demo-production.yml` (Actions → "Dados de
+demonstração em produção" → Run workflow, digitando `SEMEAR`) roda `backend/scripts/seed_demo.py`
+contra o Neon, usando os segredos `DATABASE_URL` e `SEED_ADMIN_PASSWORD` (este último cadastrado
+por quem administra o repositório, nunca no código nem em log). Cria cinco usuários fictícios com
+a mesma senha e os cargos Administrador (`admin`), Supervisor, Fiscal, Planejador e Analista,
+mais agendamentos, dois dias de check-ins e logs de leitura (`app/services/demo_seed.py`).
+Só insere, nunca apaga, e não roda duas vezes: se qualquer um dos usuários já existir, não faz
+nada. Sem fotos, porque o disco do Cloud Run é efêmero.
+
 ## Antes de abrir PR
 
 **Só abra PR (ou dê push visando abrir um) quando o usuário pedir explicitamente.** Ao terminar
