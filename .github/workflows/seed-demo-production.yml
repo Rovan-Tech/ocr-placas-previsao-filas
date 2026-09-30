@@ -6,6 +6,14 @@ on:
       confirmar:
         description: 'Digite SEMEAR para criar os usuários e os dados de demonstração no banco de produção'
         required: true
+      redefinir_senhas:
+        description: 'Se algum usuário de demonstração já existir: "sim" redefine a senha dele para a do segredo SEED_ADMIN_PASSWORD; "nao" mantém a senha atual'
+        required: true
+        type: choice
+        default: 'nao'
+        options:
+          - 'nao'
+          - 'sim'
 
 permissions:
   contents: read
@@ -31,8 +39,9 @@ jobs:
       - name: Instala só o que o script precisa
         run: pip install "sqlalchemy>=2.0" "psycopg[binary]" pydantic-settings bcrypt pyjwt fastapi
 
-      - name: Cria os dados (só insere, nunca apaga)
+      - name: Cria os usuários e os dados que faltam (nunca apaga)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+          SEED_RESET_PASSWORDS: ${{ github.event.inputs.redefinir_senhas }}
         run: python scripts/seed_demo.py

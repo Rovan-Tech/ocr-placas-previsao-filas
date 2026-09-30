@@ -415,8 +415,12 @@ contra o Neon, usando os segredos `DATABASE_URL` e `SEED_ADMIN_PASSWORD` (este �
 por quem administra o repositório, nunca no código nem em log). Cria cinco usuários fictícios com
 a mesma senha e os cargos Administrador (`admin`), Supervisor, Fiscal, Planejador e Analista,
 mais agendamentos, dois dias de check-ins e logs de leitura (`app/services/demo_seed.py`).
-Só insere, nunca apaga, e não roda duas vezes: se qualquer um dos usuários já existir, não faz
-nada. Sem fotos, porque o disco do Cloud Run é efêmero.
+Nunca apaga nada: cria só os usuários que faltam e só cria os dados se os agendamentos de
+demonstração ainda não existirem, então rodar de novo é seguro. Um usuário de demonstração que já
+exista (por exemplo, um `admin` criado antes pelo `create_employee.py`) mantém a senha atual, a
+menos que o campo `redefinir_senhas` seja `sim`: aí o workflow redefine a senha e reativa os
+usuários de demonstração já existentes (só esses cinco, sem mexer em cargo nem nome). Sem fotos,
+porque o disco do Cloud Run é efêmero.
 
 ## Antes de abrir PR
 

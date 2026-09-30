@@ -221,11 +221,12 @@ PLATE_LETTERS: Final = "ABCDEFGHJKLMNPRSTUVWXYZ"
 
 @dataclass(frozen=True, slots=True)
 class SeedReport:
-    employees: int
+    employees_created: int
+    passwords_reset: int
     schedules: int
     checkins: int
     logs: int
-    skipped: bool
+    data_skipped: bool
 
 
 def _plate(index: int) -> str:
@@ -240,29 +241,50 @@ def _at(day: date, hour: int, minute: int) -> datetime:
     return datetime.combine(day, time(hour, minute), tzinfo=TIMEZONE).astimezone(UTC)
 
 
-def _already_seeded(session: Session) -> bool:
-    usernames = [username for username, _, _ in STAFF]
+def _demo_data_exists(session: Session) -> bool:
+    plates = [seed.plate for seed in SCHEDULES]
     return (
-        session.query(Employee).filter(Employee.username.in_(usernames)).first()
-        is not None
+        session.query(Schedule).filter(Schedule.plate.in_(plates)).first() is not None
     )
 
 
-def _create_staff(session: Session, password: str) -> dict[str, Employee]:
+def _reset_credentials(
+    employee: Employee, password_hash: str, moment: datetime
+) -> None:
+    employee.password_hash = password_hash
+    employee.must_change_password = False
+    employee.active = True
+    employee.password_set_at = moment
+
+
+def _ensure_staff(
+    session: Session, password: str, moment: datetime, *, reset_passwords: bool
+) -> tuple[dict[str, Employee], int, int]:
     roles = {role.key: role for role in session.query(Role).all()}
+    usernames = [username for username, _, _ in STAFF]
+    existing = {
+        employee.username: employee
+        for employee in session.query(Employee).filter(Employee.username.in_(usernames))
+    }
     password_hash = hash_password(password)
-    staff = {}
+    created = reset = 0
     for username, full_name, role_key in STAFF:
-        staff[username] = Employee(
+        if username in existing:
+            if reset_passwords:
+                _reset_credentials(existing[username], password_hash, moment)
+                reset += 1
+            continue
+        existing[username] = Employee(
             username=username,
             full_name=full_name,
             password_hash=password_hash,
             role=roles[role_key],
             must_change_password=False,
         )
-    session.add_all(staff.values())
+        session.add(existing[username])
+        created += 1
     session.flush()
-    return staff
+    return existing, created, reset
 
 
 def _build_schedule(
@@ -384,22 +406,30 @@ class WeakPasswordError(ValueError):
 
 
 def seed_demo_data(
-    session: Session, password: str, now: datetime | None = None
+    session: Session,
+    password: str,
+    now: datetime | None = None,
+    *,
+    reset_passwords: bool = False,
 ) -> SeedReport:
     if len(password) < MIN_PASSWORD_LENGTH:
         raise WeakPasswordError
-    if _already_seeded(session):
-        return SeedReport(0, 0, 0, 0, skipped=True)
 
     moment = (now or datetime.now(UTC)).astimezone(UTC)
     today = moment.astimezone(TIMEZONE).date()
-    staff = _create_staff(session, password)
+    staff, created, reset = _ensure_staff(
+        session, password, moment, reset_passwords=reset_passwords
+    )
+    data_skipped = _demo_data_exists(session)
     report = SeedReport(
-        employees=len(staff),
-        schedules=_create_schedules(session, staff["carla.mendes"], today),
-        checkins=_create_checkins(session, staff, today, moment),
-        logs=_create_logs(session, staff, today, moment),
-        skipped=False,
+        employees_created=created,
+        passwords_reset=reset,
+        schedules=0
+        if data_skipped
+        else _create_schedules(session, staff["carla.mendes"], today),
+        checkins=0 if data_skipped else _create_checkins(session, staff, today, moment),
+        logs=0 if data_skipped else _create_logs(session, staff, today, moment),
+        data_skipped=data_skipped,
     )
     session.commit()
     return report
