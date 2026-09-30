@@ -409,3 +409,29 @@ test.describe('permissão por ação na captura', () => {
     await expect(page.getByRole('button', { name: 'Ver frente do documento' })).toBeVisible()
   })
 })
+
+test('a linha do veículo continua legível no cartão sólido do agendamento (tema claro)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await mockAndSend(page, {
+    found: true,
+    schedule: scheduleInfo(),
+    vehicle_data: { brand: 'FIAT', model: 'UNO', year: '2015', uf: 'SP', color: 'Branco' },
+  })
+
+  const vehicleLine = page.getByText(/Confirmação do veículo: FIAT/)
+  await expect(vehicleLine).toBeVisible()
+  await expect(vehicleLine).toHaveCSS('color', 'rgb(255, 255, 255)')
+})
+
+test('o título da tela cabe no celular sem quebrar em duas linhas grandes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.route('**/api/checkins?*', (route) =>
+    route.fulfill({ contentType: 'application/json', body: '[]' }),
+  )
+  await page.goto('/checkins')
+
+  const title = page.getByRole('heading', { level: 1, name: 'Check-ins recentes' })
+  await expect(title).toHaveCSS('font-size', '34px')
+})

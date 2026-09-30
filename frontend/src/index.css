@@ -873,6 +873,13 @@ button.danger-outline {
   }
 }
 
+@media (max-width: 640px) {
+  h1 {
+    font-size: var(--text-2xl);
+    line-height: 1.2;
+  }
+}
+
 .message {
   margin: 0;
   padding: 0.75rem 1rem;
@@ -961,6 +968,17 @@ button.danger-outline {
   background: var(--status-ok-bg);
   color: var(--status-ok-text);
   border-color: transparent;
+}
+.verification.tone-ok .meta,
+.verification.tone-ok .source,
+.verification.tone-ok .hint,
+.verification.tone-warning .meta,
+.verification.tone-warning .source,
+.verification.tone-warning .hint,
+.verification.tone-danger .meta,
+.verification.tone-danger .source,
+.verification.tone-danger .hint {
+  color: inherit;
 }
 .verification button.link {
   align-self: flex-start;
