@@ -1,0 +1,38 @@
+name: Dados de demonstração em produção
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmar:
+        description: 'Digite SEMEAR para criar os usuários e os dados de demonstração no banco de produção'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    if: github.event.inputs.confirmar == 'SEMEAR'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.11"
+
+      - name: Instala só o que o script precisa
+        run: pip install "sqlalchemy>=2.0" "psycopg[binary]" pydantic-settings bcrypt pyjwt fastapi
+
+      - name: Cria os dados (só insere, nunca apaga)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SEED_ADMIN_PASSWORD: ${{ secrets.SEED_ADMIN_PASSWORD }}
+        run: python scripts/seed_demo.py
