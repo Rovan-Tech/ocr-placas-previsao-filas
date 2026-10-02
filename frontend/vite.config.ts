@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
         provider: 'v8',
         include: ['src/**/*.{ts,tsx}'],
         all: true,
+        reporter: ['text', 'lcov'],
       },
     },
     server: {
