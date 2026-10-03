@@ -12,6 +12,8 @@ const MAX_X_LABELS = 6
 
 const timeFormatter = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' })
 
+const NO_DATA_MESSAGE = 'Ainda não há dados suficientes para o gráfico de tendência.'
+
 interface TrendCoordinate extends TrendPoint {
   x: number
   y: number
@@ -24,7 +26,7 @@ export default function CheckinsTrendChart({ checkins }: { checkins: Checkin[] }
   const points = toTrendPoints(checkins)
 
   if (points.length === 0) {
-    return <p className="message">Ainda não há dados suficientes para o gráfico de tendência.</p>
+    return <p className="message">{NO_DATA_MESSAGE}</p>
   }
 
   const plotWidth = VIEW_WIDTH - PADDING.left - PADDING.right
@@ -47,6 +49,10 @@ export default function CheckinsTrendChart({ checkins }: { checkins: Checkin[] }
     x: xForTimestamp(point.timestamp),
     y: yForMinutes(point.minutes),
   }))
+  const [firstCoordinate, ...restCoordinates] = coordinates
+  if (!firstCoordinate) {
+    return <p className="message">{NO_DATA_MESSAGE}</p>
+  }
 
   const linePath = coordinates
     .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
@@ -57,8 +63,9 @@ export default function CheckinsTrendChart({ checkins }: { checkins: Checkin[] }
         `L ${xForTimestamp(minTimestamp)} ${PADDING.top + plotHeight} Z`
       : ''
 
-  const peak = coordinates.reduce((highest, point) =>
-    point.minutes > highest.minutes ? point : highest,
+  const peak = restCoordinates.reduce(
+    (highest, point) => (point.minutes > highest.minutes ? point : highest),
+    firstCoordinate,
   )
   const markedPoints = hovered && hovered.timestamp !== peak.timestamp ? [peak, hovered] : [peak]
 
@@ -69,13 +76,15 @@ export default function CheckinsTrendChart({ checkins }: { checkins: Checkin[] }
     (_, index) => index % xLabelStep === 0 || index === coordinates.length - 1,
   )
 
-  function handlePointerMove(event: React.PointerEvent<SVGSVGElement>) {
+  const handlePointerMove = (event: React.PointerEvent<SVGSVGElement>) => {
     const svg = svgRef.current
-    if (!svg || coordinates.length === 0) return
+    if (!svg) return
     const rect = svg.getBoundingClientRect()
     const relativeX = ((event.clientX - rect.left) / rect.width) * VIEW_WIDTH
-    const nearest = coordinates.reduce((closest, point) =>
-      Math.abs(point.x - relativeX) < Math.abs(closest.x - relativeX) ? point : closest,
+    const nearest = restCoordinates.reduce(
+      (closest, point) =>
+        Math.abs(point.x - relativeX) < Math.abs(closest.x - relativeX) ? point : closest,
+      firstCoordinate,
     )
     setHovered(nearest)
   }
