@@ -22,6 +22,13 @@ from app.routers.employee_schemas import (
     to_employee_out,
     to_role_out,
 )
+from app.routers.responses import (
+    BAD_REQUEST,
+    CONFLICT,
+    NOT_FOUND,
+    UNPROCESSABLE,
+    VALIDATION_ERROR_CONTENT,
+)
 from app.services.auth import (
     get_client_ip,
     require_employees_set_role,
@@ -152,7 +159,7 @@ def _replace_overrides(target: Employee, payload: OverridesWrite) -> None:
         )
 
 
-@router.get("/roles", response_model=list[RoleOut])
+@router.get("/roles")
 def list_roles(
     db: Session = Depends(get_db),
     _viewer: Employee = Depends(require_employees_view),
@@ -160,7 +167,7 @@ def list_roles(
     return [to_role_out(role) for role in db.query(Role).order_by(Role.id).all()]
 
 
-@router.get("/permissions", response_model=PermissionsOut)
+@router.get("/permissions")
 def read_permissions(
     db: Session = Depends(get_db),
     _manager: Employee = Depends(require_permissions_manage),
@@ -187,7 +194,14 @@ def _role_keys(role: Role) -> set[str]:
     return {item.permission for item in role.permissions}
 
 
-@router.post("/roles", response_model=RoleDetailOut, status_code=201)
+@router.post(
+    "/roles",
+    status_code=201,
+    responses={
+        409: {"description": CONFLICT},
+        422: {"description": UNPROCESSABLE, "content": VALIDATION_ERROR_CONTENT},
+    },
+)
 def create_role(
     payload: RoleWrite,
     request: Request,
@@ -219,7 +233,14 @@ def create_role(
     return _to_role_detail(role)
 
 
-@router.put("/roles/{role_id}", response_model=RoleDetailOut)
+@router.put(
+    "/roles/{role_id}",
+    responses={
+        400: {"description": BAD_REQUEST},
+        404: {"description": NOT_FOUND},
+        409: {"description": CONFLICT},
+    },
+)
 def update_role(
     role_id: int,
     payload: RoleWrite,
@@ -289,7 +310,15 @@ def _audit_role_update(
     )
 
 
-@router.delete("/roles/{role_id}", status_code=204)
+@router.delete(
+    "/roles/{role_id}",
+    status_code=204,
+    responses={
+        400: {"description": BAD_REQUEST},
+        404: {"description": NOT_FOUND},
+        409: {"description": CONFLICT},
+    },
+)
 def delete_role(
     role_id: int,
     request: Request,
@@ -320,7 +349,13 @@ def delete_role(
     db.commit()
 
 
-@router.patch("/employees/{employee_id}/role", response_model=EmployeeOut)
+@router.patch(
+    "/employees/{employee_id}/role",
+    responses={
+        400: {"description": BAD_REQUEST},
+        404: {"description": NOT_FOUND},
+    },
+)
 def change_employee_role(
     employee_id: int,
     payload: ChangeRoleRequest,
@@ -353,7 +388,13 @@ def change_employee_role(
     return to_employee_out(target)
 
 
-@router.put("/employees/{employee_id}/permissions", response_model=EmployeeOut)
+@router.put(
+    "/employees/{employee_id}/permissions",
+    responses={
+        400: {"description": BAD_REQUEST},
+        404: {"description": NOT_FOUND},
+    },
+)
 def set_employee_overrides(
     employee_id: int,
     payload: OverridesWrite,
@@ -386,7 +427,7 @@ def set_employee_overrides(
     return to_employee_out(target)
 
 
-@router.get("/permission-log", response_model=list[PermissionLogOut])
+@router.get("/permission-log")
 def read_permission_log(
     limit: int = 50,
     offset: int = 0,

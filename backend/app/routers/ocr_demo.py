@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Annotated
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.concurrency import run_in_threadpool
@@ -7,6 +8,13 @@ from pydantic import BaseModel
 from app.config import settings
 from app.rate_limit import limiter
 from app.routers.ocr import ALLOWED_CONTENT_TYPES, MAX_UPLOAD_BYTES, Detection
+from app.routers.responses import (
+    BAD_REQUEST,
+    NOT_FOUND,
+    PAYLOAD_TOO_LARGE,
+    UNPROCESSABLE,
+    VALIDATION_ERROR_CONTENT,
+)
 from app.services.ocr_service import read_plate
 from app.services.plate_format import PlateFormat
 from app.services.plate_samples import PlateSample, hard_cases
@@ -54,7 +62,7 @@ class DemoPlateReadResponse(BaseModel):
     detections: list[Detection]
 
 
-@router.get("/demo-samples", response_model=list[DemoSampleInfo])
+@router.get("/demo-samples")
 def list_demo_samples() -> list[DemoSampleInfo]:
     return [
         DemoSampleInfo(
@@ -64,18 +72,28 @@ def list_demo_samples() -> list[DemoSampleInfo]:
     ]
 
 
-@router.get("/demo-samples/{sample_id}/image")
+@router.get(
+    "/demo-samples/{sample_id}/image", responses={404: {"description": NOT_FOUND}}
+)
 def get_demo_sample_image(sample_id: str) -> Response:
     sample = _sample_or_404(sample_id)
     return Response(content=sample.image_bytes, media_type="image/jpeg")
 
 
-@router.post("/demo-upload", response_model=DemoPlateReadResponse)
+@router.post(
+    "/demo-upload",
+    responses={
+        400: {"description": BAD_REQUEST},
+        404: {"description": NOT_FOUND},
+        413: {"description": PAYLOAD_TOO_LARGE},
+        422: {"description": UNPROCESSABLE, "content": VALIDATION_ERROR_CONTENT},
+    },
+)
 @limiter.limit(lambda: settings.ocr_demo_rate_limit)
 async def demo_upload(
     request: Request,  # noqa: ARG001 - exigido pelo limiter do slowapi
-    sample_id: str | None = Form(None),
-    file: UploadFile | None = File(None),
+    sample_id: Annotated[str | None, Form()] = None,
+    file: Annotated[UploadFile | None, File()] = None,
 ) -> DemoPlateReadResponse:
     if sample_id is not None and file is not None:
         raise HTTPException(

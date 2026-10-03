@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.db import SessionLocal
 from app.services.demo_seed import SeedReport, WeakPasswordError, seed_demo_data
 
-PASSWORD_VARIABLE = "SEED_ADMIN_PASSWORD"  # noqa: S105 - nome da variável, não a senha
+PASSWORD_VARIABLE = "SEED_ADMIN_PASSWORD"  # noqa: S105
 RESET_VARIABLE = "SEED_RESET_PASSWORDS"
 RESET_CONFIRMATION = "sim"
 

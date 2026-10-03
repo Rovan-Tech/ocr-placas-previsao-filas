@@ -66,11 +66,10 @@ def test_rejects_plate_longer_than_seven_characters(db_session, employee, plate)
 
 
 def test_database_rejects_unknown_status(db_session, employee):
+    insert_unknown_status = text(
+        "INSERT INTO checkins (plate, status, created_by_id) "
+        "VALUES ('ABC1D23', 'foo', :employee_id)"
+    )
+
     with pytest.raises(IntegrityError, match="ck_checkins_checkin_status"):
-        db_session.execute(
-            text(
-                "INSERT INTO checkins (plate, status, created_by_id) "
-                "VALUES ('ABC1D23', 'foo', :employee_id)"
-            ),
-            {"employee_id": employee.id},
-        )
+        db_session.execute(insert_unknown_status, {"employee_id": employee.id})

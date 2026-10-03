@@ -199,6 +199,78 @@ def _vote(
         vote.has_strong_evidence = vote.has_strong_evidence or not is_weak_evidence
 
 
+def _prepare_variants(
+    images: Iterable[tuple[np.ndarray, bool]], max_variants: int | None
+) -> list[tuple[bool, list[tuple[str, np.ndarray]]]]:
+    prepared = [
+        (is_weak_evidence, list(ocr_variants(region)))
+        for region, is_weak_evidence in images
+    ]
+    if max_variants is None:
+        return prepared
+    return [
+        (is_weak_evidence, variants[:max_variants])
+        for is_weak_evidence, variants in prepared
+    ]
+
+
+def _out_of_time(state: _ReadState, started: float) -> bool:
+    elapsed = time.monotonic() - started
+    return elapsed > HARD_TIME_BUDGET_S or (
+        bool(state.votes) and elapsed > SOFT_TIME_BUDGET_S
+    )
+
+
+def _read_variant(
+    reader: easyocr.Reader,
+    variant: np.ndarray,
+    state: _ReadState,
+    is_weak_evidence: bool,
+) -> list[OcrResult]:
+    results = reader.readtext(variant, allowlist=PLATE_ALLOWLIST)
+    state.detections.extend(
+        {"text": text, "confidence": round(float(confidence), 4)}
+        for _, text, confidence in results
+    )
+    _vote(state.votes, results, is_weak_evidence)
+    return cast("list[OcrResult]", results)
+
+
+def _has_confident_vote(state: _ReadState) -> bool:
+    return bool(state.votes) and _is_confident(
+        max(state.votes.values(), key=lambda v: v.score)
+    )
+
+
+@dataclass
+class _ReadPass:
+    reader: easyocr.Reader
+    state: _ReadState
+    started: float
+    prepared: list[tuple[bool, list[tuple[str, np.ndarray]]]]
+    exhausted: list[bool] = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.exhausted = [False] * len(self.prepared)
+
+    def run_round(self, round_index: int) -> bool | None:
+        for i, (is_weak_evidence, variants) in enumerate(self.prepared):
+            if self.exhausted[i]:
+                continue
+            if round_index >= len(variants):
+                self.exhausted[i] = True
+                continue
+            if _out_of_time(self.state, self.started):
+                return False
+            _, variant = variants[round_index]
+            results = _read_variant(self.reader, variant, self.state, is_weak_evidence)
+            if _has_confident_vote(self.state):
+                return True
+            if not self.state.votes and _looks_truncated(results):
+                self.exhausted[i] = True
+        return None
+
+
 def _read_images(
     reader: easyocr.Reader,
     images: Iterable[tuple[np.ndarray, bool]],
@@ -206,48 +278,15 @@ def _read_images(
     started: float,
     max_variants: int | None = None,
 ) -> bool:
-    prepared = [
-        (is_weak_evidence, list(ocr_variants(region)))
-        for region, is_weak_evidence in images
-    ]
-    if max_variants is not None:
-        prepared = [
-            (is_weak_evidence, variants[:max_variants])
-            for is_weak_evidence, variants in prepared
-        ]
-
-    exhausted = [False] * len(prepared)
+    read_pass = _ReadPass(
+        reader, state, started, _prepare_variants(images, max_variants)
+    )
     round_index = 0
-    while not all(exhausted):
-        progressed = False
-        for i, (is_weak_evidence, variants) in enumerate(prepared):
-            if exhausted[i]:
-                continue
-            if round_index >= len(variants):
-                exhausted[i] = True
-                continue
-            progressed = True
-            elapsed = time.monotonic() - started
-            if elapsed > HARD_TIME_BUDGET_S or (
-                state.votes and elapsed > SOFT_TIME_BUDGET_S
-            ):
-                return False
-            _, variant = variants[round_index]
-            results = reader.readtext(variant, allowlist=PLATE_ALLOWLIST)
-            state.detections.extend(
-                {"text": text, "confidence": round(float(confidence), 4)}
-                for _, text, confidence in results
-            )
-            _vote(state.votes, results, is_weak_evidence)
-            if state.votes and _is_confident(
-                max(state.votes.values(), key=lambda v: v.score)
-            ):
-                return True
-            if not state.votes and _looks_truncated(results):
-                exhausted[i] = True
+    while not all(read_pass.exhausted):
+        outcome = read_pass.run_round(round_index)
+        if outcome is not None:
+            return outcome
         round_index += 1
-        if not progressed:
-            break
     return False
 
 

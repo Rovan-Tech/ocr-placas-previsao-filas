@@ -15,7 +15,7 @@ from app.services.permissions import Permission, can
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
 
 PASSWORD_MAX_AGE = timedelta(days=30)
-CHANGE_PASSWORD_PATH = "/auth/change-password"  # nosec B105  # noqa: S105 - rota, não é senha
+CHANGE_PASSWORD_PATH = "/auth/change-password"  # nosec B105  # noqa: S105
 
 CREDENTIALS_ERROR = HTTPException(status_code=401, detail="Usuário ou senha inválidos.")
 TOKEN_ERROR = HTTPException(

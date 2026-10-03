@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from dataclasses import dataclass
 from http import HTTPStatus
@@ -160,6 +161,7 @@ _MOCK_PROFILES: tuple[VehicleData, ...] = (
 
 class MockVehicleDataProvider:
     async def lookup(self, plate: str) -> VehicleData | None:
+        await asyncio.sleep(0)
         index = sum(ord(character) for character in plate) % len(_MOCK_PROFILES)
         return _MOCK_PROFILES[index]
 

@@ -50,4 +50,4 @@ def is_valid_cpf(cpf: str) -> bool:
         return False
     first_digit = _cpf_check_digit(digits[:9])
     second_digit = _cpf_check_digit(digits[:9] + first_digit)
-    return digits[9:] == first_digit + second_digit
+    return digits.endswith(first_digit + second_digit)

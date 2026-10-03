@@ -1,3 +1,4 @@
+from collections.abc import Iterable, Sequence
 from itertools import pairwise
 
 import cv2
@@ -239,30 +240,44 @@ def _looks_like_plate_text(gray: np.ndarray, corners: np.ndarray) -> bool:
     return _dark_component_count(native_crop) >= MIN_DARK_COMPONENTS_FOR_PLATE
 
 
-def _cluster_characters_into_lines(
-    boxes: list[tuple[float, float, float, float]],
+def _plausible_plate_corners(
+    box_groups: Iterable[list[tuple[float, float, float, float]]],
 ) -> list[np.ndarray]:
     corners = []
-    for group in _group_by_baseline(boxes):
-        for cluster in _split_by_horizontal_gap(group):
-            if len(cluster) < MIN_CLUSTER_CHARACTERS:
-                continue
-            ratio = _box_ratio(_bounding_box(cluster))
-            if ratio is not None and _is_plausible_plate_ratio(ratio):
-                corners.append(_corners_from_box(_bounding_box(cluster)))
-
-    lines = _line_clusters(boxes)
-    for first, second in pairwise(lines):
-        if len(first) + len(second) < MIN_CLUSTER_CHARACTERS:
-            continue
-        if not _lines_overlap_horizontally(first, second):
-            continue
-        box = _bounding_box(first + second)
+    for group in box_groups:
+        box = _bounding_box(group)
         ratio = _box_ratio(box)
         if ratio is not None and _is_plausible_plate_ratio(ratio):
             corners.append(_corners_from_box(box))
-
     return corners
+
+
+def _single_cluster_corners(
+    boxes: list[tuple[float, float, float, float]],
+) -> list[np.ndarray]:
+    return _plausible_plate_corners(
+        cluster
+        for group in _group_by_baseline(boxes)
+        for cluster in _split_by_horizontal_gap(group)
+        if len(cluster) >= MIN_CLUSTER_CHARACTERS
+    )
+
+
+def _line_pair_corners(
+    boxes: list[tuple[float, float, float, float]],
+) -> list[np.ndarray]:
+    return _plausible_plate_corners(
+        first + second
+        for first, second in pairwise(_line_clusters(boxes))
+        if len(first) + len(second) >= MIN_CLUSTER_CHARACTERS
+        and _lines_overlap_horizontally(first, second)
+    )
+
+
+def _cluster_characters_into_lines(
+    boxes: list[tuple[float, float, float, float]],
+) -> list[np.ndarray]:
+    return _single_cluster_corners(boxes) + _line_pair_corners(boxes)
 
 
 def _best_character_run(boxes: list[tuple[float, float, float, float]]) -> int:
@@ -274,14 +289,14 @@ def _best_character_run(boxes: list[tuple[float, float, float, float]]) -> int:
     return best
 
 
-def _candidate_corners(gray: np.ndarray) -> list[tuple[np.ndarray, bool]]:
-    image_area = gray.shape[0] * gray.shape[1]
-    enhanced = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray)
-
+def _edge_contours(enhanced: np.ndarray) -> Sequence[np.ndarray]:
     edges = cv2.Canny(cv2.bilateralFilter(enhanced, 9, 50, 50), 40, 160)
     edges = cv2.dilate(edges, np.ones((3, 3), np.uint8))
-    edge_contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    return contours
 
+
+def _text_block_contours(enhanced: np.ndarray) -> Sequence[np.ndarray]:
     blackhat = cv2.morphologyEx(
         enhanced, cv2.MORPH_BLACKHAT, cv2.getStructuringElement(cv2.MORPH_RECT, (25, 9))
     )
@@ -295,49 +310,64 @@ def _candidate_corners(gray: np.ndarray) -> list[tuple[np.ndarray, bool]]:
         text_mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_RECT, (31, 7))
     )
     text_mask = cv2.erode(text_mask, np.ones((3, 3), np.uint8), iterations=1)
-    text_contours, _ = cv2.findContours(
+    contours, _ = cv2.findContours(
         text_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
     )
+    return contours
 
-    candidates = []
-    sources = [(contour, True) for contour in edge_contours] + [
-        (contour, False) for contour in text_contours
+
+def _clean_quad_approximation(contour: np.ndarray) -> np.ndarray | None:
+    approx = cv2.approxPolyDP(
+        cv2.convexHull(contour), 0.04 * cv2.arcLength(contour, True), True
+    )
+    if len(approx) != QUAD_CORNERS:
+        return None
+    (_, _), (width, height), _ = cv2.minAreaRect(approx)
+    if min(width, height) <= 0:
+        return None
+    ratio = max(width, height) / min(width, height)
+    return approx if _is_plausible_plate_ratio(ratio) else None
+
+
+def _has_plate_shape(gray: np.ndarray, corners: np.ndarray, ratio: float) -> bool:
+    if MIN_PLATE_ASPECT_RATIO <= ratio <= MAX_PLATE_ASPECT_RATIO:
+        return True
+    return MOTO_MIN_ASPECT_RATIO <= ratio <= MOTO_MAX_ASPECT_RATIO and (
+        _looks_like_plate_text(gray, _order_corners(corners))
+    )
+
+
+def _contour_plate_corners(
+    gray: np.ndarray, contour: np.ndarray, *, is_plate_outline: bool
+) -> np.ndarray | None:
+    image_area = gray.shape[0] * gray.shape[1]
+    area = cv2.contourArea(contour)
+    if not MIN_AREA_FRACTION * image_area <= area <= MAX_AREA_FRACTION * image_area:
+        return None
+    rect = cv2.minAreaRect(contour)
+    (_, _), (w, h), _ = rect
+    long_side, short_side = max(w, h), min(w, h)
+    if short_side == 0 or long_side < MIN_PLATE_WIDTH_PX / 2:
+        return None
+    corners = cv2.boxPoints(rect)
+    if not _has_plate_shape(gray, corners, long_side / short_side):
+        return None
+    quad = _clean_quad_approximation(contour) if is_plate_outline else None
+    return _order_corners(quad if quad is not None else corners)
+
+
+def _candidate_corners(gray: np.ndarray) -> list[tuple[np.ndarray, bool]]:
+    enhanced = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray)
+    sources = [(contour, True) for contour in _edge_contours(enhanced)] + [
+        (contour, False) for contour in _text_block_contours(enhanced)
     ]
+    candidates = []
     for contour, is_plate_outline in sources:
-        area = cv2.contourArea(contour)
-        if not MIN_AREA_FRACTION * image_area <= area <= MAX_AREA_FRACTION * image_area:
-            continue
-        (_, _), (w, h), _ = cv2.minAreaRect(contour)
-        long_side, short_side = max(w, h), min(w, h)
-        if short_side == 0 or long_side < MIN_PLATE_WIDTH_PX / 2:
-            continue
-        ratio = long_side / short_side
-        corners = cv2.boxPoints(cv2.minAreaRect(contour))
-        approx = (
-            cv2.approxPolyDP(
-                cv2.convexHull(contour), 0.04 * cv2.arcLength(contour, True), True
-            )
-            if is_plate_outline
-            else None
+        corners = _contour_plate_corners(
+            gray, contour, is_plate_outline=is_plate_outline
         )
-        approx_ratio = None
-        if approx is not None and len(approx) == QUAD_CORNERS:
-            (_, _), (approx_w, approx_h), _ = cv2.minAreaRect(approx)
-            if min(approx_w, approx_h) > 0:
-                approx_ratio = max(approx_w, approx_h) / min(approx_w, approx_h)
-        is_clean_quad = approx_ratio is not None and _is_plausible_plate_ratio(
-            approx_ratio
-        )
-        if MIN_PLATE_ASPECT_RATIO <= ratio <= MAX_PLATE_ASPECT_RATIO or (
-            MOTO_MIN_ASPECT_RATIO <= ratio <= MOTO_MAX_ASPECT_RATIO
-            and _looks_like_plate_text(gray, _order_corners(corners))
-        ):
-            pass
-        else:
-            continue
-        if is_clean_quad and approx is not None:
-            corners = approx
-        candidates.append((_order_corners(corners), False))
+        if corners is not None:
+            candidates.append((corners, False))
 
     candidates.extend(
         (corners, True)
@@ -399,37 +429,44 @@ def _region_area(corners: np.ndarray) -> float:
     return float(w * h)
 
 
-def find_plate_candidates(
-    image: np.ndarray, max_candidates: int = 3
-) -> list[tuple[np.ndarray, bool]]:
-    width = image.shape[1]
-    scale = min(1.0, SEARCH_MAX_WIDTH / width)
-    small = (
-        cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
-        if scale < 1
-        else image
-    )
-    gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+def _downscale_for_search(image: np.ndarray) -> tuple[np.ndarray, float]:
+    scale = min(1.0, SEARCH_MAX_WIDTH / image.shape[1])
+    if scale < 1:
+        image = cv2.resize(
+            image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA
+        )
+    return image, scale
 
-    corners_by_source = _candidate_corners(gray)
-    non_cluster = [
-        corners for corners, is_cluster in corners_by_source if not is_cluster
-    ]
-    clusters = [corners for corners, is_cluster in corners_by_source if is_cluster]
 
+def _pick_ranked_candidates(
+    gray: np.ndarray, non_cluster: list[np.ndarray], max_candidates: int
+) -> list[np.ndarray]:
     scored = sorted(
         ((_text_score(gray, corners), corners) for corners in non_cluster),
         key=lambda item: item[0],
         reverse=True,
     )
     chosen: list[np.ndarray] = []
-    chosen_is_weak: list[bool] = []
     for _, corners in scored:
         if all(_overlap(corners, other) < MAX_OVERLAP_FRACTION for other in chosen):
             chosen.append(corners)
-            chosen_is_weak.append(False)
         if len(chosen) == max_candidates:
             break
+    return chosen
+
+
+def _choose_candidates(
+    gray: np.ndarray,
+    corners_by_source: list[tuple[np.ndarray, bool]],
+    max_candidates: int,
+) -> tuple[list[np.ndarray], list[bool]]:
+    non_cluster = [
+        corners for corners, is_cluster in corners_by_source if not is_cluster
+    ]
+    clusters = [corners for corners, is_cluster in corners_by_source if is_cluster]
+
+    chosen = _pick_ranked_candidates(gray, non_cluster, max_candidates)
+    chosen_is_weak = [False] * len(chosen)
 
     if clusters:
         best_cluster = max(clusters, key=lambda corners: _text_score(gray, corners))
@@ -443,6 +480,17 @@ def find_plate_candidates(
         if all(_covered_by(largest, other) < MAX_OVERLAP_FRACTION for other in chosen):
             chosen.append(largest)
             chosen_is_weak.append(False)
+    return chosen, chosen_is_weak
+
+
+def find_plate_candidates(
+    image: np.ndarray, max_candidates: int = 3
+) -> list[tuple[np.ndarray, bool]]:
+    small, scale = _downscale_for_search(image)
+    gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+    chosen, chosen_is_weak = _choose_candidates(
+        gray, _candidate_corners(gray), max_candidates
+    )
 
     crops = [
         (

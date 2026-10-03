@@ -1,7 +1,8 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import TypedDict, Unpack
+from typing import TypedDict, TypeVar, Unpack
 
 import cv2
 import numpy as np
@@ -559,41 +560,66 @@ def _random_plate(rng: np.random.Generator) -> str:
     return f"{letters}{digits[0]}{fifth}{digits[2]}{digits[3]}"
 
 
-def random_cases(count: int = 40, seed: int = 2026) -> list[PlateSample]:
-    rng = np.random.default_rng(seed)
-    samples = []
-    for index in range(count):
-        options: _BuildOptions = {
-            "plate_width": int(rng.integers(240, 620)),
-            "yaw": float(rng.uniform(0, 0.35)) if _chance(rng, 0.4) else 0.0,
-            "roll": float(rng.uniform(-10, 10)) if _chance(rng, 0.4) else 0.0,
-            "dirt": int(rng.integers(6, 18)) if _chance(rng, 0.3) else 0,
-            "worn": _chance(rng, 0.2),
-            "blur": int(rng.choice([5, 7, 9])) if _chance(rng, 0.25) else 0,
-            "darken": (float(rng.uniform(0.18, 0.45)), float(rng.uniform(3, 7)))
-            if _chance(rng, 0.35)
-            else None,
-            "glare": (
+_T = TypeVar("_T")
+
+
+def _maybe(
+    rng: np.random.Generator,
+    probability: float,
+    make: Callable[[], _T],
+    default: _T,
+) -> _T:
+    return make() if _chance(rng, probability) else default
+
+
+def _random_options(rng: np.random.Generator) -> _BuildOptions:
+    return {
+        "plate_width": int(rng.integers(240, 620)),
+        "yaw": _maybe(rng, 0.4, lambda: float(rng.uniform(0, 0.35)), 0.0),
+        "roll": _maybe(rng, 0.4, lambda: float(rng.uniform(-10, 10)), 0.0),
+        "dirt": _maybe(rng, 0.3, lambda: int(rng.integers(6, 18)), 0),
+        "worn": _chance(rng, 0.2),
+        "blur": _maybe(rng, 0.25, lambda: int(rng.choice([5, 7, 9])), 0),
+        "darken": _maybe(
+            rng,
+            0.35,
+            lambda: (float(rng.uniform(0.18, 0.45)), float(rng.uniform(3, 7))),
+            None,
+        ),
+        "glare": _maybe(
+            rng,
+            0.2,
+            lambda: (
                 int(rng.integers(-150, 150)),
                 0,
                 int(rng.integers(60, 110)),
                 50,
                 float(rng.uniform(0.5, 0.85)),
-            )
-            if _chance(rng, 0.2)
-            else None,
-            "backlight": (
+            ),
+            None,
+        ),
+        "backlight": _maybe(
+            rng,
+            0.15,
+            lambda: (
                 int(rng.integers(-80, 80)),
                 int(rng.integers(-50, 0)),
                 int(rng.integers(90, 170)),
                 int(rng.integers(80, 140)),
-            )
-            if _chance(rng, 0.15)
-            else None,
-            "rain": _chance(rng, 0.15),
-            "scratches": int(rng.integers(3, 8)) if _chance(rng, 0.15) else 0,
-            "quality": int(rng.integers(40, 90)),
-        }
+            ),
+            None,
+        ),
+        "rain": _chance(rng, 0.15),
+        "scratches": _maybe(rng, 0.15, lambda: int(rng.integers(3, 8)), 0),
+        "quality": int(rng.integers(40, 90)),
+    }
+
+
+def random_cases(count: int = 40, seed: int = 2026) -> list[PlateSample]:
+    rng = np.random.default_rng(seed)
+    samples = []
+    for index in range(count):
+        options = _random_options(rng)
         applied = [
             name
             for name, value in options.items()
