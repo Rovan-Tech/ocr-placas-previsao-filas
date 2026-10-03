@@ -137,7 +137,7 @@ frontend/
     services/          api.ts (chamadas HTTP), auth.ts, authToken.ts, plate.ts
     App.tsx            roteamento (react-router-dom) + guarda de login/troca de senha
   tests/
-    unit/              Vitest (api.test.ts, plate.test.ts)
+    unit/              Vitest + Testing Library (*.test.ts para services, *.test.tsx para telas)
     e2e/               Playwright (auth/capture/checkins/mobile.spec.ts)
 scripts/dev.mjs        orquestra tudo: Docker → venv/deps → migração → deps do frontend → Uvicorn+Vite
 docker-compose.yml     sobe o PostgreSQL local (porta 5433) e semeia o banco de teste
