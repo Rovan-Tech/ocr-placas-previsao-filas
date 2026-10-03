@@ -89,7 +89,7 @@ src/
                   # (login/troca de senha/funcionários), authToken.ts (ponte entre api.ts e o
                   # AuthContext, sem depender do React)
 tests/
-├── unit/         # Vitest — src/services
+├── unit/         # Vitest + Testing Library (jsdom) — services, componentes, páginas e contextos
 └── e2e/          # Playwright — fluxos de login, captura e listagem (backend mockado com
                   # page.route; testAuth.ts pré-autentica a sessão pros testes que não são sobre login)
 ```
@@ -124,7 +124,12 @@ de tendência desse tempo de espera ao longo do turno.
 - `npm run build` — checagem de tipos (`tsc -b`) + build de produção em `dist/`
 - `npm run typecheck` — só a checagem de tipos
 - `npm run lint` — lint com oxlint
-- `npm run test` — testes unitários (Vitest)
+- `npm run test` — testes unitários (Vitest + jsdom, cobertura com `-- --coverage` em
+  `coverage/lcov.info`). O CI roda no Node 20, então as versões de `vitest`, `@vitest/coverage-v8`,
+  `jsdom` e `@testing-library/jest-dom` são mantidas nas majors que suportam Node 20 (Vitest 4,
+  jsdom 29, jest-dom 6): `jsdom` 30 / Vitest 5 / jest-dom 7 exigem Node 22+ e, no Node 20, o
+  Vitest falha com `webidl.util.markAsUncloneable is not a function` em todo teste `.tsx`.
+  Só suba essas majors junto com o `node-version` do CI.
 - `npm run test:e2e` — testes e2e (Playwright; na primeira vez, rode `npx playwright install chromium`).
   Os testes sobem o próprio Vite na porta 4173 e mockam o backend, então não precisam do FastAPI
   rodando. A câmera é simulada pelo Chromium (`--use-fake-device-for-media-stream`).

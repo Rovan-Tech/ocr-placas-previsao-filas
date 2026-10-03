@@ -65,3 +65,16 @@ describe('contagem de alterações', () => {
     expect(changeCount(ROLES, draftFromRoles(ROLES))).toBe(0)
   })
 })
+
+describe('rascunho sem entrada para um cargo', () => {
+  it('marcar uma permissão num cargo ainda ausente do rascunho cria a lista dele', () => {
+    const draft = togglePermission({}, 2, 'logs.view')
+
+    expect(draft[2]).toEqual(['logs.view'])
+  })
+
+  it('cargo ausente do rascunho conta como se tivesse perdido todas as permissões', () => {
+    expect(dirtyRoleIds(ROLES, {})).toEqual([1])
+    expect(changeCount(ROLES, {})).toBe(1)
+  })
+})

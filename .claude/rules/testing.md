@@ -31,6 +31,10 @@ repetidas aqui.
 - Mesmo padrão Arrange-Act-Assert e `parametrize` via `it.each`. Testa lógica pura de
   `src/services/` (formatação de placa, cálculo de tempo de espera exibido, tratamento de erro da
   API) — chamada HTTP sempre mockada (`vi.fn()`/`vi.mock`), nunca bate na API real.
+- Componentes e páginas (`*.test.tsx`, jsdom + Testing Library + `user-event`): consulta por
+  papel/rótulo/texto como no Playwright, cobrindo carregando/vazio/erro e cada ramo de permissão.
+  Mock só na fronteira: `services/api`/`services/auth`, o `useAuth` quando a página só precisa do
+  funcionário logado, e hardware (câmera, canvas). Helpers e fixtures em `tests/unit/support/`.
 
 ## Playwright (E2E)
 
