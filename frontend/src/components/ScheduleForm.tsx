@@ -70,8 +70,15 @@ interface ScheduleFormProps {
   onCreated: (schedule: ScheduleOut) => void
 }
 
-function emptyCargoItem(): CargoItemInput {
-  return { productName: '', category: 'nao_perecivel' }
+interface CargoRow extends CargoItemInput {
+  rowId: number
+}
+
+let nextCargoRowId = 0
+
+function emptyCargoItem(): CargoRow {
+  nextCargoRowId += 1
+  return { rowId: nextCargoRowId, productName: '', category: 'nao_perecivel' }
 }
 
 export default function ScheduleForm({
@@ -80,7 +87,7 @@ export default function ScheduleForm({
   initialScheduledDate = '',
   plateReadOnly = false,
   onCreated,
-}: ScheduleFormProps) {
+}: Readonly<ScheduleFormProps>) {
   const [plate, setPlate] = useState(initialPlate)
   const [driverName, setDriverName] = useState('')
   const [driverBirthDate, setDriverBirthDate] = useState('')
@@ -101,7 +108,7 @@ export default function ScheduleForm({
   const [vehicleWidthM, setVehicleWidthM] = useState('')
   const [originLocation, setOriginLocation] = useState('')
   const [destinationLocation, setDestinationLocation] = useState('')
-  const [cargoItems, setCargoItems] = useState<CargoItemInput[]>([emptyCargoItem()])
+  const [cargoItems, setCargoItems] = useState<CargoRow[]>([emptyCargoItem()])
   const [scheduledDate, setScheduledDate] = useState(initialScheduledDate)
   const [driverDocumentPhotoFront, setDriverDocumentPhotoFront] = useState<File | null>(null)
   const [driverDocumentPhotoBack, setDriverDocumentPhotoBack] = useState<File | null>(null)
@@ -150,6 +157,10 @@ export default function ScheduleForm({
   function removeCargoItem(index: number) {
     setCargoItems((current) => current.filter((_, i) => i !== index))
   }
+
+  let birthCityPlaceholder = 'Selecione a cidade'
+  if (loadingBirthCities) birthCityPlaceholder = 'Carregando cidades…'
+  else if (!driverBirthState) birthCityPlaceholder = 'Escolha a UF primeiro'
 
   const hasValidCargoItems =
     cargoItems.length > 0 && cargoItems.every((item) => item.productName.trim())
@@ -209,7 +220,7 @@ export default function ScheduleForm({
         vehicleWidthM,
         originLocation,
         destinationLocation,
-        cargoItems,
+        cargoItems: cargoItems.map(({ productName, category }) => ({ productName, category })),
         scheduledDate,
         driverDocumentPhotoFront,
         driverDocumentPhotoBack,
@@ -316,11 +327,7 @@ export default function ScheduleForm({
             }
           >
             <option value="" disabled>
-              {loadingBirthCities
-                ? 'Carregando cidades…'
-                : !driverBirthState
-                  ? 'Escolha a UF primeiro'
-                  : 'Selecione a cidade'}
+              {birthCityPlaceholder}
             </option>
             {birthCities.map((city) => (
               <option key={city.id} value={city.name}>
@@ -516,7 +523,7 @@ export default function ScheduleForm({
       <h3 className="form-section">Carga</h3>
       <span className="label">Produtos da carga</span>
       {cargoItems.map((item, index) => (
-        <div className="cargo-item-row" key={index}>
+        <div className="cargo-item-row" key={item.rowId}>
           <label htmlFor={`${idPrefix}-cargo-product-${index}`}>Produto {index + 1}</label>
           <input
             id={`${idPrefix}-cargo-product-${index}`}

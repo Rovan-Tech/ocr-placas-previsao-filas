@@ -11,7 +11,7 @@ function cargoSummary(schedule: ScheduleOut): string {
     .join(', ')
 }
 
-function DocumentBadge({ isValidated }: { isValidated: boolean }) {
+function DocumentBadge({ isValidated }: Readonly<{ isValidated: boolean }>) {
   const { label, tone } = documentStatusInfo(isValidated)
   return <span className={`status-badge status-badge-${tone}`}>{label}</span>
 }
@@ -20,11 +20,11 @@ function SchedulesTable({
   schedules,
   loading,
   error,
-}: {
+}: Readonly<{
   schedules: ScheduleOut[]
   loading: boolean
   error: string | null
-}) {
+}>) {
   if (loading) return <p className="message">Carregando…</p>
   if (error) return <p className="message error">{error}</p>
   if (schedules.length === 0) return <p className="message">Nenhum agendamento cadastrado ainda.</p>

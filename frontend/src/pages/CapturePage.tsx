@@ -19,10 +19,10 @@ type Status = 'idle' | 'reviewing_photo' | 'sending' | 'needs_decision' | 'confi
 function UnscheduledArrivalRegistration({
   plate,
   onRegistered,
-}: {
+}: Readonly<{
   plate: string
   onRegistered: (schedule: ScheduleOut) => void
-}) {
+}>) {
   const [registering, setRegistering] = useState(false)
 
   if (!registering) {
@@ -102,7 +102,7 @@ export default function CapturePage() {
 
   function handleScheduleRegistered(schedule: ScheduleOut) {
     setResult((current) =>
-      current && current.checkin
+      current?.checkin
         ? {
             ...current,
             checkin: {

@@ -9,7 +9,11 @@ interface ToastProps {
   durationMs?: number
 }
 
-export default function Toast({ message, onClose, durationMs = DEFAULT_DURATION_MS }: ToastProps) {
+export default function Toast({
+  message,
+  onClose,
+  durationMs = DEFAULT_DURATION_MS,
+}: Readonly<ToastProps>) {
   const onCloseRef = useRef(onClose)
 
   useEffect(() => {

@@ -25,12 +25,12 @@ function Kpi({
   value,
   note,
   noteTone = 'muted',
-}: {
+}: Readonly<{
   title: string
   value: string
   note: string
   noteTone?: 'muted' | 'ok' | 'warning'
-}) {
+}>) {
   return (
     <div className="kpi-card">
       <h2 className="card-title">{title}</h2>
@@ -40,7 +40,7 @@ function Kpi({
   )
 }
 
-function HourlyChart({ summary }: { summary: ReportSummary }) {
+function HourlyChart({ summary }: Readonly<{ summary: ReportSummary }>) {
   const peak = Math.max(...summary.byHour.map((bucket) => bucket.count), 1)
   const labelStep = summary.byHour.length > DENSE_CHART_BUCKETS ? 2 : 1
   return (
@@ -72,7 +72,7 @@ function HourlyChart({ summary }: { summary: ReportSummary }) {
   )
 }
 
-function DecisionTable({ summary }: { summary: ReportSummary }) {
+function DecisionTable({ summary }: Readonly<{ summary: ReportSummary }>) {
   return (
     <div className="table-scroll">
       <table className="checkins">
@@ -116,21 +116,20 @@ function waitNote(averageWaitMinutes: number | null) {
   }
 }
 
-function ReportKpis({ data }: { data: ReportData }) {
+function ReportKpis({ data }: Readonly<{ data: ReportData }>) {
   const { summary, uncertainPercent } = data
   const wait = waitNote(summary.averageWaitMinutes)
   const change = summary.changeVsYesterdayPercent
+  const changeArrow = change != null && change >= 0 ? '↑' : '↓'
+  const changeNote =
+    change == null ? 'sem dados de ontem' : `${changeArrow} ${Math.abs(change)}% vs. ontem`
 
   return (
     <div className="kpi-grid">
       <Kpi
         title="Check-ins hoje"
         value={String(summary.total)}
-        note={
-          change == null
-            ? 'sem dados de ontem'
-            : `${change >= 0 ? '↑' : '↓'} ${Math.abs(change)}% vs. ontem`
-        }
+        note={changeNote}
         noteTone={change != null && change >= 0 ? 'ok' : 'muted'}
       />
       <Kpi
@@ -201,9 +200,7 @@ export default function ReportsPage() {
       {!data && !error && <p className="message">Carregando…</p>}
       {error && <p className="message error">{error}</p>}
 
-      {data && data.summary.total === 0 && (
-        <p className="message">Nenhum check-in registrado hoje.</p>
-      )}
+      {data?.summary.total === 0 && <p className="message">Nenhum check-in registrado hoje.</p>}
 
       {data && data.summary.total > 0 && (
         <>

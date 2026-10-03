@@ -43,7 +43,7 @@ function clearSession(setSession: (session: StoredSession | null) => void) {
   setSession(null)
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [session, setSession] = useState<StoredSession | null>(() => {
     const initial = loadStoredSession()
     setAuthToken(initial?.token ?? null)

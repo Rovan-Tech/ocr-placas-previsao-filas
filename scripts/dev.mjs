@@ -19,7 +19,7 @@ const VENV_BIN = join(BACKEND, '.venv', IS_WINDOWS ? 'Scripts' : 'bin')
 const VENV_PYTHON = join(VENV_BIN, IS_WINDOWS ? 'python.exe' : 'python')
 // Caminho absoluto do taskkill (sempre em %SystemRoot%/System32): não depende do PATH, que poderia
 // resolver um executável homônimo plantado em outra pasta (Sonar javascript:S4036).
-const TASKKILL = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe')
+const TASKKILL = join(process.env.SystemRoot ?? String.raw`C:\Windows`, 'System32', 'taskkill.exe')
 const FRONTEND_URL = 'http://localhost:5173'
 const BACKEND_URL = 'http://localhost:8002'
 
@@ -168,12 +168,14 @@ function shutdown(exitCode = 0) {
   process.exit(exitCode)
 }
 
+function browserCommand(url) {
+  if (IS_WINDOWS) return ['cmd', ['/c', 'start', '', url]]
+  if (process.platform === 'darwin') return ['open', [url]]
+  return ['xdg-open', [url]]
+}
+
 function openBrowser(url) {
-  const [command, args] = IS_WINDOWS
-    ? ['cmd', ['/c', 'start', '', url]]
-    : process.platform === 'darwin'
-      ? ['open', [url]]
-      : ['xdg-open', [url]]
+  const [command, args] = browserCommand(url)
   spawn(command, args, { stdio: 'ignore', detached: true }).on('error', () => {}).unref()
 }
 

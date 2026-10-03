@@ -11,7 +11,7 @@ interface RoleTabsProps {
   onCreate: (name: string) => Promise<void>
 }
 
-function NewRoleForm({ onCreate }: { onCreate: (name: string) => Promise<void> }) {
+function NewRoleForm({ onCreate }: Readonly<{ onCreate: (name: string) => Promise<void> }>) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [sending, setSending] = useState(false)
@@ -71,7 +71,7 @@ export default function RoleTabs({
   dirtyIds,
   onSelect,
   onCreate,
-}: RoleTabsProps) {
+}: Readonly<RoleTabsProps>) {
   return (
     <div className="role-tabs-row">
       <div className="role-tabs" role="tablist" aria-label="Cargos">

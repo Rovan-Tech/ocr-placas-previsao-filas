@@ -6,7 +6,7 @@ interface InfoTipProps {
   text: string
 }
 
-export default function InfoTip({ label, text }: InfoTipProps) {
+export default function InfoTip({ label, text }: Readonly<InfoTipProps>) {
   const tooltipId = useId()
 
   return (

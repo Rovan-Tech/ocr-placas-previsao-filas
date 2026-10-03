@@ -19,7 +19,7 @@ interface TrendCoordinate extends TrendPoint {
   y: number
 }
 
-export default function CheckinsTrendChart({ checkins }: { checkins: Checkin[] }) {
+export default function CheckinsTrendChart({ checkins }: Readonly<{ checkins: Checkin[] }>) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [hovered, setHovered] = useState<TrendCoordinate | null>(null)
 

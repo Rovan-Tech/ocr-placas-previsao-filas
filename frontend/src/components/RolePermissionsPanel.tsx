@@ -13,10 +13,10 @@ interface RolePermissionsPanelProps {
 function DeleteRole({
   role,
   onDelete,
-}: {
+}: Readonly<{
   role: RoleDetail
   onDelete: (role: RoleDetail) => void
-}) {
+}>) {
   const [confirming, setConfirming] = useState(false)
 
   if (!confirming) {
@@ -50,7 +50,7 @@ export default function RolePermissionsPanel({
   granted,
   onToggle,
   onDelete,
-}: RolePermissionsPanelProps) {
+}: Readonly<RolePermissionsPanelProps>) {
   return (
     <section className="role-panel" role="tabpanel" aria-label={`Permissões de ${role.name}`}>
       <header className="role-panel-header">

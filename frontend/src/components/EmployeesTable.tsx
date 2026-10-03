@@ -26,12 +26,12 @@ function RoleCell({
   roles,
   editable,
   onChange,
-}: {
+}: Readonly<{
   employee: Employee
   roles: RoleSummary[]
   editable: boolean
   onChange: (roleId: number) => void
-}) {
+}>) {
   const hasOverrides = employee.overrides.granted.length + employee.overrides.denied.length > 0
   if (!editable) {
     return (
@@ -66,7 +66,7 @@ export default function EmployeesTable({
   error,
   currentEmployeeId,
   actions,
-}: EmployeesTableProps) {
+}: Readonly<EmployeesTableProps>) {
   if (loading) return <p className="message">Carregando…</p>
   if (error) return <StatusMessage tone="error">{error}</StatusMessage>
   if (employees.length === 0) return <p className="message">Nenhum funcionário cadastrado ainda.</p>

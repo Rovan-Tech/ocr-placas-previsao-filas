@@ -58,7 +58,10 @@ interface CameraCaptureProps {
   disabled?: boolean
 }
 
-export default function CameraCapture({ onCapture, disabled = false }: CameraCaptureProps) {
+export default function CameraCapture({
+  onCapture,
+  disabled = false,
+}: Readonly<CameraCaptureProps>) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)

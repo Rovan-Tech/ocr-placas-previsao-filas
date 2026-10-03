@@ -15,7 +15,11 @@ interface ManualPlateEntryProps {
 
 const MAX_LENGTH = 8
 
-export default function ManualPlateEntry({ onSubmit, onCancel, context }: ManualPlateEntryProps) {
+export default function ManualPlateEntry({
+  onSubmit,
+  onCancel,
+  context,
+}: Readonly<ManualPlateEntryProps>) {
   const [plate, setPlate] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
