@@ -17,6 +17,9 @@ const FRONTEND = join(ROOT, 'frontend')
 const IS_WINDOWS = process.platform === 'win32'
 const VENV_BIN = join(BACKEND, '.venv', IS_WINDOWS ? 'Scripts' : 'bin')
 const VENV_PYTHON = join(VENV_BIN, IS_WINDOWS ? 'python.exe' : 'python')
+// Caminho absoluto do taskkill (sempre em %SystemRoot%/System32): não depende do PATH, que poderia
+// resolver um executável homônimo plantado em outra pasta (Sonar javascript:S4036).
+const TASKKILL = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'taskkill.exe')
 const FRONTEND_URL = 'http://localhost:5173'
 const BACKEND_URL = 'http://localhost:8002'
 
@@ -159,7 +162,7 @@ function shutdown(exitCode = 0) {
   for (const child of children) {
     if (child.exitCode !== null) continue
     // No Windows o processo real roda sob o cmd.exe do `shell: true`: mata a árvore inteira.
-    if (IS_WINDOWS) spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+    if (IS_WINDOWS) spawnSync(TASKKILL, ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
     else child.kill('SIGINT')
   }
   process.exit(exitCode)
