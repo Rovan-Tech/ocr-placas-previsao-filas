@@ -10,7 +10,9 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     test: {
-      include: ['tests/unit/**/*.test.ts'],
+      include: ['tests/unit/**/*.test.{ts,tsx}'],
+      environment: 'jsdom',
+      setupFiles: ['tests/unit/setup.ts'],
       coverage: {
         provider: 'v8',
         include: ['src/**/*.{ts,tsx}'],
