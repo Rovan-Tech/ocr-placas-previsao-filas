@@ -9,6 +9,7 @@ from app.services.plate_locator import (
     MOTO_MIN_ASPECT_RATIO,
     _candidate_corners,
     _character_boxes,
+    _clean_quad_approximation,
     _cluster_characters_into_lines,
     _is_plausible_plate_ratio,
     _looks_like_plate_text,
@@ -133,6 +134,13 @@ def test_ignores_a_degenerate_approx_polygon_for_the_plate_outline_candidate(
             f"candidato com aspect ratio {ratio:.2f} fora da faixa "
             "de uma placa (carro ou moto)"
         )
+
+
+def test_rejects_a_flat_approx_polygon_without_area(monkeypatch):
+    flat_quad = np.array([[[0, 0]], [[40, 0]], [[80, 0]], [[120, 0]]], dtype=np.int32)
+    monkeypatch.setattr(cv2, "approxPolyDP", lambda *_args, **_kwargs: flat_quad)
+
+    assert _clean_quad_approximation(flat_quad) is None
 
 
 def test_second_candidate_is_a_wider_version_of_the_best_one():

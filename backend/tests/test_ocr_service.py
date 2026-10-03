@@ -178,6 +178,24 @@ def test_skips_to_the_next_crop_when_the_read_looks_cut_off(use_reader, image_by
     assert reader.calls == 2
 
 
+def test_a_cut_off_crop_is_skipped_in_later_rounds_while_the_others_keep_being_read(
+    use_reader, image_bytes
+):
+    reader = use_reader(
+        FakeReader(
+            [(_box(0), "MA-8376", 0.98)],
+            [],
+            [(_box(0), "LMA-8376", 0.97)],
+        ),
+        candidates=2,
+    )
+
+    reading = ocr_service.read_plate(image_bytes)
+
+    assert reading.plate == "LMA8376"
+    assert reader.calls == 3
+
+
 def test_stops_at_the_soft_time_budget_when_a_plate_was_already_read(
     use_reader, image_bytes, monkeypatch
 ):

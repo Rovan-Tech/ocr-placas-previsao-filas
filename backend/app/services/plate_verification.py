@@ -19,7 +19,8 @@ class PlateVerification:
 
 
 class PlateVerifier(Protocol):
-    def verify(self, plate: str, /) -> PlateVerification: ...
+    def verify(self, plate: str, /) -> PlateVerification:
+        raise NotImplementedError
 
 
 class NotConfiguredVerifier:
