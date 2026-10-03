@@ -89,7 +89,7 @@ src/
                   # (login/troca de senha/funcionários), authToken.ts (ponte entre api.ts e o
                   # AuthContext, sem depender do React)
 tests/
-├── unit/         # Vitest — src/services
+├── unit/         # Vitest + Testing Library (jsdom) — services, componentes, páginas e contextos
 └── e2e/          # Playwright — fluxos de login, captura e listagem (backend mockado com
                   # page.route; testAuth.ts pré-autentica a sessão pros testes que não são sobre login)
 ```

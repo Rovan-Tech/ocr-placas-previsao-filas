@@ -19,7 +19,7 @@ número deste arquivo: ele é uma fotografia.
 | `vulture` (código morto, backend) | **0 achados** (`ignore_names = ["cls"]` no `pyproject.toml`) |
 | `bandit -r app` | limpo |
 | `pip-audit -r requirements.txt` | sem vulnerabilidades conhecidas (rodou local depois de instalar `python3-venv`) |
-| Cobertura Vitest concentrada em `src/services/` | por desenho, não é bug (ver abaixo) |
+| Cobertura Vitest do frontend | ~99% das linhas de `src/` com testes de componente/página (Testing Library + jsdom) |
 | Ferramenta de "cobertura do diff" no frontend | lacuna de ferramental (ver abaixo) |
 
 ## O que foi pago no #30
@@ -48,16 +48,14 @@ acrescentar mais `noqa`.
 
 ## Baixa prioridade
 
-### Cobertura de teste do frontend concentrada em `src/services/`
+### Cobertura de teste do frontend
 
-`npm run test -- --coverage` (Vitest, `vite.config.ts` com `coverage.all: true`) reporta **18,69%
-statements** em todo `src/`, mas **~76% em `src/services/`** — os componentes e páginas
-(`components/`, `pages/`) aparecem em 0% porque a estratégia de teste do projeto é: **lógica pura
-no Vitest, interação de tela no Playwright (E2E)** — ver `.claude/rules/testing.md`. Os specs de
-E2E (`frontend/tests/e2e/`) cobrem as telas que o Vitest não cobre. **Não é regressão nem lacuna
-real**: leia sempre os dois números juntos (cobertura do Vitest e specs E2E passando).
-
-Os números são de 2026-09-29 e podem ter mudado.
+`npm run test -- --coverage` (Vitest + jsdom + Testing Library) cobre `src/services/`, `components/`,
+`pages/` e `context/`: **~99% das linhas e ~97% dos ramos** em `src/` (só `main.tsx`, que o
+SonarQube também exclui da cobertura, fica em 0%). Os testes de tela ficam em
+`frontend/tests/unit/*.test.tsx`; os specs E2E do Playwright continuam cobrindo os fluxos de ponta a
+ponta e não entram no número. Antes dessa mudança o relatório marcava 19,4% das linhas (componentes
+e páginas em 0%), e o SonarQube reportava 62,2% para o projeto todo (backend + frontend).
 
 ### Sem "cobertura do diff" no frontend
 
