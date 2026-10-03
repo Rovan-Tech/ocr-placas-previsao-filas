@@ -64,6 +64,7 @@ describe('login', () => {
   it.each([
     ['sem detail', { erro: 'x' }],
     ['detail objeto sem message', { detail: { code: 'x' } }],
+    ['detail objeto com message que não é texto', { detail: { message: 42 } }],
     ['detail numérico', { detail: 42 }],
     ['corpo nulo', null],
   ])('cai na mensagem genérica com o status quando a resposta vem %s', async (_nome, body) => {

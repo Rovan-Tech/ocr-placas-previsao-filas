@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { act, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import CapturePage from '../../src/pages/CapturePage'
@@ -12,6 +12,7 @@ import type { PermissionKey } from '../../src/services/roles'
 import { setAuth } from './support/authMock'
 import { makeEmployee } from './support/fixtures'
 import { renderPage } from './support/render'
+import { registeredSchedule, scheduleFormCreated } from './support/scheduleFormState'
 
 vi.mock('../../src/context/AuthContext', async () => ({
   useAuth: (await import('./support/authMock')).useAuthMock,
@@ -314,6 +315,23 @@ describe('CapturePage - chegada sem agendamento', () => {
     expect(await screen.findByText('Agendado para hoje')).toBeInTheDocument()
     expect(screen.getByText(/Motorista Novo/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Autorizar entrada' })).toBeInTheDocument()
+  })
+
+  it('ignora o cadastro que termina depois de o fiscal voltar para uma nova foto', async () => {
+    const user = userEvent.setup()
+    uploadMock.mockResolvedValue(makeResult({ checkin: unscheduledCheckin }))
+    await capturePhoto(user)
+    await user.click(screen.getByRole('button', { name: 'Sim, continuar' }))
+    await user.click(
+      await screen.findByRole('button', { name: 'Cadastrar motorista, carga e caminhão' }),
+    )
+    const finishRegistration = scheduleFormCreated.current
+    await user.click(screen.getByRole('button', { name: 'Nova foto' }))
+
+    act(() => finishRegistration?.(registeredSchedule))
+
+    expect(screen.getByRole('button', { name: 'Simular captura' })).toBeInTheDocument()
+    expect(screen.queryByText('Agendado para hoje')).not.toBeInTheDocument()
   })
 
   it('também oferece o cadastro quando a leitura ficou incerta', async () => {

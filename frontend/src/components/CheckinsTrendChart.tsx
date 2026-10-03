@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import type { Checkin } from '../services/api'
 import { niceMax, toTrendPoints, type TrendPoint } from '../services/checkinsTrend'
 
@@ -20,15 +20,15 @@ interface TrendCoordinate extends TrendPoint {
 }
 
 export default function CheckinsTrendChart({ checkins }: Readonly<{ checkins: Checkin[] }>) {
-  const svgRef = useRef<SVGSVGElement>(null)
   const [hovered, setHovered] = useState<TrendCoordinate | null>(null)
 
-  const points = toTrendPoints(checkins)
+  const [firstPoint, ...restPoints] = toTrendPoints(checkins)
 
-  if (points.length === 0) {
+  if (!firstPoint) {
     return <p className="message">{NO_DATA_MESSAGE}</p>
   }
 
+  const points = [firstPoint, ...restPoints]
   const plotWidth = VIEW_WIDTH - PADDING.left - PADDING.right
   const plotHeight = VIEW_HEIGHT - PADDING.top - PADDING.bottom
   const minTimestamp = Math.min(...points.map((point) => point.timestamp))
@@ -44,15 +44,13 @@ export default function CheckinsTrendChart({ checkins }: Readonly<{ checkins: Ch
     return PADDING.top + plotHeight - (minutes / yMax) * plotHeight
   }
 
-  const coordinates = points.map((point) => ({
-    ...point,
-    x: xForTimestamp(point.timestamp),
-    y: yForMinutes(point.minutes),
-  }))
-  const [firstCoordinate, ...restCoordinates] = coordinates
-  if (!firstCoordinate) {
-    return <p className="message">{NO_DATA_MESSAGE}</p>
+  function toCoordinate(point: TrendPoint): TrendCoordinate {
+    return { ...point, x: xForTimestamp(point.timestamp), y: yForMinutes(point.minutes) }
   }
+
+  const firstCoordinate = toCoordinate(firstPoint)
+  const restCoordinates = restPoints.map(toCoordinate)
+  const coordinates = [firstCoordinate, ...restCoordinates]
 
   const linePath = coordinates
     .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
@@ -77,9 +75,7 @@ export default function CheckinsTrendChart({ checkins }: Readonly<{ checkins: Ch
   )
 
   const handlePointerMove = (event: React.PointerEvent<SVGSVGElement>) => {
-    const svg = svgRef.current
-    if (!svg) return
-    const rect = svg.getBoundingClientRect()
+    const rect = event.currentTarget.getBoundingClientRect()
     const relativeX = ((event.clientX - rect.left) / rect.width) * VIEW_WIDTH
     const nearest = restCoordinates.reduce(
       (closest, point) =>
@@ -92,7 +88,6 @@ export default function CheckinsTrendChart({ checkins }: Readonly<{ checkins: Ch
   return (
     <div className="checkins-trend">
       <svg
-        ref={svgRef}
         className="checkins-trend-svg"
         viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
         role="img"

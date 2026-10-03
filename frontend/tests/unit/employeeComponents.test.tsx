@@ -171,7 +171,7 @@ describe('OverridesEditor', () => {
       />,
     )
 
-    expect(screen.getAllByRole('option', { name: 'Seguir o cargo (bloqueia)' }).length).toBe(2)
+    expect(screen.getAllByRole('option', { name: 'Seguir o cargo (bloqueia)' })).toHaveLength(2)
   })
 
   it('salva as escolhas convertidas em exceções', async () => {
