@@ -72,3 +72,14 @@ backend. Registrado como lacuna de ferramental, não como dívida de código.
 - `pip-audit -r requirements.txt` precisa do pacote de sistema `python3-venv` para criar o venv
   isolado; sem ele o comando falha com "ensurepip is not available", o que **não** é achado de
   segurança.
+- **SonarQube `python:S930` em `plate_samples.py:37`** (`ImageFont.load_default(size=size)`) —
+  falso positivo confirmado em 2026-10-02: a assinatura real da versão de Pillow pinada no
+  `requirements.txt` (`pillow==12.3.0`, exata, mesma em todo ambiente) aceita `size` —
+  `inspect.signature(ImageFont.load_default)` devolve
+  `(size: 'float | None' = None) -> 'FreeTypeFont | ImageFont'`. O parâmetro foi adicionado numa
+  versão do Pillow mais recente que a base de conhecimento do analisador do SonarQube, que
+  aparenta usar uma assinatura desatualizada da biblioteca. Removê-lo passaria no scanner mas
+  seria regressão real (a fonte de reserva voltaria a ignorar o tamanho pedido, usada só quando a
+  fonte embutida do repositório, `app/services/fonts/`, falta — hoje inalcançável em qualquer
+  ambiente real). Marcado como Falso Positivo direto no painel do SonarQube, não há
+  `sonar-project.properties` neste repositório para suprimir por configuração.
