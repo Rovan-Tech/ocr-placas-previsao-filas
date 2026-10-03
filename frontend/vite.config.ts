@@ -13,6 +13,9 @@ export default defineConfig(({ mode }) => {
       include: ['tests/unit/**/*.test.{ts,tsx}'],
       environment: 'jsdom',
       setupFiles: ['tests/unit/setup.ts'],
+      // Telas grandes (ScheduleForm) digitam muitos campos com user-event; em runner de CI lento ou
+      // máquina carregada os 5s padrão estouram sem que haja bug.
+      testTimeout: 15_000,
       coverage: {
         provider: 'v8',
         include: ['src/**/*.{ts,tsx}'],
