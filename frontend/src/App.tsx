@@ -22,7 +22,7 @@ function RequireAuth() {
   return <Outlet />
 }
 
-function RequireScreen({ screen }: { screen: string }) {
+function RequireScreen({ screen }: Readonly<{ screen: string }>) {
   const { employee } = useAuth()
   const requires = entryById(screen)?.requires ?? []
 

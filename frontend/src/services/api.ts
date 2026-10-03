@@ -339,7 +339,8 @@ export function createSchedule(input: CreateScheduleInput): Promise<ScheduleOut>
 }
 
 export function listSchedules(plate?: string): Promise<ScheduleOut[]> {
-  return request(`/schedules${plate ? `?plate=${encodeURIComponent(plate)}` : ''}`)
+  const query = plate ? `?plate=${encodeURIComponent(plate)}` : ''
+  return request(`/schedules${query}`)
 }
 
 async function fetchSchedulePhoto(

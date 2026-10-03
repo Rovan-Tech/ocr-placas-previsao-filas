@@ -14,7 +14,7 @@ const ROLES = [
   { id: 'admin', label: 'Administrador — acesso total' },
 ]
 
-function Waves({ className }: { className: string }) {
+function Waves({ className }: Readonly<{ className: string }>) {
   return (
     <svg
       className={className}

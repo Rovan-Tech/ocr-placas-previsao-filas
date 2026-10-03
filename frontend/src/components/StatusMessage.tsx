@@ -11,7 +11,7 @@ interface StatusMessageProps {
   className?: string
 }
 
-export default function StatusMessage({ tone, children, className }: StatusMessageProps) {
+export default function StatusMessage({ tone, children, className }: Readonly<StatusMessageProps>) {
   const classes = className
     ? `${resolveStatusMessageClassName(tone)} ${className}`
     : resolveStatusMessageClassName(tone)

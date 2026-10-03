@@ -38,7 +38,7 @@ interface OcrResultProps {
   access?: OcrResultAccess
 }
 
-function VehicleDataSummary({ data, label }: { data: VehicleData; label: string }) {
+function VehicleDataSummary({ data, label }: Readonly<{ data: VehicleData; label: string }>) {
   const parts = [data.brand, data.model, data.year, data.color, data.uf].filter(Boolean)
   if (parts.length === 0) return null
   return (
@@ -48,7 +48,7 @@ function VehicleDataSummary({ data, label }: { data: VehicleData; label: string 
   )
 }
 
-function MockDataNotice({ checkin }: { checkin: CheckinContext | null }) {
+function MockDataNotice({ checkin }: Readonly<{ checkin: CheckinContext | null }>) {
   if (!checkin?.vehicle_data?.is_mock) return null
   return (
     <div className="verification" role="note">
@@ -73,7 +73,7 @@ async function openDriverDocumentPhoto(scheduleId: number, side: 'front' | 'back
   }
 }
 
-function EarlyArrivalNotice({ scheduledDate }: { scheduledDate: string }) {
+function EarlyArrivalNotice({ scheduledDate }: Readonly<{ scheduledDate: string }>) {
   return (
     <StatusMessage tone="warning">
       Motorista chegou adiantado! O agendamento era para {formatScheduledDate(scheduledDate)}.
@@ -84,10 +84,10 @@ function EarlyArrivalNotice({ scheduledDate }: { scheduledDate: string }) {
 function CheckinSection({
   checkin,
   canViewSchedules,
-}: {
+}: Readonly<{
   checkin: CheckinContext
   canViewSchedules: boolean
-}) {
+}>) {
   if (checkin.schedule) {
     const status = scheduleStatusInfo(checkin.schedule.status)
     return (
@@ -165,13 +165,13 @@ function EntryDecision({
   checkinId,
   canDecide,
   access,
-}: {
+}: Readonly<{
   plate: string
   scheduleId: number | null
   checkinId: number | null
   canDecide: boolean
   access: OcrResultAccess
-}) {
+}>) {
   const [decision, setDecision] = useState<'admitted' | 'cancelled' | null>(null)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -246,23 +246,35 @@ function EntryDecision({
   )
 }
 
-function RawDetections({ result }: OcrResultProps) {
+function uniqueKeyed<T>(items: readonly T[], getBase: (item: T) => string) {
+  const seen = new Map<string, number>()
+  return items.map((item) => {
+    const base = getBase(item)
+    const occurrence = (seen.get(base) ?? 0) + 1
+    seen.set(base, occurrence)
+    return { key: `${base}#${occurrence}`, item }
+  })
+}
+
+function RawDetections({ result }: Readonly<{ result: OcrUploadResponse }>) {
   if (result.detections.length === 0) return null
   return (
     <details>
       <summary>Textos lidos pelo OCR ({result.detections.length})</summary>
       <ul>
-        {result.detections.map((detection, index) => (
-          <li key={index}>
-            {detection.text} — {formatConfidence(detection.confidence)}
-          </li>
-        ))}
+        {uniqueKeyed(result.detections, (detection) => detection.text).map(
+          ({ key, item: detection }) => (
+            <li key={key}>
+              {detection.text} — {formatConfidence(detection.confidence)}
+            </li>
+          ),
+        )}
       </ul>
     </details>
   )
 }
 
-export default function OcrResult({ result, access = FULL_ACCESS }: OcrResultProps) {
+export default function OcrResult({ result, access = FULL_ACCESS }: Readonly<OcrResultProps>) {
   if (result.plate === null) {
     return (
       <div className="ocr-result">

@@ -2,7 +2,7 @@ import type { PermissionLogEntry } from '../services/auth'
 
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'medium' })
 
-export default function PermissionLog({ entries }: { entries: PermissionLogEntry[] }) {
+export default function PermissionLog({ entries }: Readonly<{ entries: PermissionLogEntry[] }>) {
   return (
     <section className="permission-log" aria-label="Histórico de alterações">
       <h2>Histórico de alterações</h2>

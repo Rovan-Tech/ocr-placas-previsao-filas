@@ -12,7 +12,7 @@ export default function DeactivateConfirmation({
   employee,
   onCancel,
   onConfirm,
-}: DeactivateConfirmationProps) {
+}: Readonly<DeactivateConfirmationProps>) {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 

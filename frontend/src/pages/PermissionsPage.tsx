@@ -127,7 +127,7 @@ export default function PermissionsPage() {
             onToggle={(key) => setDraft((current) => togglePermission(current, selected.id, key))}
             onDelete={handleDelete}
           />
-          <div className="save-bar" role="region" aria-label="Salvar alterações">
+          <section className="save-bar" aria-label="Salvar alterações">
             <span className={changes > 0 ? 'save-bar-pending' : 'save-bar-idle'}>
               {changes > 0
                 ? `${pluralize(changes, 'alteração', 'alterações')} em ${pluralize(dirty.length, 'cargo', 'cargos')}, ainda não salvas`
@@ -150,7 +150,7 @@ export default function PermissionsPage() {
                 {saving ? 'Salvando…' : 'Salvar alterações'}
               </button>
             </div>
-          </div>
+          </section>
           <PermissionLog entries={log} />
         </>
       )}

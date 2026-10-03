@@ -14,12 +14,12 @@ const shortDateFormatter = new Intl.DateTimeFormat('pt-BR', {
   minute: '2-digit',
 })
 
-function OriginBadge({ endpoint }: { endpoint: UploadLogEntry['endpoint'] }) {
+function OriginBadge({ endpoint }: Readonly<{ endpoint: UploadLogEntry['endpoint'] }>) {
   const { label, tone } = logOriginInfo(endpoint)
   return <span className={`status-badge status-badge-${tone}`}>{label}</span>
 }
 
-function PhotoLink({ logId }: { logId: number }) {
+function PhotoLink({ logId }: Readonly<{ logId: number }>) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [error, setError] = useState(false)
 

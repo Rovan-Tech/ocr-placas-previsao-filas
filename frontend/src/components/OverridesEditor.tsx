@@ -22,7 +22,7 @@ export default function OverridesEditor({
   matrix,
   onCancel,
   onSave,
-}: OverridesEditorProps) {
+}: Readonly<OverridesEditorProps>) {
   const rolePermissions = matrix.roles.find((role) => role.id === employee.role.id)?.permissions
   const [choices, setChoices] = useState<Record<string, OverrideChoice>>(() =>
     Object.fromEntries(

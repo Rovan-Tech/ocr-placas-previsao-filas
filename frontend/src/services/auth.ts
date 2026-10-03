@@ -31,6 +31,14 @@ export interface LoginResponse {
   must_change_password: boolean
 }
 
+function errorMessageFromDetail(detail: unknown, status: number): string {
+  if (typeof detail === 'string') return detail
+  if (detail && typeof detail === 'object' && 'message' in detail) {
+    if (typeof detail.message === 'string') return detail.message
+  }
+  return `Erro ${status} ao chamar o backend.`
+}
+
 async function authRequest<T>(path: string, options: RequestInit): Promise<T> {
   let response: Response
   try {
@@ -45,16 +53,7 @@ async function authRequest<T>(path: string, options: RequestInit): Promise<T> {
       body && typeof body === 'object' && 'detail' in body
         ? (body as { detail: unknown }).detail
         : null
-    const message =
-      typeof detail === 'string'
-        ? detail
-        : detail &&
-            typeof detail === 'object' &&
-            'message' in detail &&
-            typeof detail.message === 'string'
-          ? detail.message
-          : `Erro ${response.status} ao chamar o backend.`
-    throw new Error(message)
+    throw new Error(errorMessageFromDetail(detail, response.status))
   }
   return body as T
 }

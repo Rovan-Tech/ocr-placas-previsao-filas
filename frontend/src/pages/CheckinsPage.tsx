@@ -6,7 +6,7 @@ import { checkInStatusInfo } from '../services/plate'
 
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
 
-function StatusBadge({ status }: { status: Checkin['status'] }) {
+function StatusBadge({ status }: Readonly<{ status: Checkin['status'] }>) {
   const { label, tone } = checkInStatusInfo(status)
   return <span className={`status-badge status-badge-${tone}`}>{label}</span>
 }
@@ -56,12 +56,10 @@ export default function CheckinsPage() {
       )}
 
       {!loading && !error && checkins.length > 0 && (
-        <>
-          <div className="checkins-trend-card">
-            <h2 className="card-title">Tendência do tempo de espera</h2>
-            <CheckinsTrendChart checkins={checkins} />
-          </div>
-        </>
+        <div className="checkins-trend-card">
+          <h2 className="card-title">Tendência do tempo de espera</h2>
+          <CheckinsTrendChart checkins={checkins} />
+        </div>
       )}
 
       {!loading && !error && checkins.length > 0 && (
