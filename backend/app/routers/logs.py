@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import Employee, UploadEndpoint, UploadLog
+from app.routers.responses import NOT_FOUND
 from app.services.auth import require_logs_view
 from app.services.photo_storage import resolve_photo_path
 from app.services.plate_format import PlateFormat
@@ -33,7 +34,7 @@ class LogEntry(BaseModel):
     created_at: datetime
 
 
-@router.get("", response_model=list[LogEntry])
+@router.get("")
 def list_logs(
     limit: int = 50,
     offset: int = 0,
@@ -70,7 +71,7 @@ def list_logs(
     ]
 
 
-@router.get("/{log_id}/photo")
+@router.get("/{log_id}/photo", responses={404: {"description": NOT_FOUND}})
 def get_log_photo(
     log_id: int,
     db: Session = Depends(get_db),

@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
@@ -8,6 +9,14 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Employee, Role, SystemRole
 from app.routers.employee_schemas import EmployeeOut, to_employee_out
+from app.routers.responses import (
+    BAD_REQUEST,
+    CONFLICT,
+    INVALID_CREDENTIALS,
+    NOT_FOUND,
+    UNPROCESSABLE,
+    VALIDATION_ERROR_CONTENT,
+)
 from app.services.auth import (
     authenticate_employee,
     create_access_token,
@@ -27,7 +36,7 @@ MIN_PASSWORD_LENGTH = 8
 
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: str = "bearer"  # noqa: S105 - tipo do token OAuth2, não é senha
+    token_type: str = "bearer"  # noqa: S105
     employee: EmployeeOut
     must_change_password: bool
 
@@ -69,9 +78,10 @@ class ChangePasswordRequest(BaseModel):
     new_password: str
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login")
 def login(
-    form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)
+    form: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Annotated[Session, Depends(get_db)],
 ) -> TokenResponse:
     employee = authenticate_employee(db, form.username, form.password)
     return TokenResponse(
@@ -82,18 +92,24 @@ def login(
     )
 
 
-@router.get("/me", response_model=EmployeeOut)
+@router.get("/me")
 def read_current_employee(
-    employee: Employee = Depends(get_current_employee),
+    employee: Annotated[Employee, Depends(get_current_employee)],
 ) -> EmployeeOut:
     return to_employee_out(employee)
 
 
-@router.post("/change-password", response_model=EmployeeOut)
+@router.post(
+    "/change-password",
+    responses={
+        401: {"description": INVALID_CREDENTIALS},
+        422: {"description": UNPROCESSABLE, "content": VALIDATION_ERROR_CONTENT},
+    },
+)
 def change_password(
     payload: ChangePasswordRequest,
-    employee: Employee = Depends(get_current_employee),
-    db: Session = Depends(get_db),
+    employee: Annotated[Employee, Depends(get_current_employee)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> EmployeeOut:
     if not verify_password(payload.current_password, employee.password_hash):
         raise HTTPException(status_code=401, detail="Senha atual incorreta.")
@@ -106,20 +122,27 @@ def change_password(
     return to_employee_out(employee)
 
 
-@router.get("/employees", response_model=list[EmployeeOut])
+@router.get("/employees")
 def list_employees(
-    db: Session = Depends(get_db),
-    _viewer: Employee = Depends(require_employees_view),
+    db: Annotated[Session, Depends(get_db)],
+    _viewer: Annotated[Employee, Depends(require_employees_view)],
 ) -> list[EmployeeOut]:
     employees = db.query(Employee).order_by(Employee.full_name).all()
     return [to_employee_out(employee) for employee in employees]
 
 
-@router.post("/employees", response_model=EmployeeOut, status_code=201)
+@router.post(
+    "/employees",
+    status_code=201,
+    responses={
+        409: {"description": CONFLICT},
+        422: {"description": UNPROCESSABLE, "content": VALIDATION_ERROR_CONTENT},
+    },
+)
 def create_employee(
     payload: CreateEmployeeRequest,
-    db: Session = Depends(get_db),
-    _creator: Employee = Depends(require_employees_create),
+    db: Annotated[Session, Depends(get_db)],
+    _creator: Annotated[Employee, Depends(require_employees_create)],
 ) -> EmployeeOut:
     if (
         db.query(Employee).filter(Employee.username == payload.username).first()
@@ -144,11 +167,17 @@ def create_employee(
     return to_employee_out(employee)
 
 
-@router.delete("/employees/{employee_id}", response_model=EmployeeOut)
+@router.delete(
+    "/employees/{employee_id}",
+    responses={
+        400: {"description": BAD_REQUEST},
+        404: {"description": NOT_FOUND},
+    },
+)
 def deactivate_employee(
     employee_id: int,
-    db: Session = Depends(get_db),
-    admin: Employee = Depends(require_employees_deactivate),
+    db: Annotated[Session, Depends(get_db)],
+    admin: Annotated[Employee, Depends(require_employees_deactivate)],
 ) -> EmployeeOut:
     target = get_employee_or_404(db, employee_id)
 

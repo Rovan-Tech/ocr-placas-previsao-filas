@@ -4,8 +4,8 @@ from enum import StrEnum
 
 PLATE_LENGTH = 7
 
-MERCOSUL_PATTERN = re.compile(r"^[A-Z]{3}[0-9][A-Z][0-9]{2}$")
-OLD_PATTERN = re.compile(r"^[A-Z]{3}[0-9]{4}$")
+MERCOSUL_PATTERN = re.compile(r"^[A-Z]{3}\d[A-Z]\d{2}$", re.ASCII)
+OLD_PATTERN = re.compile(r"^[A-Z]{3}\d{4}$", re.ASCII)
 
 LETTER_POSITIONS = (0, 1, 2)
 DIGIT_POSITIONS = (3, 5, 6)

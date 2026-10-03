@@ -7,6 +7,12 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import CheckIn, CheckInStatus, Employee, Schedule
+from app.routers.responses import (
+    BAD_REQUEST,
+    NOT_FOUND,
+    UNPROCESSABLE,
+    VALIDATION_ERROR_CONTENT,
+)
 from app.services.auth import (
     ensure_permission,
     get_current_employee,
@@ -81,7 +87,15 @@ def _existing_waiting_checkin(
     return checkin
 
 
-@router.post("", response_model=CheckinOut, status_code=201)
+@router.post(
+    "",
+    status_code=201,
+    responses={
+        400: {"description": BAD_REQUEST},
+        404: {"description": NOT_FOUND},
+        422: {"description": UNPROCESSABLE, "content": VALIDATION_ERROR_CONTENT},
+    },
+)
 def create_checkin(  # noqa: PLR0913, PLR0917 - campos de formulário e dependências do FastAPI
     plate: str = Form(...),
     status: CheckInStatus = Form(...),
@@ -106,11 +120,9 @@ def create_checkin(  # noqa: PLR0913, PLR0917 - campos de formulário e dependê
         else None
     )
 
-    effective_schedule_id = (
-        schedule_id
-        if schedule_id is not None
-        else (existing.schedule_id if existing else None)
-    )
+    effective_schedule_id = schedule_id
+    if effective_schedule_id is None and existing is not None:
+        effective_schedule_id = existing.schedule_id
     if effective_schedule_id is None:
         raise MISSING_SCHEDULE_FOR_DECISION
 
@@ -136,7 +148,7 @@ def create_checkin(  # noqa: PLR0913, PLR0917 - campos de formulário e dependê
     return _to_checkin_out(db, checkin)
 
 
-@router.get("", response_model=list[CheckinOut])
+@router.get("")
 def list_checkins(
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),

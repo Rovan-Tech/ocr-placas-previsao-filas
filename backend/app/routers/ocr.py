@@ -18,6 +18,7 @@ from app.models import (
     UploadLog,
 )
 from app.rate_limit import limiter
+from app.routers.responses import BAD_REQUEST, PAYLOAD_TOO_LARGE
 from app.services.auth import get_client_ip, require_read_plate
 from app.services.ocr_service import read_plate
 from app.services.photo_storage import save_photo
@@ -197,7 +198,7 @@ async def _build_checkin_context(
     )
 
 
-def _log_upload(  # noqa: PLR0913 - campos do registro de auditoria, todos nomeados
+def _log_upload(  # noqa: PLR0913
     db: Session,
     *,
     employee: Employee,
@@ -237,7 +238,13 @@ def _log_upload(  # noqa: PLR0913 - campos do registro de auditoria, todos nomea
         )
 
 
-@router.post("/upload", response_model=PlateReadResponse)
+@router.post(
+    "/upload",
+    responses={
+        400: {"description": BAD_REQUEST},
+        413: {"description": PAYLOAD_TOO_LARGE},
+    },
+)
 @limiter.limit(lambda: settings.ocr_upload_rate_limit)
 async def upload_plate_image(  # noqa: PLR0913, PLR0917 - dependências e campos do FastAPI
     request: Request,
@@ -295,7 +302,13 @@ async def upload_plate_image(  # noqa: PLR0913, PLR0917 - dependências e campos
     )
 
 
-@router.post("/manual", response_model=ManualPlateReadResponse)
+@router.post(
+    "/manual",
+    responses={
+        400: {"description": BAD_REQUEST},
+        413: {"description": PAYLOAD_TOO_LARGE},
+    },
+)
 async def submit_plate_manually(  # noqa: PLR0913, PLR0917 - campos de formulário e dependências do FastAPI
     request: Request,
     plate: str = Form(...),

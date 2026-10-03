@@ -39,10 +39,13 @@ class ScheduleSeed(NamedTuple):
     model: str
 
 
+FISCAL_USERNAME: Final = "juliana.reis"
+TERMINAL_1: Final = "Terminal 1"
+
 STAFF: Final = (
     ("admin", "Administrador Demo", "admin"),
     ("marcos.vieira", "Marcos Vieira Lima", "supervisor"),
-    ("juliana.reis", "Juliana Reis Costa", "fiscal"),
+    (FISCAL_USERNAME, "Juliana Reis Costa", "fiscal"),
     ("carla.mendes", "Carla Mendes Duarte", "planejador"),
     ("otavio.nunes", "Otávio Nunes Ferraz", "analista"),
 )
@@ -55,7 +58,7 @@ SCHEDULES: Final = (
         "Grãos a granel",
         "nao_perecivel",
         "Rondonópolis/MT",
-        "Terminal 1",
+        TERMINAL_1,
         0,
         True,
         "Volvo",
@@ -94,7 +97,7 @@ SCHEDULES: Final = (
         "Granel líquido",
         "quimico",
         "Paranaguá/PR",
-        "Terminal 1",
+        TERMINAL_1,
         1,
         True,
         "DAF",
@@ -159,7 +162,7 @@ SCHEDULES: Final = (
         "Soja em grãos",
         "nao_perecivel",
         "Sorriso/MT",
-        "Terminal 1",
+        TERMINAL_1,
         2,
         True,
         "Mercedes-Benz",
@@ -340,7 +343,7 @@ def _create_schedules(session: Session, creator: Employee, today: date) -> int:
 def _create_checkins(
     session: Session, staff: dict[str, Employee], today: date, now: datetime
 ) -> int:
-    fiscal = staff["juliana.reis"]
+    fiscal = staff[FISCAL_USERNAME]
     created = 0
     for day, slots in (
         (today, TODAY_SLOTS),
@@ -370,8 +373,8 @@ def _create_checkins(
 def _create_logs(
     session: Session, staff: dict[str, Employee], today: date, now: datetime
 ) -> int:
-    authors = (staff["juliana.reis"], staff["marcos.vieira"])
-    ips = ("187.54.2.11", "187.54.2.19")
+    authors = (staff[FISCAL_USERNAME], staff["marcos.vieira"])
+    ips = ("203.0.113.11", "203.0.113.19")
     created = 0
     for index, (hour, minute, _) in enumerate(TODAY_SLOTS):
         moment = _at(today, hour, minute)

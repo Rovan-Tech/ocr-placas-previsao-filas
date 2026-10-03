@@ -19,11 +19,11 @@ class PlateVerification:
 
 
 class PlateVerifier(Protocol):
-    def verify(self, plate: str) -> PlateVerification: ...
+    def verify(self, plate: str, /) -> PlateVerification: ...
 
 
 class NotConfiguredVerifier:
-    def verify(self, plate: str) -> PlateVerification:  # noqa: ARG002 - assinatura do protocolo
+    def verify(self, _plate: str, /) -> PlateVerification:
         return PlateVerification(
             status=VerificationStatus.NOT_CHECKED,
             detail=(

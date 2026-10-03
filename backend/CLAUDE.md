@@ -61,6 +61,15 @@ Convenções:
   de função/variável claro faz esse papel; decisão não-óbvia vai pra este arquivo, não pro código.
 - Novo router: criar em `app/routers/`, com `APIRouter(prefix=..., tags=[...])`, e registrar em
   `app/main.py`.
+- **Todo `HTTPException` que a rota (ou um helper dela) levanta é documentado em
+  `responses={código: {"description": ...}}` no decorator**, com as descrições de
+  `app/routers/responses.py` (SonarQube S8415). Para 422, repetir `"content":
+  VALIDATION_ERROR_CONTENT` para não perder o schema de erro de validação do FastAPI. O tipo de
+  retorno da função já define o `response_model` — não repetir `response_model=` no decorator
+  (S8409), e injeção de dependência/`Form`/`File` usa `Annotated[...]` (S8410).
+- Comentário de supressão no formato aceito pelo SonarQube: `# noqa: CODIGO` ou
+  `# noqa: COD1, COD2`, sem texto depois do código (`# noqa: S105 - motivo` vira S7632); o motivo
+  vai na mensagem do commit.
 
 ## Testes
 

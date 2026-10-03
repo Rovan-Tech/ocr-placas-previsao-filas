@@ -8,6 +8,12 @@ down_revision: str | Sequence[str] | None = "a7c3e91d5b20"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
+CHECKINS_VIEW = "checkins.view"
+SCHEDULES_VIEW = "schedules.view"
+SCHEDULES_CREATE = "schedules.create"
+LOGS_VIEW = "logs.view"
+REPORTS_VIEW = "reports.view"
+
 CAPTURE = ["capture.read_plate", "capture.authorize_entry", "capture.refuse_entry"]
 EMPLOYEES = [
     "employees.view",
@@ -17,37 +23,37 @@ EMPLOYEES = [
 ]
 ALL_PERMISSIONS = [
     *CAPTURE,
-    "checkins.view",
-    "schedules.view",
-    "schedules.create",
-    "logs.view",
-    "reports.view",
+    CHECKINS_VIEW,
+    SCHEDULES_VIEW,
+    SCHEDULES_CREATE,
+    LOGS_VIEW,
+    REPORTS_VIEW,
     *EMPLOYEES,
     "permissions.manage",
 ]
 
 SYSTEM_ROLES: list[tuple[str, str, list[str]]] = [
-    ("fiscal", "Fiscal de Portaria", [*CAPTURE, "checkins.view"]),
+    ("fiscal", "Fiscal de Portaria", [*CAPTURE, CHECKINS_VIEW]),
     (
         "planejador",
         "Planejador de Agendamentos",
-        ["checkins.view", "schedules.view", "schedules.create"],
+        [CHECKINS_VIEW, SCHEDULES_VIEW, SCHEDULES_CREATE],
     ),
     (
         "analista",
         "Analista de Operações",
-        ["checkins.view", "logs.view", "reports.view"],
+        [CHECKINS_VIEW, LOGS_VIEW, REPORTS_VIEW],
     ),
     (
         "supervisor",
         "Supervisor de Turno",
         [
             *CAPTURE,
-            "checkins.view",
-            "schedules.view",
-            "schedules.create",
-            "logs.view",
-            "reports.view",
+            CHECKINS_VIEW,
+            SCHEDULES_VIEW,
+            SCHEDULES_CREATE,
+            LOGS_VIEW,
+            REPORTS_VIEW,
         ],
     ),
     ("admin", "Administrador", ALL_PERMISSIONS),

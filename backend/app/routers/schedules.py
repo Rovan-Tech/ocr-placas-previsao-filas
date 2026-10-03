@@ -1,6 +1,8 @@
 import json
 import re
+from dataclasses import dataclass
 from datetime import date, datetime
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
@@ -12,6 +14,14 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import CargoCategory, CargoItem, DriverDocumentType, Employee, Schedule
+from app.routers.responses import (
+    BAD_REQUEST,
+    CONFLICT,
+    NOT_FOUND,
+    PAYLOAD_TOO_LARGE,
+    UNPROCESSABLE,
+    VALIDATION_ERROR_CONTENT,
+)
 from app.services.auth import require_schedules_create, require_schedules_view
 from app.services.document_validation import is_valid_cpf, validate_document_photo
 from app.services.ocr_service import decode_image
@@ -302,97 +312,117 @@ async def _save_required_photo(photo: UploadFile) -> tuple[str, bytes]:
     return path, content
 
 
-@router.post("", response_model=ScheduleOut, status_code=201)
-async def create_schedule(  # noqa: PLR0913, PLR0917 - campos de formulário e dependências do FastAPI
-    plate: str = Form(...),
-    driver_name: str = Form(...),
-    driver_birth_date: date = Form(...),
-    driver_birth_place: str = Form(...),
-    driver_birth_state: str = Form(...),
-    driver_document_type: DriverDocumentType = Form(...),
-    driver_document: str = Form(...),
-    vehicle_brand: str = Form(...),
-    vehicle_model: str = Form(...),
-    vehicle_year: str = Form(...),
-    vehicle_chassis: str = Form(...),
-    vehicle_color: str = Form(...),
-    vehicle_length_m: float = Form(...),
-    vehicle_height_m: float = Form(...),
-    vehicle_width_m: float = Form(...),
-    origin_location: str = Form(...),
-    destination_location: str = Form(...),
-    cargo_items: str = Form(...),
-    scheduled_date: date = Form(...),
-    driver_document_photo_front: UploadFile = File(...),
-    driver_document_photo_back: UploadFile = File(...),
-    vehicle_document_photo: UploadFile = File(...),
-    manifest_photo: UploadFile = File(...),
-    employee: Employee = Depends(require_schedules_create),
-    db: Session = Depends(get_db),
+@dataclass
+class ScheduleForm:
+    plate: Annotated[str, Form()]
+    driver_name: Annotated[str, Form()]
+    driver_birth_date: Annotated[date, Form()]
+    driver_birth_place: Annotated[str, Form()]
+    driver_birth_state: Annotated[str, Form()]
+    driver_document_type: Annotated[DriverDocumentType, Form()]
+    driver_document: Annotated[str, Form()]
+    vehicle_brand: Annotated[str, Form()]
+    vehicle_model: Annotated[str, Form()]
+    vehicle_year: Annotated[str, Form()]
+    vehicle_chassis: Annotated[str, Form()]
+    vehicle_color: Annotated[str, Form()]
+    vehicle_length_m: Annotated[float, Form()]
+    vehicle_height_m: Annotated[float, Form()]
+    vehicle_width_m: Annotated[float, Form()]
+    origin_location: Annotated[str, Form()]
+    destination_location: Annotated[str, Form()]
+    cargo_items: Annotated[str, Form()]
+    scheduled_date: Annotated[date, Form()]
+    driver_document_photo_front: Annotated[UploadFile, File()]
+    driver_document_photo_back: Annotated[UploadFile, File()]
+    vehicle_document_photo: Annotated[UploadFile, File()]
+    manifest_photo: Annotated[UploadFile, File()]
+
+
+@router.post(
+    "",
+    status_code=201,
+    responses={
+        400: {"description": BAD_REQUEST},
+        409: {"description": CONFLICT},
+        413: {"description": PAYLOAD_TOO_LARGE},
+        422: {"description": UNPROCESSABLE, "content": VALIDATION_ERROR_CONTENT},
+    },
+)
+async def create_schedule(
+    form: Annotated[ScheduleForm, Depends()],
+    employee: Annotated[Employee, Depends(require_schedules_create)],
+    db: Annotated[Session, Depends(get_db)],
 ) -> ScheduleOut:
-    normalized_plate = normalize(plate)
+    normalized_plate = normalize(form.plate)
     if plate_format(normalized_plate) is None:
         raise INVALID_PLATE
 
     clean_driver_name = _require_non_empty(
-        driver_name, max_length=MAX_TEXT_LENGTH, message="Nome do motorista inválido."
+        form.driver_name,
+        max_length=MAX_TEXT_LENGTH,
+        message="Nome do motorista inválido.",
     )
     clean_birth_place = _require_non_empty(
-        driver_birth_place,
+        form.driver_birth_place,
         max_length=MAX_TEXT_LENGTH,
         message="Local de nascimento inválido.",
     )
-    clean_birth_state = _clean_uf(driver_birth_state)
+    clean_birth_state = _clean_uf(form.driver_birth_state)
     clean_driver_document = _clean_driver_document(
-        driver_document_type, driver_document
+        form.driver_document_type, form.driver_document
     )
     clean_brand = _require_non_empty(
-        vehicle_brand, max_length=60, message="Marca do veículo inválida."
+        form.vehicle_brand, max_length=60, message="Marca do veículo inválida."
     )
     clean_model = _require_non_empty(
-        vehicle_model, max_length=60, message="Modelo do veículo inválido."
+        form.vehicle_model, max_length=60, message="Modelo do veículo inválido."
     )
     clean_year = _require_non_empty(
-        vehicle_year, max_length=4, message="Ano do veículo inválido."
+        form.vehicle_year, max_length=4, message="Ano do veículo inválido."
     )
-    clean_chassis = _clean_chassis(vehicle_chassis)
+    clean_chassis = _clean_chassis(form.vehicle_chassis)
     clean_color = _require_non_empty(
-        vehicle_color, max_length=40, message="Cor do veículo inválida."
+        form.vehicle_color, max_length=40, message="Cor do veículo inválida."
     )
     clean_origin = _require_non_empty(
-        origin_location, max_length=MAX_TEXT_LENGTH, message="Origem inválida."
+        form.origin_location, max_length=MAX_TEXT_LENGTH, message="Origem inválida."
     )
     clean_destination = _require_non_empty(
-        destination_location, max_length=MAX_TEXT_LENGTH, message="Destino inválido."
+        form.destination_location,
+        max_length=MAX_TEXT_LENGTH,
+        message="Destino inválido.",
     )
     clean_length_m = _clean_dimension_m(
-        vehicle_length_m, message="Comprimento do veículo inválido."
+        form.vehicle_length_m, message="Comprimento do veículo inválido."
     )
     clean_height_m = _clean_dimension_m(
-        vehicle_height_m, message="Altura do veículo inválida."
+        form.vehicle_height_m, message="Altura do veículo inválida."
     )
     clean_width_m = _clean_dimension_m(
-        vehicle_width_m, message="Largura do veículo inválida."
+        form.vehicle_width_m, message="Largura do veículo inválida."
     )
-    parsed_cargo_items = _parse_cargo_items(cargo_items)
+    parsed_cargo_items = _parse_cargo_items(form.cargo_items)
 
     _reject_duplicate_schedule(
         db,
         plate=normalized_plate,
         driver_document=clean_driver_document,
         vehicle_chassis=clean_chassis,
-        scheduled_date=scheduled_date,
+        scheduled_date=form.scheduled_date,
     )
 
     (
         driver_document_photo_front_path,
         driver_document_photo_front_bytes,
-    ) = await _save_required_photo(driver_document_photo_front)
+    ) = await _save_required_photo(form.driver_document_photo_front)
     driver_document_photo_back_path, _ = await _save_required_photo(
-        driver_document_photo_back
+        form.driver_document_photo_back
     )
-    vehicle_document_photo_path, _ = await _save_required_photo(vehicle_document_photo)
-    manifest_photo_path, _ = await _save_required_photo(manifest_photo)
+    vehicle_document_photo_path, _ = await _save_required_photo(
+        form.vehicle_document_photo
+    )
+    manifest_photo_path, _ = await _save_required_photo(form.manifest_photo)
 
     is_valid, validation_detail = await run_in_threadpool(
         validate_document_photo,
@@ -403,10 +433,10 @@ async def create_schedule(  # noqa: PLR0913, PLR0917 - campos de formulário e d
     schedule = Schedule(
         plate=normalized_plate,
         driver_name=clean_driver_name,
-        driver_birth_date=driver_birth_date,
+        driver_birth_date=form.driver_birth_date,
         driver_birth_place=clean_birth_place,
         driver_birth_state=clean_birth_state,
-        driver_document_type=driver_document_type,
+        driver_document_type=form.driver_document_type,
         driver_document=clean_driver_document,
         driver_document_photo_front_path=driver_document_photo_front_path,
         driver_document_photo_back_path=driver_document_photo_back_path,
@@ -424,7 +454,7 @@ async def create_schedule(  # noqa: PLR0913, PLR0917 - campos de formulário e d
         origin_location=clean_origin,
         destination_location=clean_destination,
         manifest_photo_path=manifest_photo_path,
-        scheduled_date=scheduled_date,
+        scheduled_date=form.scheduled_date,
         created_by_id=employee.id,
         cargo_items=[
             CargoItem(product_name=item.product_name.strip(), category=item.category)
@@ -441,7 +471,7 @@ async def create_schedule(  # noqa: PLR0913, PLR0917 - campos de formulário e d
     return _to_schedule_out(schedule)
 
 
-@router.get("", response_model=list[ScheduleOut])
+@router.get("")
 def list_schedules(
     plate: str | None = None,
     db: Session = Depends(get_db),
@@ -468,7 +498,10 @@ def _get_schedule_or_404(schedule_id: int, db: Session) -> Schedule:
     return schedule
 
 
-@router.get("/{schedule_id}/driver-document-photo-front")
+@router.get(
+    "/{schedule_id}/driver-document-photo-front",
+    responses={404: {"description": NOT_FOUND}},
+)
 def get_driver_document_photo_front(
     schedule_id: int,
     db: Session = Depends(get_db),
@@ -482,7 +515,10 @@ def get_driver_document_photo_front(
     )
 
 
-@router.get("/{schedule_id}/driver-document-photo-back")
+@router.get(
+    "/{schedule_id}/driver-document-photo-back",
+    responses={404: {"description": NOT_FOUND}},
+)
 def get_driver_document_photo_back(
     schedule_id: int,
     db: Session = Depends(get_db),
@@ -496,7 +532,9 @@ def get_driver_document_photo_back(
     )
 
 
-@router.get("/{schedule_id}/vehicle-document-photo")
+@router.get(
+    "/{schedule_id}/vehicle-document-photo", responses={404: {"description": NOT_FOUND}}
+)
 def get_vehicle_document_photo(
     schedule_id: int,
     db: Session = Depends(get_db),
@@ -509,7 +547,9 @@ def get_vehicle_document_photo(
     )
 
 
-@router.get("/{schedule_id}/manifest-photo")
+@router.get(
+    "/{schedule_id}/manifest-photo", responses={404: {"description": NOT_FOUND}}
+)
 def get_manifest_photo(
     schedule_id: int,
     db: Session = Depends(get_db),

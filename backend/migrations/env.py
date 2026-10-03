@@ -9,8 +9,10 @@ from app.db import Base
 
 config = context.config
 
-if not config.get_main_option("sqlalchemy.url"):
-    config.set_main_option("sqlalchemy.url", settings.database_url)
+SQLALCHEMY_URL_OPTION = "sqlalchemy.url"
+
+if not config.get_main_option(SQLALCHEMY_URL_OPTION):
+    config.set_main_option(SQLALCHEMY_URL_OPTION, settings.database_url)
 
 if config.config_file_name is not None and config.attributes.get(
     "configure_logger", True
@@ -22,7 +24,7 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     context.configure(
-        url=config.get_main_option("sqlalchemy.url"),
+        url=config.get_main_option(SQLALCHEMY_URL_OPTION),
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
