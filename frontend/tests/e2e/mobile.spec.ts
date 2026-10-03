@@ -128,6 +128,38 @@ test('lista de funcionários não estoura a largura em viewport mobile (rola por
   expect(await hasHorizontalOverflow(page)).toBe(false)
 })
 
+test('nome do funcionário não quebra letra por letra ao lado de um cargo com texto longo em viewport mobile', async ({
+  page,
+}) => {
+  await loginAsTestUser(page, employeeWithRole('admin'))
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.route('**/api/auth/employees', (route) =>
+    route.request().method() === 'GET'
+      ? route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify([
+            {
+              id: 2,
+              username: 'marcos.vieira',
+              full_name: 'Marcos Vieira Lima',
+              role: roleOf('supervisor'),
+              permissions: [],
+              overrides: { granted: [], denied: [] },
+              active: true,
+            },
+          ]),
+        })
+      : route.continue(),
+  )
+  await page.goto('/funcionarios')
+
+  const name = page.getByText('Marcos Vieira Lima', { exact: true })
+  await expect(name).toBeVisible()
+  const box = await name.boundingBox()
+
+  expect(box?.height).toBeLessThan(40)
+})
+
 test.describe('navegação responsiva', () => {
   test('em viewport mobile, a tab bar do rodapé aparece e o menu horizontal some', async ({
     page,

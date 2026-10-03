@@ -2005,9 +2005,10 @@ button.link {
     grid-template-columns: minmax(0, 1fr) auto;
   }
   .checkins.employees td[data-label='Nome'] {
-    grid-column: 1;
+    grid-column: 1 / 3;
     grid-row: 1;
     font-weight: 700;
+    font-size: var(--text-lg);
   }
   .checkins.employees td[data-label='Usuário'] {
     grid-column: 1;
@@ -2017,21 +2018,26 @@ button.link {
     color: var(--muted);
   }
   .checkins.employees td[data-label='Cargo'] {
-    grid-column: 2;
-    grid-row: 1;
-    justify-self: end;
+    grid-column: 1 / 3;
+    grid-row: 3;
+  }
+  .checkins.employees td[data-label='Cargo'] select {
+    width: 100%;
   }
   .checkins.employees td[data-label='Situação'] {
-    grid-column: 1;
-    grid-row: 3;
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end;
     font-size: var(--text-sm);
     color: var(--muted);
   }
   .checkins.employees td[data-label=''] {
-    grid-column: 2;
-    grid-row: 2 / span 2;
-    align-self: end;
+    grid-column: 1 / 3;
+    grid-row: 4;
     justify-self: end;
+  }
+  .checkins.employees td[data-label='']:empty {
+    display: none;
   }
   .checkins.logs tr {
     grid-template-columns: minmax(0, 1fr) auto auto;
